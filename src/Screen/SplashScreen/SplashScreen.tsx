@@ -215,7 +215,7 @@ const SplashScreen = ({ navigation }: SplashScreenProps) => {
 
             <View style={styles.content}>
 
-                {/* Large Logo Section */}
+                {/* Large Logo Section====== */}
                 <View style={styles.logoWrapper}>
                     {/* Ripples */}
                     <Animated.View style={[
