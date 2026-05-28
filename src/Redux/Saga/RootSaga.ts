@@ -1,7 +1,12 @@
-// import { all } from 'redux-saga/effects';
+import { all } from 'redux-saga/effects';
+import AuthSaga from './AuthSaga';
+import ProfileSaga from './ProfileSaga';
+import MockTestSaga from './MockTestSaga';
 
-// export default function* RootSaga() {
-//     yield all([
-//         // Combine your sagas here
-//     ]);
-// }
+export default function* RootSaga() {
+    yield all([
+        ...AuthSaga,
+        ...ProfileSaga,
+        ...MockTestSaga,
+    ]);
+}

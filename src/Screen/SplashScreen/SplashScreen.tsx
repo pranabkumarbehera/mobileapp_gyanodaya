@@ -1,6 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, StatusBar, Image, Animated, Easing, Dimensions } from 'react-native';
 import { StackScreenProps } from '@react-navigation/stack';
+import { useDispatch, useSelector } from 'react-redux';
+import { tokenRequest } from '../../Redux/Reducers/AuthReducer';
+import { RootState } from '../../Redux/Store';
 import Imagepath from '../../Themes/Imagepath';
 import { RootStackParamList } from '../../Navigator/StackNav';
 import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
@@ -11,6 +14,12 @@ const { width, height } = Dimensions.get('window');
 type SplashScreenProps = StackScreenProps<RootStackParamList, 'Splash'>;
 
 const SplashScreen = ({ navigation }: SplashScreenProps) => {
+    const dispatch = useDispatch();
+    const { isLoading, token } = useSelector((state: RootState) => state.AuthReducer);
+
+    useEffect(() => {
+        dispatch(tokenRequest({}));
+    }, []);
     // Animation Values
     const logoScale = useRef(new Animated.Value(0.5)).current;
     const logoFade = useRef(new Animated.Value(0)).current;
@@ -19,11 +28,6 @@ const SplashScreen = ({ navigation }: SplashScreenProps) => {
     const ripple1Opacity = useRef(new Animated.Value(0.6)).current;
     const ripple2Scale = useRef(new Animated.Value(0.2)).current;
     const ripple2Opacity = useRef(new Animated.Value(0.6)).current;
-
-    const brandLettersFade = useRef([...Array(9)].map(() => new Animated.Value(0))).current;
-    const brandLettersTranslate = useRef([...Array(9)].map(() => new Animated.Value(15))).current;
-    const taglineFade = useRef(new Animated.Value(0)).current;
-    const taglineTranslate = useRef(new Animated.Value(15)).current;
 
     // Merging Background Bubbles
     const mergeBubbleLeftX = useRef(new Animated.Value(-width * 0.8)).current;
@@ -103,44 +107,6 @@ const SplashScreen = ({ navigation }: SplashScreenProps) => {
         createRipple(ripple1Scale, ripple1Opacity, 0);
         createRipple(ripple2Scale, ripple2Opacity, 1000);
 
-        // 4. Brand Text Fade In (Letter by letter in slow motion)
-        setTimeout(() => {
-            const letterAnimations = brandLettersFade.map((fadeAnim, index) => {
-                const translateAnim = brandLettersTranslate[index];
-                return Animated.parallel([
-                    Animated.timing(fadeAnim, {
-                        toValue: 1,
-                        duration: 800,
-                        useNativeDriver: true,
-                    }),
-                    Animated.timing(translateAnim, {
-                        toValue: 0,
-                        duration: 800,
-                        easing: Easing.out(Easing.back(1.2)),
-                        useNativeDriver: true,
-                    })
-                ]);
-            });
-            Animated.stagger(150, letterAnimations).start();
-        }, 1200);
-
-        // 5. Tagline Fade In
-        setTimeout(() => {
-            Animated.parallel([
-                Animated.timing(taglineFade, {
-                    toValue: 1,
-                    duration: 600,
-                    useNativeDriver: true,
-                }),
-                Animated.timing(taglineTranslate, {
-                    toValue: 0,
-                    duration: 600,
-                    easing: Easing.out(Easing.ease),
-                    useNativeDriver: true,
-                })
-            ]).start();
-        }, 2800);
-
         // 6. Fast Background Yellow Bubbles
         particles.forEach(p => {
             setTimeout(() => {
@@ -167,30 +133,34 @@ const SplashScreen = ({ navigation }: SplashScreenProps) => {
             }, p.delay);
         });
 
-        // 7. Navigation Transition
+        // 6. Navigate to Onboarding ONLY if we've checked the token and it's null
+        // Since StackNav will automatically unmount Splash if token is found,
+        // we just need to wait a few seconds and go to Onboarding.
         const timeoutId = setTimeout(() => {
-            navigation.replace('Onboarding');
-        }, 5500);
+            if (!isLoading && !token) {
+                navigation.replace('Onboarding');
+            }
+        }, 3500);
 
         return () => clearTimeout(timeoutId);
-    }, [navigation]);
+    }, [navigation, isLoading, token]);
 
     return (
         <View style={styles.container}>
-            <StatusBar backgroundColor="#1D2B6B" barStyle="light-content" />
+            <StatusBar backgroundColor="#F8FAFC" barStyle="dark-content" />
 
             {/* Glowing Ambient Center Light */}
             <View style={styles.ambientGlow} />
 
             {/* Two Large Merging Bubbles Background */}
-            <Animated.View style={[
+            {/* <Animated.View style={[
                 styles.largeMergeBubble,
                 { transform: [{ translateX: mergeBubbleLeftX }], opacity: mergeBubbleOpacity }
             ]} />
             <Animated.View style={[
                 styles.largeMergeBubble,
-                { transform: [{ translateX: mergeBubbleRightX }], opacity: mergeBubbleOpacity, backgroundColor: '#3B82F6' }
-            ]} />
+                { transform: [{ translateX: mergeBubbleRightX }], opacity: mergeBubbleOpacity, backgroundColor: '#f0a335' }
+            ]} /> */}
 
             {/* Fast Yellow Circular Bubbles */}
             {particles.map((p, index) => (
@@ -236,27 +206,13 @@ const SplashScreen = ({ navigation }: SplashScreenProps) => {
                 </View>
 
                 {/* Typography */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: verticalScale(8) }}>
-                    {['G', 'Y', 'A', 'N', 'O', 'D', 'A', 'Y', 'A'].map((letter, index) => (
-                        <Animated.Text
-                            key={index}
-                            style={[
-                                styles.brandText,
-                                {
-                                    opacity: brandLettersFade[index],
-                                    transform: [{ translateY: brandLettersTranslate[index] }],
-                                    marginBottom: 0,
-                                }
-                            ]}
-                        >
-                            {letter}
-                        </Animated.Text>
-                    ))}
+                {/* <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: verticalScale(8) }}>
+                    <Text style={styles.brandText}>GYANODAYA</Text>
                 </View>
 
-                <Animated.View style={{ opacity: taglineFade, transform: [{ translateY: taglineTranslate }], alignItems: 'center' }}>
+                <View style={{ alignItems: 'center' }}>
                     <Text style={styles.subText}>YOUR SUCCESS IS OUR MOTIVATION</Text>
-                </Animated.View>
+                </View> */}
 
             </View>
         </View>
@@ -266,7 +222,7 @@ const SplashScreen = ({ navigation }: SplashScreenProps) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#1D2B6B',
+        backgroundColor: '#F8FAFC',
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -296,8 +252,8 @@ const styles = StyleSheet.create({
     bubble: {
         position: 'absolute',
         bottom: -30,
-        backgroundColor: '#FACC15', // Bright yellow bubbles
-        shadowColor: '#FACC15',
+        backgroundColor: '#f0a335', // Bright yellow bubbles
+        shadowColor: '#f0a335',
         shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 0.9,
         shadowRadius: 8,
@@ -316,31 +272,28 @@ const styles = StyleSheet.create({
     },
     ripple: {
         position: 'absolute',
-        width: normalize(140),
-        height: normalize(140),
-        borderRadius: normalize(70), // Perfect circle
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        width: normalize(200),
+        height: normalize(200),
+        borderRadius: normalize(100), // Perfect circle
+        backgroundColor: 'rgba(29, 43, 107, 0.05)',
         borderWidth: 2,
-        borderColor: 'rgba(250, 204, 21, 0.5)', // Yellow/Gold circular border
+        borderColor: 'rgba(240, 163, 53, 0.3)', // Yellow/Gold circular border
     },
     logo: {
-        width: normalize(150),
-        height: normalize(170), // Increased logo dimensions significantly
+        width: normalize(250),
+        height: normalize(250), // Increased logo dimensions significantly
     },
     brandText: {
-        fontSize: normalize(36), // Slightly larger font
+        fontSize: normalize(38), // Slightly larger font
         fontWeight: '900',
         fontFamily: Fonts.InterBold,
-        color: '#FFFFFF',
+        color: '#1D2B6B', // Dark blue text
         letterSpacing: 2,
         marginBottom: verticalScale(8),
-        textShadowColor: 'rgba(255,255,255,0.25)',
-        textShadowOffset: { width: 0, height: 4 },
-        textShadowRadius: 15,
     },
     subText: {
-        fontSize: normalize(12),
-        color: '#FACC15', // Yellow tagline
+        fontSize: normalize(13),
+        color: '#f0a335', // Yellow tagline
         fontWeight: '700',
         fontFamily: Fonts.InterBold,
         letterSpacing: 1.5,

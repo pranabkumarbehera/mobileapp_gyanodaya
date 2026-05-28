@@ -12,9 +12,9 @@ import {
     View,
 } from 'react-native';
 import { StackScreenProps } from '@react-navigation/stack';
-import Colorpath from '../../Themes/Colorpath';
-import { RootStackParamList } from '../../Navigator/StackNav';
-import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
+import Colorpath from '../../../Themes/Colorpath';
+import { RootStackParamList } from '../../../Navigator/StackNav';
+import { normalize, verticalScale } from '../../../Utils/Helpers/normalize';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 
@@ -72,18 +72,6 @@ const OnboardingScreen = ({ navigation }: OnboardingScreenProps) => {
     const flatListRef = useRef<FlatList<Slide>>(null);
     const [currentIndex, setCurrentIndex] = useState(0);
     const isLastSlide = currentIndex === slides.length - 1;
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            if (!isLastSlide) {
-                flatListRef.current?.scrollToIndex({ index: currentIndex + 1, animated: true });
-            } else {
-                navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-            }
-        }, 3000);
-        
-        return () => clearInterval(interval);
-    }, [currentIndex, isLastSlide, navigation]);
 
     const primaryLabel = 'Continue';
 

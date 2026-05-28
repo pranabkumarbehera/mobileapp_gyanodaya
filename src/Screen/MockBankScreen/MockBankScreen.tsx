@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
@@ -7,29 +7,53 @@ import Colorpath from '../../Themes/Colorpath';
 import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../Navigator/StackNav';
+import { useDispatch, useSelector } from 'react-redux';
+import { getMockTestListRequest } from '../../Redux/Reducers/MockTestReducer';
+import { RootState } from '../../Redux/Store';
 
 type MockBankScreenProps = StackScreenProps<RootStackParamList, 'MockBank'>;
 
 const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
+    const dispatch = useDispatch();
+    const { mockTestList, isLoading } = useSelector((state: RootState) => state.MockTestReducer);
+
     const [activeTab, setActiveTab] = useState('Free Tests');
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [selectedMock, setSelectedMock] = useState<any>(null);
 
-    const testData = [
+    useEffect(() => {
+        dispatch(getMockTestListRequest({}));
+    }, [dispatch]);
+
+    const fallbackData = [
         { id: 1, title: 'JEE Full Mock 1', subjects: 'Physics, Chemistry, Maths', questions: 90, duration: 180, marking: '+4/-1', type: 'free' },
         { id: 2, title: 'NEET Biology 4', subjects: 'Biology, Zoology', questions: 90, duration: 45, marking: '+4/-1', type: 'free' },
         { id: 3, title: 'Advanced Physics Pro', subjects: 'Physics', questions: 50, duration: 60, marking: '+4/-1', type: 'premium', price: 100 },
         { id: 4, title: 'Chemistry Elite Mock', subjects: 'Chemistry', questions: 50, duration: 60, marking: '+4/-1', type: 'premium', price: 100 },
     ];
 
-    const displayData = testData.filter(mock => activeTab === 'Free Tests' ? mock.type === 'free' : mock.type === 'premium');
+    const rawData = Array.isArray(mockTestList)
+        ? mockTestList
+        : mockTestList?.data || mockTestList?.quizzes || mockTestList?.items || fallbackData;
+
+    const displayData = rawData.map((mock: any) => ({
+        id: mock.id || mock._id || mock.testId,
+        title: mock.title || 'Untitled Test',
+        subjects: mock.subjects || mock.description || 'General Syllabus',
+        questions: mock.questionsCount || mock.questions?.length || 50,
+        duration: mock.durationMinutes || mock.duration || 60,
+        marking: mock.negativeMarking ? `+${mock.defaultMarks || 4}/-${mock.negativeMarking.value || 1}` : '+4/-1',
+        type: mock.price > 0 ? 'premium' : 'free',
+        price: mock.price || 0,
+        originalData: mock
+    })).filter((mock: any) => activeTab === 'Free Tests' ? mock.type === 'free' : mock.type === 'premium');
 
     const handleStartTest = (mock: any) => {
         if (mock.type === 'premium') {
             setSelectedMock(mock);
             setShowPaymentModal(true);
         } else {
-            navigation.navigate('MockTestQuestion');
+            navigation.navigate('MockTestRules', { testId: mock.id });
         }
     };
 
@@ -62,7 +86,15 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
                     </Pressable>
                 </View>
 
-                {displayData.map((mock, i) => (
+                {isLoading ? (
+                    <View style={{ marginTop: verticalScale(40), alignItems: 'center' }}>
+                        <Text style={{ color: '#6B7280' }}>Loading tests...</Text>
+                    </View>
+                ) : displayData.length === 0 ? (
+                    <View style={{ marginTop: verticalScale(40), alignItems: 'center' }}>
+                        <Text style={{ color: '#6B7280' }}>No tests available right now.</Text>
+                    </View>
+                ) : displayData.map((mock: any, i: number) => (
                     <View key={i} style={styles.testCard}>
                         <View style={styles.cardTopRow}>
                             <Text style={styles.testTitle}>{mock.title}</Text>
@@ -120,7 +152,7 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
 
                         <Pressable style={styles.payButton} onPress={() => {
                             setShowPaymentModal(false);
-                            navigation.navigate('MockTestQuestion');
+                            navigation.navigate('MockTestRules', { testId: selectedMock?.id });
                         }}>
                             <Text style={styles.payButtonText}>Pay ${selectedMock?.price} & Start</Text>
                         </Pressable>

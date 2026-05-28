@@ -1,5 +1,8 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, Image } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, Image, ActivityIndicator } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import { logoutRequest } from '../../Redux/Reducers/AuthReducer';
+import { RootState } from '../../Redux/Store';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import Colorpath from '../../Themes/Colorpath';
@@ -10,6 +13,19 @@ import { RootStackParamList } from '../../Navigator/StackNav';
 type ProfileScreenProps = StackScreenProps<RootStackParamList, 'Profile'>;
 
 const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
+    const dispatch = useDispatch();
+    const { logoutResponse, isLoading } = useSelector((state: RootState) => state.AuthReducer);
+
+    useEffect(() => {
+        if (logoutResponse === 'logout') {
+            navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        }
+    }, [logoutResponse]);
+
+    const handleLogout = () => {
+        dispatch(logoutRequest());
+    };
+
     return (
         <View style={styles.container}>
             <StatusBar backgroundColor={Colorpath.Primary} barStyle="light-content" />
@@ -109,9 +125,17 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                             <Text style={styles.settingText}>Change Password</Text>
                             <Icon name="chevron-right" size={normalize(18)} color="#9CA3AF" />
                         </Pressable>
-                        <Pressable style={[styles.settingItem, styles.settingItemLast]} onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Login' }] })}>
+                        <Pressable 
+                            style={[styles.settingItem, styles.settingItemLast]} 
+                            onPress={handleLogout}
+                            disabled={isLoading}
+                        >
                             <View style={[styles.settingIconBg, { backgroundColor: '#FEE2E2' }]}>
-                                <Icon name="log-out" size={normalize(18)} color="#EF4444" />
+                                {isLoading ? (
+                                    <ActivityIndicator size="small" color="#EF4444" />
+                                ) : (
+                                    <Icon name="log-out" size={normalize(18)} color="#EF4444" />
+                                )}
                             </View>
                             <Text style={[styles.settingText, { color: '#EF4444' }]}>Logout</Text>
                             <Icon name="chevron-right" size={normalize(18)} color="#9CA3AF" />

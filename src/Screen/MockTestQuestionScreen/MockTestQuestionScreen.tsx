@@ -1,17 +1,72 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, Dimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import Colorpath from '../../Themes/Colorpath';
 import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../Navigator/StackNav';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '../../Redux/Store';
+import { startTestRequest, submitTestRequest, getTestResultRequest } from '../../Redux/Reducers/MockTestReducer';
+import Toast from 'react-native-toast-message';
+import { createShimmerPlaceholder } from 'react-native-shimmer-placeholder';
+
+const ShimmerPlaceholder = createShimmerPlaceholder();
 
 const { height } = Dimensions.get('window');
 
 type MockTestQuestionScreenProps = StackScreenProps<RootStackParamList, 'MockTestQuestion'>;
 
-const MockTestQuestionScreen = ({ navigation }: MockTestQuestionScreenProps) => {
+const getAttemptId = (response: any) =>
+    response?.data?._id ||
+    response?.data?.attemptId ||
+    response?.attemptId ||
+    response?.attempt?.id ||
+    response?.attempt?._id ||
+    response?.attempt?.attemptId ||
+    response?.id ||
+    response?._id ||
+    null;
+
+const getQuestions = (response: any) => {
+    const possibleQuestions =
+        response?.questions ||
+        response?.quiz?.questions ||
+        response?.attempt?.questions ||
+        response?.data?.questions ||
+        response?.data?.quiz?.questions;
+
+    return Array.isArray(possibleQuestions) ? possibleQuestions : null;
+};
+
+const hasResultPayload = (result: any) => {
+    const payload = result?.data || result;
+
+    return Boolean(
+        payload &&
+        (
+            Array.isArray(payload?.results) ||
+            Array.isArray(payload?.review) ||
+            Array.isArray(payload?.questions) ||
+            payload?.score !== undefined ||
+            payload?.maxScore !== undefined
+        )
+    );
+};
+
+const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenProps) => {
+    const { testId } = route.params || {};
+    const dispatch = useDispatch();
+    const { startTestResponse, submitTestResponse, testResult, isLoading, error, status } = useSelector((state: RootState) => state.MockTestReducer);
+    const attemptId = getAttemptId(startTestResponse);
+    const submittedAttemptId = getAttemptId(submitTestResponse) || attemptId;
+
+    useEffect(() => {
+        if (testId) {
+            dispatch(startTestRequest({ id: testId }));
+        }
+    }, [testId, dispatch]);
     const testData = [
         {
             id: 1,
@@ -45,29 +100,117 @@ const MockTestQuestionScreen = ({ navigation }: MockTestQuestionScreenProps) => 
         }
     ];
 
+    const rawQuestions = getQuestions(startTestResponse) || testData;
+
+    const mappedQuestions = rawQuestions.map((q: any, i: number) => ({
+        id: q.id || q._id || i,
+        passage: q.passage || q.instructions || "Read the question carefully and choose the correct option.",
+        question: q.text || q.question || q.questionText || "No question text provided.",
+        options: Array.isArray(q.options)
+            ? q.options
+            : Array.isArray(q.choices)
+                ? q.choices
+                : ['Option A', 'Option B', 'Option C', 'Option D'],
+        originalData: q
+    }));
+
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [answers, setAnswers] = useState<Record<number, number>>({});
     const [showPalette, setShowPalette] = useState(false);
     const [visited, setVisited] = useState<Set<number>>(new Set([0]));
+    const [isSubmittingExam, setIsSubmittingExam] = useState(false);
 
     useEffect(() => {
         setVisited(prev => new Set(prev).add(currentQuestionIndex));
     }, [currentQuestionIndex]);
 
-    const currentQ = testData[currentQuestionIndex];
+    useEffect(() => {
+        if (isSubmittingExam && submitTestResponse && submittedAttemptId && hasResultPayload(testResult)) {
+            setIsSubmittingExam(false);
+            navigation.replace('MockResult', { attemptId: submittedAttemptId });
+        }
+    }, [isSubmittingExam, submitTestResponse, testResult, submittedAttemptId, navigation]);
+
+    useEffect(() => {
+        if (!isSubmittingExam || !submitTestResponse || !submittedAttemptId) {
+            return;
+        }
+
+        const fallbackId = setTimeout(() => {
+            setIsSubmittingExam(false);
+            navigation.replace('MockResult', { attemptId: submittedAttemptId });
+        }, 3000); // Increased fallback time slightly to accommodate two API calls
+
+        return () => clearTimeout(fallbackId);
+    }, [isSubmittingExam, submitTestResponse, submittedAttemptId, navigation]);
+
+    useEffect(() => {
+        if (isSubmittingExam && submitTestResponse && !hasResultPayload(testResult)) {
+            const resultId = submitTestResponse?.data?._id || submitTestResponse?._id || submittedAttemptId;
+            if (resultId && status !== 'MockTest/getTestResultRequest') {
+                dispatch(getTestResultRequest({ id: resultId }));
+            }
+        }
+    }, [isSubmittingExam, submitTestResponse, testResult, status, submittedAttemptId, dispatch]);
+
+    useEffect(() => {
+        if (isSubmittingExam && error) {
+            setIsSubmittingExam(false);
+        }
+    }, [isSubmittingExam, error]);
+
+    const currentQ = mappedQuestions[currentQuestionIndex];
     const selectedOption = answers[currentQuestionIndex] !== undefined ? answers[currentQuestionIndex] : null;
 
-    const questions = Array.from({ length: 30 }, (_, i) => i + 1);
+    const questions = Array.from({ length: mappedQuestions.length }, (_, i) => i + 1);
 
     const handleNext = () => {
-        if (currentQuestionIndex < testData.length - 1) {
+        if (currentQuestionIndex < mappedQuestions.length - 1) {
             setCurrentQuestionIndex(currentQuestionIndex + 1);
         } else {
-            navigation.navigate('MockResult');
+            handleSubmit();
         }
     };
 
+    const handleSubmit = () => {
+        if (isSubmittingExam) {
+            return;
+        }
+
+        if (!attemptId) {
+            if (testId) {
+                dispatch(startTestRequest({ id: testId }));
+            }
+            Toast.show({ type: 'error', text1: 'Test session is not ready yet. Please try again.' });
+            return;
+        }
+
+        const formattedAnswers = Object.keys(answers).map(index => {
+            const q = mappedQuestions[index as any];
+            const selOption = answers[index as any];
+            const optionData = q.options?.[selOption];
+            
+            let answerValue = ['A', 'B', 'C', 'D', 'E', 'F'][selOption] || String(selOption);
+            
+            if (typeof optionData === 'object' && optionData !== null) {
+                answerValue = optionData.id || optionData._id || answerValue;
+            }
+
+            return {
+                questionId: q.id,
+                selectedAnswer: answerValue,
+                isMarkedForReview: false
+            };
+        });
+
+        setIsSubmittingExam(true);
+        dispatch(submitTestRequest({ id: attemptId, answers: formattedAnswers }));
+    };
+
     const handlePrev = () => {
+        if (isSubmittingExam) {
+            return;
+        }
         if (currentQuestionIndex > 0) {
             setCurrentQuestionIndex(currentQuestionIndex - 1);
         }
@@ -76,6 +219,33 @@ const MockTestQuestionScreen = ({ navigation }: MockTestQuestionScreenProps) => 
     const handleSelectOption = (index: number) => {
         setAnswers(prev => ({ ...prev, [currentQuestionIndex]: index }));
     };
+
+    if (isSubmittingExam) {
+        return (
+            <View style={styles.container}>
+                <StatusBar backgroundColor={Colorpath.Primary} barStyle="light-content" />
+                <View style={styles.headerBackground}>
+                    <SafeAreaView edges={['top']}>
+                        <View style={styles.topBar}>
+                            <ShimmerPlaceholder style={{ width: 100, height: 14, borderRadius: 4, marginBottom: 8 }} />
+                            <ShimmerPlaceholder style={{ width: 180, height: 28, borderRadius: 6 }} />
+                        </View>
+                    </SafeAreaView>
+                </View>
+                <View style={{ padding: normalize(24), paddingTop: verticalScale(40) }}>
+                    <ShimmerPlaceholder style={{ width: '100%', height: 120, borderRadius: 12, marginBottom: 24 }} />
+                    <ShimmerPlaceholder style={{ width: 80, height: 20, borderRadius: 6, marginBottom: 16 }} />
+                    <ShimmerPlaceholder style={{ width: '100%', height: 24, borderRadius: 6, marginBottom: 12 }} />
+                    <ShimmerPlaceholder style={{ width: '80%', height: 24, borderRadius: 6, marginBottom: 32 }} />
+                    
+                    <ShimmerPlaceholder style={{ width: '100%', height: 50, borderRadius: 8, marginBottom: 12 }} />
+                    <ShimmerPlaceholder style={{ width: '100%', height: 50, borderRadius: 8, marginBottom: 12 }} />
+                    <ShimmerPlaceholder style={{ width: '100%', height: 50, borderRadius: 8, marginBottom: 12 }} />
+                    <ShimmerPlaceholder style={{ width: '100%', height: 50, borderRadius: 8 }} />
+                </View>
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>
@@ -87,7 +257,7 @@ const MockTestQuestionScreen = ({ navigation }: MockTestQuestionScreenProps) => 
                         <Pressable onPress={() => navigation.goBack()} style={styles.iconButton}>
                             <Icon name="arrow-left" size={normalize(24)} color="#FFFFFF" />
                         </Pressable>
-                        <Text style={styles.headerTitle}>Physics - Mock Test 2</Text>
+                        <Text style={styles.headerTitle}>{startTestResponse?.title || startTestResponse?.quiz?.title || 'Mock Test'}</Text>
                         <Pressable style={styles.iconButton} onPress={() => setShowPalette(!showPalette)}>
                             <Icon name="grid" size={normalize(22)} color="#FFFFFF" />
                         </Pressable>
@@ -97,7 +267,7 @@ const MockTestQuestionScreen = ({ navigation }: MockTestQuestionScreenProps) => 
 
             <View style={styles.subHeader}>
                 <View style={styles.qCountBadge}>
-                    <Text style={styles.qCountText}>Q {currentQuestionIndex + 1} / {testData.length}</Text>
+                    <Text style={styles.qCountText}>Q {currentQuestionIndex + 1} / {mappedQuestions.length}</Text>
                 </View>
                 <View style={styles.timerBadge}>
                     <Icon name="clock" size={normalize(14)} color="#FFFFFF" />
@@ -106,59 +276,79 @@ const MockTestQuestionScreen = ({ navigation }: MockTestQuestionScreenProps) => 
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                <View style={styles.passageContainer}>
-                    <Text style={styles.passageLabel}>READ THE PASSAGE CAREFULLY</Text>
-                    <Text style={styles.passageText}>
-                        {currentQ.passage}
-                    </Text>
-                </View>
-
-                <View style={styles.questionSection}>
-                    <View style={styles.qTag}>
-                        <Text style={styles.qTagText}>Q {currentQuestionIndex + 1}</Text>
+                {isLoading && mappedQuestions.length === testData.length ? (
+                    <View style={{ marginTop: verticalScale(40), alignItems: 'center' }}>
+                        <ActivityIndicator size="large" color={Colorpath.Primary} />
+                        <Text style={{ marginTop: 10, color: '#6B7280' }}>Loading questions...</Text>
                     </View>
-                    <Text style={styles.questionText}>
-                        {currentQ.question}
-                    </Text>
-                </View>
+                ) : (
+                    <>
+                        <View style={styles.passageContainer}>
+                            <Text style={styles.passageLabel}>READ CAREFULLY</Text>
+                            <Text style={styles.passageText}>
+                                {currentQ?.passage}
+                            </Text>
+                        </View>
 
-                <View style={styles.optionsContainer}>
-                    {currentQ.options.map((option, index) => (
-                        <Pressable
-                            key={index}
-                            style={[
-                                styles.optionContainer,
-                                selectedOption === index && styles.optionSelected
-                            ]}
-                            onPress={() => handleSelectOption(index)}
-                        >
-                            <View style={[
-                                styles.radioCircle,
-                                selectedOption === index && styles.radioCircleSelected
-                            ]}>
-                                {selectedOption === index && <View style={styles.radioDot} />}
+                        <View style={styles.questionSection}>
+                            <View style={styles.qTag}>
+                                <Text style={styles.qTagText}>Q {currentQuestionIndex + 1}</Text>
                             </View>
-                            <Text style={styles.optionLetter}>{['(A)', '(B)', '(C)', '(D)'][index]}</Text>
-                            <Text style={styles.optionText}>{option}</Text>
-                        </Pressable>
-                    ))}
-                </View>
+                            <Text style={styles.questionText}>
+                                {currentQ?.question}
+                            </Text>
+                        </View>
+
+                        <View style={styles.optionsContainer}>
+                            {currentQ?.options?.map((option: any, index: number) => (
+                                <Pressable
+                                    key={index}
+                                    style={[
+                                        styles.optionContainer,
+                                        selectedOption === index && styles.optionSelected
+                                    ]}
+                                    onPress={() => handleSelectOption(index)}
+                                >
+                                    <View style={[
+                                        styles.radioCircle,
+                                        selectedOption === index && styles.radioCircleSelected
+                                    ]}>
+                                        {selectedOption === index && <View style={styles.radioDot} />}
+                                    </View>
+                                    <Text style={styles.optionLetter}>{['(A)', '(B)', '(C)', '(D)', '(E)', '(F)'][index]}</Text>
+                                    <Text style={styles.optionText}>
+                                        {typeof option === 'string' ? option : option?.text || option?.value || 'Option'}
+                                    </Text>
+                                </Pressable>
+                            ))}
+                        </View>
+                    </>
+                )}
             </ScrollView>
 
             <View style={styles.bottomBar}>
-                <Pressable style={styles.prevButton} onPress={handlePrev}>
+                <Pressable style={[styles.prevButton, isSubmittingExam && styles.disabledButton]} onPress={handlePrev} disabled={isSubmittingExam}>
                     <Icon name="chevron-left" size={normalize(18)} color="#4B5563" />
                     <Text style={styles.prevButtonText}>Prev</Text>
                 </Pressable>
 
-                <Pressable style={styles.reviewButton}>
+                <Pressable style={[styles.reviewButton, isSubmittingExam && styles.disabledButton]} disabled={isSubmittingExam}>
                     <Icon name="bookmark" size={normalize(16)} color="#D97706" style={styles.reviewIcon} />
                     <Text style={styles.reviewButtonText}>Review</Text>
                 </Pressable>
 
-                <Pressable style={styles.nextButton} onPress={handleNext}>
-                    <Text style={styles.nextButtonText}>{currentQuestionIndex === testData.length - 1 ? 'Submit' : 'Next'}</Text>
-                    <Icon name={currentQuestionIndex === testData.length - 1 ? "check" : "chevron-right"} size={normalize(18)} color="#FFFFFF" />
+                <Pressable style={[styles.nextButton, isSubmittingExam && styles.submittingButton]} onPress={handleNext} disabled={isSubmittingExam}>
+                    {isSubmittingExam ? (
+                        <>
+                            <ActivityIndicator size="small" color="#FFFFFF" />
+                            <Text style={styles.nextButtonText}>Preparing Result...</Text>
+                        </>
+                    ) : (
+                        <>
+                            <Text style={styles.nextButtonText}>{currentQuestionIndex === mappedQuestions.length - 1 ? 'Submit Exam' : 'Next'}</Text>
+                            <Icon name={currentQuestionIndex === mappedQuestions.length - 1 ? "check" : "chevron-right"} size={normalize(18)} color="#FFFFFF" />
+                        </>
+                    )}
                 </Pressable>
             </View>
 
@@ -208,18 +398,22 @@ const MockTestQuestionScreen = ({ navigation }: MockTestQuestionScreenProps) => 
                             </View>
                         </ScrollView>
                         <View style={styles.paletteFooter}>
-                            <Pressable style={styles.footerBtnOutline} onPress={() => {
+                            <Pressable style={[styles.footerBtnOutline, isSubmittingExam && styles.disabledButton]} disabled={isSubmittingExam} onPress={() => {
                                 const newAnswers = { ...answers };
                                 delete newAnswers[currentQuestionIndex];
                                 setAnswers(newAnswers);
                             }}>
                                 <Text style={styles.footerBtnText}>Clear Response</Text>
                             </Pressable>
-                            <Pressable style={styles.footerBtnSolid} onPress={() => {
+                            <Pressable style={[styles.footerBtnSolid, isSubmittingExam && styles.submittingButton]} disabled={isSubmittingExam} onPress={() => {
                                 setShowPalette(false);
                                 handleNext();
                             }}>
-                                <Text style={styles.footerBtnSolidText}>{currentQuestionIndex === testData.length - 1 ? 'Submit Test' : 'Save & Next'}</Text>
+                                {isSubmittingExam ? (
+                                    <ActivityIndicator size="small" color="#FFFFFF" />
+                                ) : (
+                                    <Text style={styles.footerBtnSolidText}>{currentQuestionIndex === mappedQuestions.length - 1 ? 'Submit Exam' : 'Save & Next'}</Text>
+                                )}
                             </Pressable>
                         </View>
                     </View>
@@ -262,8 +456,10 @@ const styles = StyleSheet.create({
     reviewButton: { flexDirection: 'row', alignItems: 'center', paddingVertical: verticalScale(10), paddingHorizontal: normalize(20), borderRadius: normalize(10), borderWidth: 1, borderColor: '#F59E0B' },
     reviewIcon: { marginRight: normalize(6) },
     reviewButtonText: { color: '#D97706', fontSize: normalize(14), fontWeight: 'bold' },
-    nextButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colorpath.Primary, paddingVertical: verticalScale(10), paddingHorizontal: normalize(24), borderRadius: normalize(10) },
+    nextButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: Colorpath.Primary, paddingVertical: verticalScale(10), paddingHorizontal: normalize(24), borderRadius: normalize(10), marginLeft: normalize(12) },
     nextButtonText: { color: '#FFFFFF', fontSize: normalize(15), fontWeight: 'bold', marginRight: normalize(4) },
+    disabledButton: { opacity: 0.6 },
+    submittingButton: { minWidth: normalize(150), justifyContent: 'center' },
     paletteOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100 },
     paletteBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
     paletteContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, height: height * 0.55, backgroundColor: '#FFFFFF', borderTopLeftRadius: normalize(24), borderTopRightRadius: normalize(24), padding: normalize(24), paddingBottom: verticalScale(20) },

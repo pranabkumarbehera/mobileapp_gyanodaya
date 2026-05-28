@@ -13,31 +13,10 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import NetInfo from '@react-native-community/netinfo';
 
-// import store from './src/Redux/Store';
-// import { setNetworkStatus } from './src/Redux/Reducers/AppReducer';
+import store from './src/Redux/Store';
 import StackNav from './src/Navigator/StackNav';
 
 function App() {
-
-  // useEffect(() => {
-  //   // Setup NetInfo listener
-  //   const unsubscribe = NetInfo.addEventListener(state => {
-  //     store.dispatch(setNetworkStatus(state.isConnected));
-  //     if (!state.isConnected) {
-  //       Toast.show({
-  //         type: 'error',
-  //         text1: 'No Internet Connection',
-  //         text2: 'Please check your network settings.',
-  //         position: 'bottom',
-  //       });
-  //     }
-  //   });
-
-  //   return () => {
-  //     unsubscribe();
-  //   };
-  // }, []);
-
   return (
     <>
       <SafeAreaProvider>

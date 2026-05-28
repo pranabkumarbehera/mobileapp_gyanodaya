@@ -1,12 +1,14 @@
 import React from 'react';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
+import { useSelector } from 'react-redux';
+import { RootState } from '../Redux/Store';
 import { createStackNavigator } from '@react-navigation/stack';
 import SplashScreen from '../Screen/SplashScreen/SplashScreen';
-import OnboardingScreen from '../Screen/OnboardingScreen/OnboardingScreen';
-import LoginScreen from '../Screen/LoginScreen/LoginScreen';
-import RegisterScreen from '../Screen/RegisterScreen/RegisterScreen';
-import ForgotPasswordScreen from '../Screen/ForgotPasswordScreen/ForgotPasswordScreen';
-import ChangePasswordScreen from '../Screen/ChangePasswordScreen/ChangePasswordScreen';
+import OnboardingScreen from '../Screen/Auth/OnboardingScreen/OnboardingScreen';
+import LoginScreen from '../Screen/Auth/LoginScreen/LoginScreen';
+import RegisterScreen from '../Screen/Auth/RegisterScreen/RegisterScreen';
+import ForgotPasswordScreen from '../Screen/Auth/ForgotPasswordScreen/ForgotPasswordScreen';
+import ChangePasswordScreen from '../Screen/Auth/ChangePasswordScreen/ChangePasswordScreen';
 import HomeScreen from '../Screen/HomeScreen/HomeScreen';
 import TabNav from './TabNav';
 import TeacherScreen from '../Screen/TeacherScreen/TeacherScreen';
@@ -26,35 +28,43 @@ export type RootStackParamList = {
     ChangePassword: undefined;
     Home: undefined; // We'll map Home to TabNav for drop-in replacement
     Teacher: undefined;
-    MockTestRules: undefined;
-    MockTestQuestion: undefined;
+    MockTestRules: { testId?: string | number };
+    MockTestQuestion: { testId?: string | number };
     TeacherProfile: { teacher: { name: string, subject: string, rating: string, experience: string, designation: string } };
-    MockResult: undefined;
+    MockResult: { attemptId?: string | number };
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
+const AuthStack = () => (
+    <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false, gestureEnabled: false }}>
+        <Stack.Screen name="Splash" component={SplashScreen} />
+        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="Register" component={RegisterScreen} />
+        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+    </Stack.Navigator>
+);
+
+const AppStack = () => (
+    <Stack.Navigator initialRouteName="Home" screenOptions={{ headerShown: false, gestureEnabled: false }}>
+        <Stack.Screen name="Home" component={TabNav} />
+        <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+        <Stack.Screen name="Teacher" component={TeacherScreen} />
+        <Stack.Screen name="MockTestRules" component={MockTestRulesScreen} />
+        <Stack.Screen name="MockTestQuestion" component={MockTestQuestionScreen} />
+        <Stack.Screen name="TeacherProfile" component={TeacherProfileScreen} />
+        <Stack.Screen name="MockResult" component={MockResultScreen} />
+    </Stack.Navigator>
+);
+
 const StackNav = () => {
+    const token = useSelector((state: RootState) => state.AuthReducer.token);
+
     return (
         <NavigationContainer ref={navigationRef}>
-            <Stack.Navigator
-                initialRouteName="Splash"
-                screenOptions={{ headerShown: false, gestureEnabled: false }}
-            >
-                <Stack.Screen name="Splash" component={SplashScreen} />
-                <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-                <Stack.Screen name="Login" component={LoginScreen} />
-                <Stack.Screen name="Register" component={RegisterScreen} />
-                <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-                <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
-                <Stack.Screen name="Home" component={TabNav} />
-                <Stack.Screen name="Teacher" component={TeacherScreen} />
-                <Stack.Screen name="MockTestRules" component={MockTestRulesScreen} />
-                <Stack.Screen name="MockTestQuestion" component={MockTestQuestionScreen} />
-                <Stack.Screen name="TeacherProfile" component={TeacherProfileScreen} />
-                <Stack.Screen name="MockResult" component={MockResultScreen} />
-            </Stack.Navigator>
+            {token ? <AppStack /> : <AuthStack />}
         </NavigationContainer>
     );
 };

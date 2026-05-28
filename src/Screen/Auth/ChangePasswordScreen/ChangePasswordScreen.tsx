@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -9,13 +9,18 @@ import {
     Platform,
     StatusBar,
     ScrollView,
+    ActivityIndicator,
 } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import { changePasswordRequest } from '../../../Redux/Reducers/AuthReducer';
+import { RootState } from '../../../Redux/Store';
+import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
-import Colorpath from '../../Themes/Colorpath';
-import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
+import Colorpath from '../../../Themes/Colorpath';
+import { normalize, verticalScale } from '../../../Utils/Helpers/normalize';
 import { StackScreenProps } from '@react-navigation/stack';
-import { RootStackParamList } from '../../Navigator/StackNav';
+import { RootStackParamList } from '../../../Navigator/StackNav';
 
 type ChangePasswordScreenProps = StackScreenProps<RootStackParamList, 'ChangePassword'>;
 
@@ -26,6 +31,27 @@ const ChangePasswordScreen = ({ navigation }: ChangePasswordScreenProps) => {
     const [secureCurrent, setSecureCurrent] = useState(true);
     const [secureNew, setSecureNew] = useState(true);
     const [secureConfirm, setSecureConfirm] = useState(true);
+
+    const dispatch = useDispatch();
+    const { isLoading, changePasswordResponse } = useSelector((state: RootState) => state.AuthReducer);
+
+    useEffect(() => {
+        if (changePasswordResponse?.success || changePasswordResponse?.message) {
+            navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        }
+    }, [changePasswordResponse]);
+
+    const handleChangePassword = () => {
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            Toast.show({ type: 'error', text1: 'Please fill all required fields' });
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            Toast.show({ type: 'error', text1: 'Passwords do not match' });
+            return;
+        }
+        dispatch(changePasswordRequest({ oldPassword: currentPassword, newPassword }));
+    };
 
     return (
         <SafeAreaView style={styles.container}>
@@ -98,9 +124,14 @@ const ChangePasswordScreen = ({ navigation }: ChangePasswordScreenProps) => {
 
                         <Pressable 
                             style={styles.submitButton} 
-                            onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Login' }] })}
+                            onPress={handleChangePassword}
+                            disabled={isLoading}
                         >
-                            <Text style={styles.submitButtonText}>Update Password</Text>
+                            {isLoading ? (
+                                <ActivityIndicator color="#FFFFFF" />
+                            ) : (
+                                <Text style={styles.submitButtonText}>Update Password</Text>
+                            )}
                         </Pressable>
                     </View>
                 </ScrollView>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -8,14 +8,19 @@ import {
     KeyboardAvoidingView,
     Platform,
     StatusBar,
+    ActivityIndicator,
 } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import { loginRequest } from '../../../Redux/Reducers/AuthReducer';
+import { RootState } from '../../../Redux/Store';
+import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
-import Colorpath from '../../Themes/Colorpath';
-import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
+import Colorpath from '../../../Themes/Colorpath';
+import { normalize, verticalScale } from '../../../Utils/Helpers/normalize';
 import { StackScreenProps } from '@react-navigation/stack';
-import { RootStackParamList } from '../../Navigator/StackNav';
+import { RootStackParamList } from '../../../Navigator/StackNav';
 
 type LoginScreenProps = StackScreenProps<RootStackParamList, 'Login'>;
 
@@ -23,6 +28,23 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [secureText, setSecureText] = useState(true);
+
+    const dispatch = useDispatch();
+    const { isLoading, loginResponse } = useSelector((state: RootState) => state.AuthReducer);
+
+    useEffect(() => {
+        if (loginResponse && (loginResponse.accessToken || loginResponse.token || loginResponse.success || loginResponse.message)) {
+            navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+        }
+    }, [loginResponse]);
+
+    const handleLogin = () => {
+        if (!email || !password) {
+            Toast.show({ type: 'error', text1: 'Please enter email and password' });
+            return;
+        }
+        dispatch(loginRequest({ email, password, deviceType: 'mobile' }));
+    };
 
     return (
         <SafeAreaView style={styles.container}>
@@ -70,8 +92,12 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                         <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
                     </Pressable>
 
-                    <Pressable style={styles.loginButton} onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Home' }] })}>
-                        <Text style={styles.loginButtonText}>Sign In</Text>
+                    <Pressable style={styles.loginButton} onPress={handleLogin} disabled={isLoading}>
+                        {isLoading ? (
+                            <ActivityIndicator color="#FFFFFF" />
+                        ) : (
+                            <Text style={styles.loginButtonText}>Sign In</Text>
+                        )}
                     </Pressable>
 
                     <View style={styles.dividerContainer}>

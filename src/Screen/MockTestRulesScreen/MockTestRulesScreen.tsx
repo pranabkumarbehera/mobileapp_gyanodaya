@@ -9,7 +9,9 @@ import { RootStackParamList } from '../../Navigator/StackNav';
 
 type MockTestRulesScreenProps = StackScreenProps<RootStackParamList, 'MockTestRules'>;
 
-const MockTestRulesScreen = ({ navigation }: MockTestRulesScreenProps) => {
+const MockTestRulesScreen = ({ navigation, route }: MockTestRulesScreenProps) => {
+    const { testId } = route.params || {};
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.blobTopRight} />
@@ -47,7 +49,10 @@ const MockTestRulesScreen = ({ navigation }: MockTestRulesScreenProps) => {
                     </View>
                 </View>
 
-                <Pressable style={styles.primaryButton} onPress={() => navigation.navigate('MockTestQuestion')}>
+                <Pressable
+                    style={styles.primaryButton}
+                    onPress={() => navigation.navigate('MockTestQuestion', { testId })}
+                >
                     <Text style={styles.primaryButtonText}>Start Test</Text>
                 </Pressable>
             </ScrollView>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -9,13 +9,18 @@ import {
     Platform,
     StatusBar,
     ScrollView,
+    ActivityIndicator,
 } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import { signupRequest } from '../../../Redux/Reducers/AuthReducer';
+import { RootState } from '../../../Redux/Store';
+import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
-import Colorpath from '../../Themes/Colorpath';
-import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
+import Colorpath from '../../../Themes/Colorpath';
+import { normalize, verticalScale } from '../../../Utils/Helpers/normalize';
 import { StackScreenProps } from '@react-navigation/stack';
-import { RootStackParamList } from '../../Navigator/StackNav';
+import { RootStackParamList } from '../../../Navigator/StackNav';
 
 type RegisterScreenProps = StackScreenProps<RootStackParamList, 'Register'>;
 
@@ -26,6 +31,27 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
     const [password, setPassword] = useState('');
     const [secureText, setSecureText] = useState(true);
     const [gender, setGender] = useState<'Female' | 'Male' | null>('Female');
+
+    const dispatch = useDispatch();
+    const { isLoading, signupResponse } = useSelector((state: RootState) => state.AuthReducer);
+
+    useEffect(() => {
+        if (signupResponse && (signupResponse.accessToken || signupResponse.token || signupResponse.success || signupResponse.message)) {
+            navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+        }
+    }, [signupResponse]);
+
+    const handleRegister = () => {
+        if (!firstName || !lastName || !email || !password) {
+            Toast.show({ type: 'error', text1: 'Please fill all required fields' });
+            return;
+        }
+        if (password.length < 8) {
+            Toast.show({ type: 'error', text1: 'Password must be at least 8 characters' });
+            return;
+        }
+        dispatch(signupRequest({ firstName, lastName, email, password }));
+    };
 
     return (
         <SafeAreaView style={styles.container}>
@@ -122,8 +148,12 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                             </Pressable>
                         </View>
 
-                        <Pressable style={styles.createButton} onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Home' }] })}>
-                            <Text style={styles.createButtonText}>Create Account</Text>
+                        <Pressable style={styles.createButton} onPress={handleRegister} disabled={isLoading}>
+                            {isLoading ? (
+                                <ActivityIndicator color="#FFFFFF" />
+                            ) : (
+                                <Text style={styles.createButtonText}>Create Account</Text>
+                            )}
                         </Pressable>
 
                     </View>

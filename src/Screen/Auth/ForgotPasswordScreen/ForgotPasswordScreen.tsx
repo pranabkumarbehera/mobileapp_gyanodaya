@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -8,18 +8,40 @@ import {
     KeyboardAvoidingView,
     Platform,
     StatusBar,
+    ActivityIndicator,
 } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import { forgotPasswordRequest } from '../../../Redux/Reducers/AuthReducer';
+import { RootState } from '../../../Redux/Store';
+import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
-import Colorpath from '../../Themes/Colorpath';
-import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
+import Colorpath from '../../../Themes/Colorpath';
+import { normalize, verticalScale } from '../../../Utils/Helpers/normalize';
 import { StackScreenProps } from '@react-navigation/stack';
-import { RootStackParamList } from '../../Navigator/StackNav';
+import { RootStackParamList } from '../../../Navigator/StackNav';
 
 type ForgotPasswordScreenProps = StackScreenProps<RootStackParamList, 'ForgotPassword'>;
 
 const ForgotPasswordScreen = ({ navigation }: ForgotPasswordScreenProps) => {
     const [email, setEmail] = useState('');
+
+    const dispatch = useDispatch();
+    const { isLoading, forgotPasswordResponse } = useSelector((state: RootState) => state.AuthReducer);
+
+    useEffect(() => {
+        if (forgotPasswordResponse?.success || forgotPasswordResponse?.message) {
+            navigation.navigate('ChangePassword');
+        }
+    }, [forgotPasswordResponse]);
+
+    const handleSendOTP = () => {
+        if (!email) {
+            Toast.show({ type: 'error', text1: 'Please enter your email' });
+            return;
+        }
+        dispatch(forgotPasswordRequest({ email }));
+    };
 
     return (
         <SafeAreaView style={styles.container}>
@@ -60,9 +82,14 @@ const ForgotPasswordScreen = ({ navigation }: ForgotPasswordScreenProps) => {
 
                         <Pressable 
                             style={styles.submitButton} 
-                            onPress={() => navigation.navigate('ChangePassword')}
+                            onPress={handleSendOTP}
+                            disabled={isLoading}
                         >
-                            <Text style={styles.submitButtonText}>Send OTP</Text>
+                            {isLoading ? (
+                                <ActivityIndicator color="#FFFFFF" />
+                            ) : (
+                                <Text style={styles.submitButtonText}>Send OTP</Text>
+                            )}
                         </Pressable>
                     </View>
                 </View>
