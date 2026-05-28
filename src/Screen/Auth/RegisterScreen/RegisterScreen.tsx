@@ -33,13 +33,13 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
     const [gender, setGender] = useState<'Female' | 'Male' | null>('Female');
 
     const dispatch = useDispatch();
-    const { isLoading, signupResponse } = useSelector((state: RootState) => state.AuthReducer);
+    const { isLoading, token } = useSelector((state: RootState) => state.AuthReducer);
 
     useEffect(() => {
-        if (signupResponse && (signupResponse.accessToken || signupResponse.token || signupResponse.success || signupResponse.message)) {
+        if (token) {
             navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
         }
-    }, [signupResponse]);
+    }, [token, navigation]);
 
     const handleRegister = () => {
         if (!firstName || !lastName || !email || !password) {
