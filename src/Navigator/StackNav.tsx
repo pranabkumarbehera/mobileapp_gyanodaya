@@ -29,9 +29,15 @@ export type RootStackParamList = {
     Home: undefined; // We'll map Home to TabNav for drop-in replacement
     Teacher: undefined;
     MockTestRules: { testId?: string | number };
-    MockTestQuestion: { testId?: string | number };
+    MockTestQuestion: { testId?: string | number; duration?: string | number };
     TeacherProfile: { teacher: { name: string, subject: string, rating: string, experience: string, designation: string } };
-    MockResult: { attemptId?: string | number };
+    MockResult: {
+        attemptId?: string | number;
+        title?: string;
+        score?: string | number;
+        accuracy?: string | number;
+        resultData?: any;
+    };
 };
 
 const Stack = createStackNavigator<RootStackParamList>();

@@ -34,7 +34,13 @@ const getAccessToken = (response: any) =>
 
 const getRefreshToken = (response: any) =>
     response?.data?.refreshToken ||
+    response?.data?.refresh_token ||
     response?.data?.data?.refreshToken ||
+    response?.data?.data?.refresh_token ||
+    response?.data?.tokens?.refreshToken ||
+    response?.data?.tokens?.refresh_token ||
+    response?.data?.data?.tokens?.refreshToken ||
+    response?.data?.data?.tokens?.refresh_token ||
     null;
 
 export function* gettokenSaga(action: any): Generator<any, void, any> {
@@ -171,6 +177,7 @@ export function* logoutSaga(): Generator<any, void, any> {
         yield put(logoutSuccess('logout'));
         yield put({ type: 'Profile/clearProfile' });
         yield put({ type: 'MockTest/clearMockTestData' });
+        yield put({ type: 'Home/clearHomeData' });
         Toast.show({ type: 'success', text1: 'Logout successfully !' });
     }
 }

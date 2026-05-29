@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, StatusBar, FlatList, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Pressable, StatusBar, FlatList, Image, Animated, Easing } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import Colorpath from '../../Themes/Colorpath';
@@ -9,9 +9,12 @@ import { RootStackParamList } from '../../Navigator/StackNav';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../Redux/Store';
 import { getTestResultRequest } from '../../Redux/Reducers/MockTestReducer';
+import { bootstrapHomeRequest } from '../../Redux/Reducers/HomeReducer';
+import LinearGradient from 'react-native-linear-gradient';
+import Imagepath from '../../Themes/Imagepath';
 import { createShimmerPlaceholder } from 'react-native-shimmer-placeholder';
 
-const ShimmerPlaceholder = createShimmerPlaceholder();
+const ShimmerPlaceholder = createShimmerPlaceholder(LinearGradient);
 
 type MockResultScreenProps = StackScreenProps<RootStackParamList, 'MockResult'>;
 
@@ -144,10 +147,46 @@ const getReviewItems = (resultData: any) => {
     });
 };
 
+const formatTimeSpent = (value: any) => {
+    const seconds = Number(value);
+    if (!Number.isFinite(seconds) || seconds <= 0) {
+        return '0s';
+    }
+
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+
+    if (minutes > 0 && remainingSeconds > 0) {
+        return `${minutes}m ${remainingSeconds}s`;
+    }
+    if (minutes > 0) {
+        return `${minutes}m`;
+    }
+    return `${remainingSeconds}s`;
+};
+
+const AnimatedSkeleton = ({ style }: { style?: any }) => {
+    return (
+        <ShimmerPlaceholder
+            style={style}
+            shimmerColors={['#E5E7EB', '#F3F4F6', '#E5E7EB']}
+        />
+    );
+};
+
 const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
     const dispatch = useDispatch();
     const { testResult, isLoading, submitTestResponse, startTestResponse, status } = useSelector((state: RootState) => state.MockTestReducer);
     const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+    const routeResultData = route.params?.resultData;
+    const [isTransitioning, setIsTransitioning] = useState(true);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setIsTransitioning(false);
+        }, 600);
+        return () => clearTimeout(timer);
+    }, []);
 
     const attemptId =
         route.params?.attemptId ||
@@ -155,13 +194,13 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
         getAttemptId(startTestResponse);
 
     const submitData = submitTestResponse?.data || submitTestResponse || {};
-    const resultData = testResult?.data || testResult || {};
+    const resultData = routeResultData || testResult?.data || testResult || {};
     const resultWhole = resultData || {};
     useEffect(() => {
-        if (attemptId) {
+        if (attemptId && !routeResultData) {
             dispatch(getTestResultRequest({ id: attemptId }));
         }
-    }, [attemptId, dispatch]);
+    }, [attemptId, dispatch, routeResultData]);
 
     const reviewItems = useMemo(() => getReviewItems(resultWhole), [resultWhole]);
     const visibleReviewItems = reviewItems.slice(0, visibleCount);
@@ -170,7 +209,7 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
         setVisibleCount(PAGE_SIZE);
     }, [attemptId]);
 
-    const score = resultData?.score ?? resultData?.finalScore ?? resultData?.obtainedMarks ?? submitData?.score ?? 0;
+    const score = route.params?.score ?? resultData?.score ?? resultData?.finalScore ?? resultData?.obtainedMarks ?? submitData?.score ?? 0;
     const totalMarks = resultData?.maxScore ?? resultData?.maxMarks ?? resultData?.quiz?.totalMarks ?? submitData?.maxScore ?? 0;
     const attempted = resultData?.questionCount ?? resultData?.attempted ?? resultData?.stats?.attempted ?? resultData?.results?.length ?? submitData?.answers?.length ?? reviewItems.filter(item => item.status !== 'skipped').length;
     const correct = resultData?.correctAnswers ?? resultData?.correct ?? resultData?.stats?.correct ?? reviewItems.filter(item => item.status === 'correct').length;
@@ -178,8 +217,36 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
     const skipped = resultData?.skippedQuestions ?? resultData?.skipped ?? resultData?.stats?.skipped ?? reviewItems.filter(item => item.status === 'skipped').length;
     const penalty = resultData?.negativeMarks ?? resultData?.penalty ?? resultData?.stats?.penalty ?? 0;
     const earned = resultData?.score ?? resultData?.marksEarned ?? resultData?.stats?.earned ?? submitData?.score ?? score;
-    const rank = resultData?.rank ?? resultData?.allIndiaRank ?? resultData?.air ?? '-';
-    const title = resultData?.title || resultData?.quiz?.title || startTestResponse?.title || startTestResponse?.quiz?.title || 'Mock Test';
+    // const rank = resultData?.rank ?? resultData?.allIndiaRank ?? resultData?.air ?? '-';
+    const attemptedQuestions = Number(
+        resultData?.attempted_questions ??
+        resultData?.attemptedQuestions ??
+        resultData?.attempted ??
+        resultData?.questionCount ??
+        resultData?.stats?.attempted ??
+        attempted ??
+        0,
+    );
+    const correctAnswers = Number(
+        resultData?.correct_answers ??
+        resultData?.correctAnswers ??
+        resultData?.correct ??
+        resultData?.stats?.correct ??
+        correct ??
+        0,
+    );
+    const accuracy = attemptedQuestions > 0
+        ? ((correctAnswers / attemptedQuestions) * 100).toFixed(0)
+        : '0';
+    const timeSpent = formatTimeSpent(
+        resultData?.attempt?.timeSpentSeconds ??
+        resultData?.time_spent_seconds ??
+        resultData?.timeTakenSeconds ??
+        resultData?.timeTaken ??
+        resultData?.stats?.timeSpentSeconds ??
+        0,
+    );
+    const title = route.params?.title || resultData?.title || resultData?.quiz?.title || startTestResponse?.title || startTestResponse?.quiz?.title || 'Mock Test';
     const negativeMarkingText = reviewItems.some(item => Number(item.marksAwarded) < 0)
         ? `${Math.min(...reviewItems.map(item => Number(item.marksAwarded) || 0))}`
         : '0';
@@ -212,7 +279,8 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
                             </View>
                         </View>
                         <View style={styles.trophyIconBg}>
-                            <Icon name="award" size={normalize(24)} color="#D97706" />
+                            <Image source={Imagepath.Trophy} style={{ width: normalize(24), height: normalize(24) }} resizeMode="contain" />
+                            {/* <Icon name="award" size={normalize(24)} color="#D97706" /> */}
                         </View>
                     </View>
 
@@ -222,12 +290,12 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
                             <Text style={[styles.pillLabel, { color: '#059669' }]}>Marks Earned</Text>
                         </View>
                         <View style={[styles.scorePill, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
-                            <Text style={[styles.pillValue, { color: '#DC2626' }]}>-{penalty}</Text>
-                            <Text style={[styles.pillLabel, { color: '#DC2626' }]}>Penalty</Text>
+                            <Text style={[styles.pillValue, { color: '#DC2626' }]}>{accuracy}%</Text>
+                            <Text style={[styles.pillLabel, { color: '#DC2626' }]}>Accuracy</Text>
                         </View>
                         <View style={[styles.scorePill, { backgroundColor: '#EEF2FF', borderColor: '#C7D2FE' }]}>
-                            <Text style={[styles.pillValue, { color: '#4F46E5' }]}>#{rank}</Text>
-                            <Text style={[styles.pillLabel, { color: '#4F46E5' }]}>All India Rank</Text>
+                            <Text style={[styles.pillValue, { color: '#4F46E5' }]}>{timeSpent}</Text>
+                            <Text style={[styles.pillLabel, { color: '#4F46E5' }]}>Time Spend</Text>
                         </View>
                     </View>
                 </View>
@@ -368,8 +436,12 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
             <View style={styles.headerBackground}>
                 <SafeAreaView edges={['top']}>
                     <View style={styles.topBar}>
-                        <ShimmerPlaceholder style={{ width: 100, height: 14, borderRadius: 4, marginBottom: 8 }} />
-                        <ShimmerPlaceholder style={{ width: 180, height: 28, borderRadius: 6 }} />
+                        <Text style={styles.loadingTitle}>Preparing Result</Text>
+                        <Text style={styles.loadingSubtitle}>
+                            Please wait while we calculate your latest test summary.
+                        </Text>
+                        <AnimatedSkeleton style={{ width: 100, height: 14, borderRadius: 4, marginBottom: 8, marginTop: verticalScale(16) }} />
+                        <AnimatedSkeleton style={{ width: 180, height: 28, borderRadius: 6 }} />
                     </View>
                 </SafeAreaView>
             </View>
@@ -377,31 +449,34 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
                 <View style={styles.scoreCard}>
                     <View style={styles.scoreTopRow}>
                         <View>
-                            <ShimmerPlaceholder style={{ width: 80, height: 12, borderRadius: 4, marginBottom: 8 }} />
-                            <ShimmerPlaceholder style={{ width: 120, height: 36, borderRadius: 8 }} />
+                            <AnimatedSkeleton style={{ width: 80, height: 12, borderRadius: 4, marginBottom: 8 }} />
+                            <AnimatedSkeleton style={{ width: 120, height: 36, borderRadius: 8 }} />
                         </View>
-                        <ShimmerPlaceholder style={{ width: 48, height: 48, borderRadius: 24 }} />
+                        <AnimatedSkeleton style={{ width: 48, height: 48, borderRadius: 24 }} />
                     </View>
                     <View style={styles.scorePillsRow}>
-                        <ShimmerPlaceholder style={{ flex: 1, height: 60, borderRadius: 10 }} />
-                        <ShimmerPlaceholder style={{ flex: 1, height: 60, borderRadius: 10 }} />
-                        <ShimmerPlaceholder style={{ flex: 1, height: 60, borderRadius: 10 }} />
+                        <AnimatedSkeleton style={{ flex: 1, height: 60, borderRadius: 10 }} />
+                        <AnimatedSkeleton style={{ flex: 1, height: 60, borderRadius: 10 }} />
+                        <AnimatedSkeleton style={{ flex: 1, height: 60, borderRadius: 10 }} />
                     </View>
                 </View>
                 <View style={styles.statsRow}>
-                    <ShimmerPlaceholder style={{ flex: 1, height: 40, borderRadius: 8, marginHorizontal: 4 }} />
-                    <ShimmerPlaceholder style={{ flex: 1, height: 40, borderRadius: 8, marginHorizontal: 4 }} />
-                    <ShimmerPlaceholder style={{ flex: 1, height: 40, borderRadius: 8, marginHorizontal: 4 }} />
-                    <ShimmerPlaceholder style={{ flex: 1, height: 40, borderRadius: 8, marginHorizontal: 4 }} />
+                    <AnimatedSkeleton style={{ flex: 1, height: 40, borderRadius: 8, marginHorizontal: 4 }} />
+                    <AnimatedSkeleton style={{ flex: 1, height: 40, borderRadius: 8, marginHorizontal: 4 }} />
+                    <AnimatedSkeleton style={{ flex: 1, height: 40, borderRadius: 8, marginHorizontal: 4 }} />
+                    <AnimatedSkeleton style={{ flex: 1, height: 40, borderRadius: 8, marginHorizontal: 4 }} />
                 </View>
-                <ShimmerPlaceholder style={{ width: '100%', height: 160, borderRadius: 12, marginBottom: 24 }} />
+                <AnimatedSkeleton style={{ width: '100%', height: 160, borderRadius: 12, marginBottom: 16 }} />
+                <AnimatedSkeleton style={{ width: '72%', height: 14, borderRadius: 6, marginBottom: 10 }} />
+                <AnimatedSkeleton style={{ width: '100%', height: 72, borderRadius: 12, marginBottom: 10 }} />
+                <AnimatedSkeleton style={{ width: '100%', height: 72, borderRadius: 12 }} />
             </View>
         </View>
     );
 
-    const isTestResultLoading = isLoading || status === 'MockTest/getTestResultRequest';
+    const isTestResultLoading = !routeResultData && (isLoading || status === 'MockTest/getTestResultRequest');
 
-    if (isTestResultLoading && (!testResult || Object.keys(resultData).length === 0)) {
+    if (isTransitioning || (isTestResultLoading && (!testResult || Object.keys(resultData).length === 0))) {
         return renderShimmer();
     }
 
@@ -434,10 +509,16 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
                     <Icon name="rotate-ccw" size={normalize(16)} color="#4B5563" style={{ marginRight: normalize(6) }} />
                     <Text style={styles.retryBtnText}>Retry</Text>
                 </Pressable>
-                <Pressable style={styles.homeBtn} onPress={() => navigation.navigate('Home')}>
-                    <Icon name="home" size={normalize(16)} color="#FFFFFF" style={{ marginRight: normalize(6) }} />
+                <Pressable style={styles.homeBtn} onPress={() => {
+                    dispatch(bootstrapHomeRequest({ refresh: true }));
+                    navigation.reset({
+                        index: 0,
+                        routes: [{ name: 'Home' }],
+                    });
+                }}>
+                    <Icon name="home" size={normalize(16)} color="#FFFFFF" style={styles.homeBtnLeftIcon} />
                     <Text style={styles.homeBtnText}>Home</Text>
-                    <Icon name="chevron-right" size={normalize(16)} color="#FFFFFF" style={{ marginLeft: normalize(2) }} />
+                    <Icon name="chevron-right" size={normalize(16)} color="#FFFFFF" style={styles.homeBtnRightIcon} />
                 </Pressable>
             </View>
         </View>
@@ -454,13 +535,18 @@ const styles = StyleSheet.create({
     listContent: { paddingBottom: verticalScale(110) },
     contentWrap: { paddingHorizontal: normalize(20), paddingTop: verticalScale(20) },
     loadingText: { marginTop: verticalScale(12), color: '#6B7280' },
+    loadingTitle: { fontSize: normalize(24), fontWeight: '700', color: '#FFFFFF' },
+    loadingSubtitle: { marginTop: verticalScale(6), fontSize: normalize(12), lineHeight: normalize(18), color: '#D1D5DB', maxWidth: '84%' },
+    skeletonBase: { overflow: 'hidden', backgroundColor: '#E5E7EB' },
+    skeletonHighlightWrap: { position: 'absolute', top: 0, bottom: 0, width: '45%' },
+    skeletonHighlight: { flex: 1 },
     scoreCard: { backgroundColor: '#FFFFFF', borderRadius: normalize(16), padding: normalize(20), marginBottom: verticalScale(16), shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 5, borderWidth: 1, borderColor: '#F3F4F6' },
     scoreTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: verticalScale(20) },
     finalScoreLabel: { fontSize: normalize(11), fontWeight: 'bold', color: '#6B7280', letterSpacing: 0.5, marginBottom: verticalScale(4) },
     scoreValueRow: { flexDirection: 'row', alignItems: 'baseline' },
     scoreMain: { fontSize: normalize(32), fontWeight: 'bold', color: '#111827' },
     scoreTotal: { fontSize: normalize(14), fontWeight: '600', color: '#6B7280', marginLeft: normalize(4) },
-    trophyIconBg: { width: normalize(48), height: normalize(48), borderRadius: normalize(24), backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#F59E0B' },
+    trophyIconBg: { width: normalize(48), height: normalize(48), borderRadius: normalize(24), backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#F59E0B' },
     scorePillsRow: { flexDirection: 'row', justifyContent: 'space-between', gap: normalize(10) },
     scorePill: { flex: 1, paddingVertical: verticalScale(10), paddingHorizontal: normalize(8), borderRadius: normalize(10), borderWidth: 1, alignItems: 'center' },
     pillValue: { fontSize: normalize(15), fontWeight: 'bold', marginBottom: verticalScale(2) },
@@ -513,8 +599,10 @@ const styles = StyleSheet.create({
     bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: normalize(20), paddingVertical: verticalScale(16), backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#F3F4F6', gap: normalize(12) },
     retryBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: verticalScale(12), borderRadius: normalize(10), borderWidth: 1, borderColor: '#D1D5DB' },
     retryBtnText: { color: '#374151', fontSize: normalize(15), fontWeight: '600' },
-    homeBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: Colorpath.Primary, paddingVertical: verticalScale(12), borderRadius: normalize(10) },
+    homeBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: Colorpath.Primary, paddingVertical: verticalScale(12), paddingHorizontal: normalize(14), borderRadius: normalize(10) },
+    homeBtnLeftIcon: { marginRight: normalize(8) },
     homeBtnText: { color: '#FFFFFF', fontSize: normalize(15), fontWeight: '600' },
+    homeBtnRightIcon: { marginLeft: 'auto' },
 });
 
 export default MockResultScreen;

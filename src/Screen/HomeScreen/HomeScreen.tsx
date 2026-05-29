@@ -1,107 +1,348 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Image, StatusBar } from 'react-native';
+import React, { memo, useEffect, useMemo, useState } from 'react';
+import {
+    ActivityIndicator,
+    FlatList,
+    Pressable,
+    RefreshControl,
+    StatusBar,
+    StyleSheet,
+    Text,
+    View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
-import Colorpath from '../../Themes/Colorpath';
-import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
+import { createShimmerPlaceholder } from 'react-native-shimmer-placeholder';
 import { StackScreenProps } from '@react-navigation/stack';
+import { useDispatch, useSelector } from 'react-redux';
+import Avatar from '../../Components/Avatar';
+import EmptyState from '../../Components/EmptyState';
 import { RootStackParamList } from '../../Navigator/StackNav';
+import { bootstrapHomeRequest } from '../../Redux/Reducers/HomeReducer';
+import { clearTestResult, getTestResultRequest } from '../../Redux/Reducers/MockTestReducer';
+import { RootState } from '../../Redux/Store';
+import Colorpath from '../../Themes/Colorpath';
+import {
+    formatDisplayDate,
+    formatPercent,
+    formatScore,
+    formatTimeSpent,
+    getDashboardHeadline,
+    getProfileImageUri,
+    getProfileName,
+    normalizeDashboardStats,
+    normalizeRecentItems,
+} from '../../Utils/Helpers/home';
+import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
 
 type HomeScreenProps = StackScreenProps<RootStackParamList, 'Home'>;
 
+const ShimmerPlaceholder = createShimmerPlaceholder();
+
+type StatCardProps = {
+    label: string;
+    value: string;
+    icon: string;
+    iconColor: string;
+    iconBackground: string;
+};
+
+type RecentItemCardProps = {
+    item: any;
+    isLoading: boolean;
+    onPress: (item: any) => void;
+};
+
+const StatCard = memo(({ label, value }: StatCardProps) => (
+    <View
+        style={[
+            styles.statCard,
+            {
+                backgroundColor:
+                    label === 'Purchased Exams' ? '#FFF7ED' :
+                    label === 'Tests Completed' ? '#ECFDF5' :
+                    label === 'Avg. Accuracy' ? '#EFF6FF' :
+                    '#F5F3FF',
+            },
+        ]}
+    >
+        <Text style={styles.statLabel}>{label}</Text>
+        <Text style={styles.statValue}>{value}</Text>
+    </View>
+));
+
+const RecentItemCard = memo(({ item, isLoading, onPress }: RecentItemCardProps) => (
+    <View style={styles.resultCard}>
+        <View style={styles.resultTopRow}>
+            <View style={styles.resultMetaRow}>
+                <View style={styles.resultTypeBadge}>
+                    <Text style={styles.resultTypeText}>{item.type}</Text>
+                </View>
+                <View style={styles.resultPriceBadge}>
+                    <Text style={styles.resultPriceText}>{Number(item.price) > 0 ? `Rs. ${item.price}` : 'Free'}</Text>
+                </View>
+                <View style={styles.resultStatusBadge}>
+                    <Text style={styles.resultStatusText}>{item.status}</Text>
+                </View>
+            </View>
+            <Text style={styles.resultDateText}>{formatDisplayDate(item.date)}</Text>
+        </View>
+
+        <Text style={styles.resultTitle}>{item.title}</Text>
+
+        <View style={styles.resultMetricsRow}>
+            <View style={styles.metricChip}>
+                <Text style={styles.metricLabel}>Score</Text>
+                <Text style={styles.metricValue}>{formatScore(item.score)}</Text>
+            </View>
+            <View style={styles.metricChip}>
+                <Text style={styles.metricLabel}>Accuracy</Text>
+                <Text style={styles.metricValue}>{formatPercent(item.accuracy)}</Text>
+            </View>
+        </View>
+
+        <Pressable
+            style={[styles.detailsButton, (isLoading || !item.attemptId) && styles.detailsButtonDisabled]}
+            onPress={() => onPress(item)}
+            disabled={isLoading || !item.attemptId}
+        >
+            {isLoading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+                <>
+                    <Text style={styles.detailsButtonText}>View Details</Text>
+                    <Icon name="arrow-up-right" size={normalize(14)} color="#FFFFFF" />
+                </>
+            )}
+        </Pressable>
+    </View>
+));
+
 const HomeScreen = ({ navigation }: HomeScreenProps) => {
+    const dispatch = useDispatch();
+    const profileState = useSelector((state: RootState) => state.ProfileReducer);
+    const homeState = useSelector((state: RootState) => state.HomeReducer);
+    const mockTestState = useSelector((state: RootState) => state.MockTestReducer);
+    const [pendingItem, setPendingItem] = useState<any>(null);
+    const profileSource = profileState.profileData || homeState.dashboardData?.user || homeState.dashboardData?.student || homeState.dashboardData?.profile;
+
+    const profileName = useMemo(() => getProfileName(profileSource), [profileSource]);
+    const profileImage = useMemo(() => getProfileImageUri(profileSource), [profileSource]);
+    const stats = useMemo(() => normalizeDashboardStats(homeState.dashboardData), [homeState.dashboardData]);
+    const purchasedExams = homeState.dashboardData?.purchasedExams
+        ?? homeState.dashboardData?.purchasedItems
+        ?? homeState.dashboardData?.purchased_exams
+        ?? homeState.dashboardData?.purchased_items
+        ?? homeState.dashboardData?.stats?.purchasedExams
+        ?? homeState.dashboardData?.summary?.purchasedExams
+        ?? 0;
+    const testsCompleted = homeState.dashboardData?.testsCompleted
+        ?? homeState.dashboardData?.completedAttempts
+        ?? homeState.dashboardData?.tests_completed
+        ?? homeState.dashboardData?.completed_attempts
+        ?? homeState.dashboardData?.stats?.testsCompleted
+        ?? homeState.dashboardData?.summary?.testsCompleted
+        ?? homeState.dashboardData?.completedTests
+        ?? 0;
+    const avgAccuracy = formatPercent(
+        homeState.dashboardData?.avgAccuracy
+        ?? homeState.dashboardData?.averageAccuracy
+        ?? homeState.dashboardData?.average_accuracy
+        ?? homeState.dashboardData?.stats?.avgAccuracy
+        ?? homeState.dashboardData?.summary?.avgAccuracy
+        ?? stats.accuracy,
+    );
+    const dayStreak = homeState.dashboardData?.dayStreak
+        ?? homeState.dashboardData?.streak
+        ?? homeState.dashboardData?.day_streak
+        ?? homeState.dashboardData?.stats?.dayStreak
+        ?? homeState.dashboardData?.summary?.dayStreak
+        ?? 0;
+    const recentItems = useMemo(() => normalizeRecentItems(homeState.dashboardData), [homeState.dashboardData]);
+    const recentSectionTitle = useMemo(
+        () => getDashboardHeadline(homeState.dashboardData, recentItems),
+        [homeState.dashboardData, recentItems],
+    );
+    useEffect(() => {
+        dispatch(bootstrapHomeRequest({}));
+    }, [dispatch]);
+
+    useEffect(() => {
+        if (
+            pendingItem &&
+            mockTestState.testResult &&
+            mockTestState.status === 'MockTest/getTestResultSuccess'
+        ) {
+            navigation.navigate('MockResult', {
+                attemptId: pendingItem.attemptId,
+                title: pendingItem.title,
+                score: pendingItem.score,
+                accuracy: pendingItem.accuracy,
+                resultData: mockTestState.testResult,
+            });
+            setPendingItem(null);
+            dispatch(clearTestResult());
+        }
+    }, [dispatch, mockTestState.status, mockTestState.testResult, navigation, pendingItem]);
+
+    useEffect(() => {
+        if (pendingItem && mockTestState.status === 'MockTest/getTestResultFailure') {
+            setPendingItem(null);
+        }
+    }, [mockTestState.status, pendingItem]);
+
+    const onRefresh = () => {
+        dispatch(bootstrapHomeRequest({ refresh: true }));
+    };
+
+    const handleViewDetails = (item: any) => {
+        if (!item.attemptId) {
+            return;
+        }
+        setPendingItem(item);
+        dispatch(clearTestResult());
+        dispatch(getTestResultRequest({ id: item.attemptId }));
+    };
+
+    const renderLoading = () => (
+        <View style={styles.container}>
+            <StatusBar backgroundColor={Colorpath.Primary} barStyle="light-content" />
+            <View style={styles.headerBackground}>
+                <SafeAreaView edges={['top']}>
+                    <View style={styles.topBar}>
+                        <View style={styles.profileRow}>
+                            <ShimmerPlaceholder style={styles.avatarShimmer} />
+                            <View>
+                                <ShimmerPlaceholder style={styles.smallLine} />
+                                <ShimmerPlaceholder style={styles.nameLine} />
+                            </View>
+                        </View>
+                        <ShimmerPlaceholder style={styles.badgeShimmer} />
+                    </View>
+                    <View style={styles.statsRow}>
+                        {[1, 2, 3, 4].map(item => (
+                            <ShimmerPlaceholder key={item} style={styles.statShimmer} />
+                        ))}
+                    </View>
+                </SafeAreaView>
+            </View>
+            <View style={styles.loadingContent}>
+                {[1, 2].map(item => (
+                    <ShimmerPlaceholder key={item} style={styles.cardShimmer} />
+                ))}
+            </View>
+        </View>
+    );
+
+    const header = (
+        <>
+            <View style={styles.headerBackground}>
+                <SafeAreaView edges={['top']}>
+                    <View style={styles.topBar}>
+                        <View style={styles.profileRow}>
+                            <View style={styles.avatarFrame}>
+                                <Avatar imageUri={profileImage} name={profileName} size={normalize(52)} />
+                            </View>
+                            <View style={styles.profileCopy}>
+                                <Text style={styles.welcomeText}>Ready to improve today?</Text>
+                                <Text style={styles.userName}>{profileName}</Text>
+                            </View>
+                        </View>
+                        <View style={styles.liveBadge}>
+                            <View style={styles.liveDot} />
+                            <Text style={styles.liveBadgeText}>Dashboard</Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.statsRow}>
+                        <StatCard
+                            label="Purchased Exams"
+                            value={String(purchasedExams)}
+                            icon="award"
+                            iconColor="#92400E"
+                            iconBackground="#FEF3C7"
+                        />
+                        <StatCard
+                            label="Tests Completed"
+                            value={String(testsCompleted)}
+                            icon="target"
+                            iconColor="#0F766E"
+                            iconBackground="#CCFBF1"
+                        />
+                        <StatCard
+                            label="Avg. Accuracy"
+                            value={avgAccuracy}
+                            icon="clock"
+                            iconColor="#1D4ED8"
+                            iconBackground="#DBEAFE"
+                        />
+                        <StatCard
+                            label="Day Streak"
+                            value={String(dayStreak)}
+                            icon="clock"
+                            iconColor="#7C3AED"
+                            iconBackground="#EDE9FE"
+                        />
+                    </View>
+                </SafeAreaView>
+            </View>
+
+            <View style={styles.sectionHeader}>
+                <View>
+                    <Text style={styles.sectionTitle}>{recentSectionTitle}</Text>
+                    <Text style={styles.sectionSubtitle}>Fresh from your dashboard activity</Text>
+                </View>
+            </View>
+        </>
+    );
+
+    if (homeState.isBootstrapping && !homeState.dashboardData) {
+        return renderLoading();
+    }
+
     return (
         <View style={styles.container}>
             <StatusBar backgroundColor={Colorpath.Primary} barStyle="light-content" />
-            
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                <View style={styles.headerBackground}>
-                    <SafeAreaView edges={['top']}>
-                        <View style={styles.topBar}>
-                            <View style={styles.userInfoRow}>
-                                <View style={styles.avatarContainer}>
-                                    <Image 
-                                        source={{uri: 'https://randomuser.me/api/portraits/men/32.jpg'}} 
-                                        style={styles.avatar} 
-                                    />
-                                </View>
-                                <View>
-                                    <Text style={styles.welcomeText}>Welcome back,</Text>
-                                    <Text style={styles.userName}>Aarav</Text>
-                                </View>
-                            </View>
-                            <View style={styles.coinBadge}>
-                                <FontAwesome5 name="coins" size={normalize(12)} color="#FACC15" solid />
-                                <Text style={styles.coinText}>12</Text>
-                            </View>
-                        </View>
 
-                        <View style={styles.statsContainer}>
-                            <View style={styles.statCard}>
-                                <Text style={styles.statLabel}>Rank</Text>
-                                <Text style={styles.statValue}>#42</Text>
-                            </View>
-                            <View style={styles.statCard}>
-                                <Text style={styles.statLabel}>Focus</Text>
-                                <Text style={styles.statValue}>2.4k</Text>
-                            </View>
-                            <View style={styles.statCard}>
-                                <Text style={styles.statLabel}>Accuracy</Text>
-                                <Text style={styles.statValue}>58%</Text>
-                            </View>
-                        </View>
-                    </SafeAreaView>
-                </View>
-
-                <View style={styles.mainContent}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Recent Courses</Text>
-                        <Text style={styles.viewAllText}>View All</Text>
+            <FlatList
+                data={recentItems}
+                keyExtractor={(item) => String(item.id)}
+                renderItem={({ item }) => (
+                    <RecentItemCard
+                        item={item}
+                        onPress={handleViewDetails}
+                        isLoading={
+                            mockTestState.isLoading &&
+                            !!pendingItem &&
+                            String(pendingItem.attemptId) === String(item.attemptId)
+                        }
+                    />
+                )}
+                ListHeaderComponent={header}
+                ListEmptyComponent={
+                    <View style={styles.emptyWrap}>
+                        <EmptyState
+                            title={homeState.error ? 'Unable to load dashboard' : 'No recent activity yet'}
+                            message={
+                                homeState.error
+                                    ? "We couldn't fetch your latest dashboard data. Please try again."
+                                    : 'Your latest mock tests or course progress will appear here as soon as the dashboard has data.'
+                            }
+                            actionLabel="Retry"
+                            onAction={onRefresh}
+                            icon={homeState.error ? 'wifi-off' : 'bar-chart-2'}
+                        />
                     </View>
-
-                    <View style={styles.courseCard}>
-                        <View style={styles.courseIconContainer}>
-                            <Icon name="book-open" size={normalize(24)} color={Colorpath.Primary} />
-                        </View>
-                        <View style={styles.courseInfo}>
-                            <Text style={styles.courseTitle}>Advanced Physics</Text>
-                            <Text style={styles.courseSubtitle}>112 lessons</Text>
-                        </View>
-                        <View style={styles.progressContainer}>
-                            <Text style={styles.progressText}>36%</Text>
-                            <View style={styles.progressBarBg}>
-                                <View style={[styles.progressBarFill, { width: '36%' }]} />
-                            </View>
-                        </View>
-                    </View>
-
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Top Teachers</Text>
-                        <Text style={styles.viewAllText}>View All</Text>
-                    </View>
-
-                    <View style={styles.teachersContainer}>
-                        {[1, 2].map((i) => (
-                            <Pressable key={i} style={styles.teacherCard} onPress={() => navigation.navigate('TeacherProfile', { teacher: { name: 'Dr. Sharma', subject: 'Mathematics', rating: '4.8', experience: '10+', designation: 'Senior Faculty' }})}>
-                                <Image 
-                                    source={{uri: i === 1 ? 'https://randomuser.me/api/portraits/women/44.jpg' : 'https://randomuser.me/api/portraits/women/45.jpg'}} 
-                                    style={styles.teacherAvatar} 
-                                />
-                                <Text style={styles.teacherName}>Dr. Sharma</Text>
-                                <Text style={styles.teacherSubject}>Mathematics</Text>
-                                <View style={styles.ratingBadge}>
-                                    <Icon name="star" size={normalize(10)} color="#FACC15" />
-                                    <Text style={styles.ratingText}>4.8</Text>
-                                </View>
-                            </Pressable>
-                        ))}
-                    </View>
-                    
-                    <View style={{height: verticalScale(100)}} />
-                </View>
-            </ScrollView>
-
+                }
+                contentContainerStyle={styles.listContent}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={homeState.isRefreshing}
+                        onRefresh={onRefresh}
+                        tintColor={Colorpath.Primary}
+                    />
+                }
+            />
         </View>
     );
 };
@@ -109,211 +350,275 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FAFBFF',
+        backgroundColor: '#F8FAFC',
     },
-    scrollContent: {
+    listContent: {
+        paddingBottom: verticalScale(34),
         flexGrow: 1,
     },
     headerBackground: {
         backgroundColor: Colorpath.Primary,
-        borderBottomLeftRadius: normalize(30),
-        borderBottomRightRadius: normalize(30),
-        paddingBottom: verticalScale(30),
+        paddingBottom: verticalScale(28),
+        borderBottomLeftRadius: normalize(28),
+        borderBottomRightRadius: normalize(28),
     },
     topBar: {
+        paddingHorizontal: normalize(20),
+        paddingTop: verticalScale(12),
         flexDirection: 'row',
+        alignItems: 'center',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: normalize(24),
-        paddingTop: verticalScale(10),
-        marginBottom: verticalScale(24),
     },
-    userInfoRow: {
+    profileRow: {
         flexDirection: 'row',
         alignItems: 'center',
+        flex: 1,
     },
-    avatarContainer: {
-        width: normalize(44),
-        height: normalize(44),
-        borderRadius: normalize(22),
+    avatarFrame: {
         borderWidth: 2,
-        borderColor: '#FFFFFF',
-        overflow: 'hidden',
+        borderColor: 'rgba(255,255,255,0.35)',
+        borderRadius: normalize(28),
+        padding: normalize(2),
         marginRight: normalize(12),
     },
-    avatar: {
-        width: '100%',
-        height: '100%',
+    profileCopy: {
+        flexShrink: 1,
     },
     welcomeText: {
-        color: 'rgba(255,255,255,0.7)',
+        color: 'rgba(255,255,255,0.78)',
         fontSize: normalize(12),
+        marginBottom: verticalScale(2),
     },
     userName: {
         color: '#FFFFFF',
-        fontSize: normalize(16),
-        fontWeight: 'bold',
+        fontSize: normalize(20),
+        fontWeight: '800',
     },
-    coinBadge: {
+    liveBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.15)',
+        backgroundColor: 'rgba(255,255,255,0.14)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
+        borderRadius: normalize(999),
         paddingHorizontal: normalize(12),
-        paddingVertical: verticalScale(6),
-        borderRadius: normalize(16),
-        gap: normalize(6),
+        paddingVertical: verticalScale(8),
+        marginLeft: normalize(12),
     },
-    coinText: {
+    liveDot: {
+        width: normalize(8),
+        height: normalize(8),
+        borderRadius: normalize(4),
+        backgroundColor: '#22C55E',
+        marginRight: normalize(8),
+    },
+    liveBadgeText: {
         color: '#FFFFFF',
-        fontWeight: 'bold',
-        fontSize: normalize(14),
+        fontSize: normalize(12),
+        fontWeight: '700',
     },
-    statsContainer: {
+    statsRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingHorizontal: normalize(24),
+        paddingHorizontal: normalize(16),
+        gap: normalize(8),
+        marginTop: verticalScale(22),
     },
     statCard: {
         flex: 1,
-        backgroundColor: 'rgba(255,255,255,0.1)',
+        backgroundColor: '#FFFFFF',
         borderRadius: normalize(16),
-        paddingVertical: verticalScale(16),
-        alignItems: 'center',
-        marginHorizontal: normalize(6),
+        paddingHorizontal: normalize(12),
+        paddingVertical: verticalScale(18),
+        height: verticalScale(70),
+        justifyContent: 'center',
+        borderWidth: 1,
+        // borderColor: '#E6EAF0',
+        // shadowColor: '#0F172A',
+        // shadowOffset: { width: 0, height: 8 },
+        // shadowOpacity: 0.08,
+        // shadowRadius: 14,
+        // elevation: 4,
     },
     statLabel: {
-        color: 'rgba(255,255,255,0.7)',
-        fontSize: normalize(12),
-        marginBottom: verticalScale(4),
-    },
-    statValue: {
-        color: '#FFFFFF',
-        fontSize: normalize(16),
-        fontWeight: 'bold',
-    },
-    mainContent: {
-        paddingHorizontal: normalize(24),
-        paddingTop: verticalScale(24),
-    },
-    sectionHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: verticalScale(16),
-        marginTop: verticalScale(8),
-    },
-    sectionTitle: {
-        fontSize: normalize(18),
-        fontWeight: 'bold',
-        color: Colorpath.Primary,
-    },
-    viewAllText: {
-        fontSize: normalize(13),
-        color: Colorpath.Secondary,
-        fontWeight: '600',
-    },
-    courseCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#FFFFFF',
-        borderRadius: normalize(16),
-        padding: normalize(16),
-        marginBottom: verticalScale(24),
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 3,
-    },
-    courseIconContainer: {
-        width: normalize(48),
-        height: normalize(48),
-        borderRadius: normalize(12),
-        backgroundColor: '#EEF2FF',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: normalize(16),
-    },
-    courseInfo: {
-        flex: 1,
-    },
-    courseTitle: {
-        fontSize: normalize(15),
-        fontWeight: 'bold',
-        color: Colorpath.Primary,
-        marginBottom: verticalScale(4),
-    },
-    courseSubtitle: {
-        fontSize: normalize(12),
-        color: '#6B7280',
-    },
-    progressContainer: {
-        alignItems: 'flex-end',
-        width: normalize(60),
-    },
-    progressText: {
-        fontSize: normalize(12),
-        fontWeight: 'bold',
-        color: Colorpath.Primary,
-        marginBottom: verticalScale(6),
-    },
-    progressBarBg: {
-        width: '100%',
-        height: verticalScale(6),
-        backgroundColor: '#E5E7EB',
-        borderRadius: normalize(3),
-        overflow: 'hidden',
-    },
-    progressBarFill: {
-        height: '100%',
-        backgroundColor: Colorpath.Secondary,
-    },
-    teachersContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    teacherCard: {
-        width: '48%',
-        backgroundColor: '#FFFFFF',
-        borderRadius: normalize(16),
-        padding: normalize(16),
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 3,
-    },
-    teacherAvatar: {
-        width: normalize(60),
-        height: normalize(60),
-        borderRadius: normalize(30),
-        marginBottom: verticalScale(12),
-    },
-    teacherName: {
-        fontSize: normalize(14),
-        fontWeight: 'bold',
-        color: Colorpath.Primary,
-        marginBottom: verticalScale(4),
-    },
-    teacherSubject: {
-        fontSize: normalize(12),
-        color: '#6B7280',
+        color: '#586375',
+        fontSize: normalize(11),
+        fontWeight: '500',
         marginBottom: verticalScale(10),
     },
-    ratingBadge: {
+    statValue: {
+        color: '#111827',
+        fontSize: normalize(20),
+        fontWeight: '800',
+    },
+    sectionHeader: {
+        paddingHorizontal: normalize(20),
+        paddingTop: verticalScale(24),
+        paddingBottom: verticalScale(14),
+    },
+    sectionTitle: {
+        color: '#0F172A',
+        fontSize: normalize(20),
+        fontWeight: '800',
+        marginBottom: verticalScale(4),
+    },
+    sectionSubtitle: {
+        color: '#64748B',
+        fontSize: normalize(13),
+    },
+    resultCard: {
+        marginHorizontal: normalize(20),
+        marginBottom: verticalScale(14),
+        padding: normalize(18),
+        backgroundColor: '#FFFFFF',
+        borderRadius: normalize(20),
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        // shadowColor: '#0F172A',
+        // shadowOffset: { width: 0, height: 10 },
+        // shadowOpacity: 0.05,
+        // shadowRadius: 18,
+        // elevation: 4,
+    },
+    resultTopRow: {
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: verticalScale(10),
+        marginBottom: verticalScale(14),
+    },
+    resultMetaRow: {
         flexDirection: 'row',
         alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: normalize(8),
+    },
+    resultPriceBadge: {
+        backgroundColor: '#F0FDF4',
+        paddingHorizontal: normalize(10),
+        paddingVertical: verticalScale(6),
+        borderRadius: normalize(999),
+    },
+    resultPriceText: {
+        color: '#15803D',
+        fontSize: normalize(11),
+        fontWeight: '700',
+    },
+    resultStatusBadge: {
         backgroundColor: '#FEF3C7',
         paddingHorizontal: normalize(10),
-        paddingVertical: verticalScale(4),
-        borderRadius: normalize(10),
-        gap: normalize(4),
+        paddingVertical: verticalScale(6),
+        borderRadius: normalize(999),
     },
-    ratingText: {
-        fontSize: normalize(12),
-        fontWeight: 'bold',
-        color: '#D97706',
+    resultStatusText: {
+        color: '#B45309',
+        fontSize: normalize(11),
+        fontWeight: '700',
+    },
+    resultDateText: {
+        color: '#64748B',
+        fontSize: normalize(11),
+        fontWeight: '600',
+    },
+    resultTypeBadge: {
+        backgroundColor: '#EEF2FF',
+        paddingHorizontal: normalize(10),
+        paddingVertical: verticalScale(6),
+        borderRadius: normalize(999),
+    },
+    resultTypeText: {
+        color: Colorpath.Primary,
+        fontSize: normalize(11),
+        fontWeight: '700',
+    },
+    resultTitle: {
+        color: '#0F172A',
+        fontSize: normalize(17),
+        fontWeight: '800',
+        lineHeight: normalize(24),
+        marginBottom: verticalScale(16),
+    },
+    resultMetricsRow: {
+        flexDirection: 'row',
+        gap: normalize(10),
+        marginBottom: verticalScale(16),
+    },
+    metricChip: {
+        flex: 1,
+        borderRadius: normalize(16),
+        backgroundColor: '#F8FAFC',
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        paddingHorizontal: normalize(12),
+        paddingVertical: verticalScale(12),
+    },
+    metricLabel: {
+        color: '#64748B',
+        fontSize: normalize(11),
+        fontWeight: '600',
+        marginBottom: verticalScale(4),
+    },
+    metricValue: {
+        color: '#0F172A',
+        fontSize: normalize(16),
+        fontWeight: '800',
+    },
+    detailsButton: {
+        borderRadius: normalize(14),
+        backgroundColor: Colorpath.Primary,
+        paddingVertical: verticalScale(14),
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: normalize(8),
+    },
+    detailsButtonDisabled: {
+        opacity: 0.85,
+    },
+    detailsButtonText: {
+        color: '#FFFFFF',
+        fontSize: normalize(14),
+        fontWeight: '700',
+    },
+    emptyWrap: {
+        paddingHorizontal: normalize(20),
+        paddingTop: verticalScale(8),
+    },
+    loadingContent: {
+        paddingHorizontal: normalize(20),
+        paddingTop: verticalScale(24),
+    },
+    avatarShimmer: {
+        width: normalize(52),
+        height: normalize(52),
+        borderRadius: normalize(26),
+        marginRight: normalize(12),
+    },
+    smallLine: {
+        width: normalize(110),
+        height: verticalScale(12),
+        borderRadius: normalize(6),
+        marginBottom: verticalScale(8),
+    },
+    nameLine: {
+        width: normalize(150),
+        height: verticalScale(18),
+        borderRadius: normalize(8),
+    },
+    badgeShimmer: {
+        width: normalize(90),
+        height: verticalScale(34),
+        borderRadius: normalize(18),
+        marginLeft: normalize(12),
+    },
+    statShimmer: {
+        flex: 1,
+        height: verticalScale(96),
+        borderRadius: normalize(16),
+    },
+    cardShimmer: {
+        width: '100%',
+        height: verticalScale(180),
+        borderRadius: normalize(20),
+        marginBottom: verticalScale(14),
     },
 });
 

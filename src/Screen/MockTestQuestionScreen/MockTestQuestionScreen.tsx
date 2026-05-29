@@ -1,22 +1,59 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, Dimensions, ActivityIndicator } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+    ActivityIndicator,
+    AppState,
+    AppStateStatus,
+    Dimensions,
+    Pressable,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    View,
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
-import Colorpath from '../../Themes/Colorpath';
-import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
 import { StackScreenProps } from '@react-navigation/stack';
-import { RootStackParamList } from '../../Navigator/StackNav';
 import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../../Redux/Store';
-import { startTestRequest, submitTestRequest, getTestResultRequest } from '../../Redux/Reducers/MockTestReducer';
 import Toast from 'react-native-toast-message';
 import { createShimmerPlaceholder } from 'react-native-shimmer-placeholder';
+import LinearGradient from 'react-native-linear-gradient';
+import Colorpath from '../../Themes/Colorpath';
+import { RootStackParamList } from '../../Navigator/StackNav';
+import { clearTestResult, getTestResultRequest, startTestRequest, submitTestRequest } from '../../Redux/Reducers/MockTestReducer';
+import { RootState } from '../../Redux/Store';
+import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
 
-const ShimmerPlaceholder = createShimmerPlaceholder();
-
+const ShimmerPlaceholder = createShimmerPlaceholder(LinearGradient);
 const { height } = Dimensions.get('window');
 
 type MockTestQuestionScreenProps = StackScreenProps<RootStackParamList, 'MockTestQuestion'>;
+
+const PAGE_BUFFER_SECONDS = 15;
+const FIVE_MIN_WARNING_SECONDS = 5 * 60;
+const SESSION_PREFIX = 'MOCK_TEST_SESSION_';
+const DEFAULT_DURATION_SECONDS = 3 * 60;
+
+type SessionState = {
+    testId?: string | number;
+    attemptId?: string | number | null;
+    title?: string;
+    startTimestamp: number;
+    endTimestamp: number;
+    durationSeconds: number;
+    rawQuestions: any[];
+    currentQuestionIndex: number;
+    answers: Record<number, number>;
+    visited: number[];
+    review: number[];
+    autoSubmitTriggered?: boolean;
+};
+
+const getSessionKey = (testId?: string | number) => `${SESSION_PREFIX}${String(testId || 'default')}`;
+
+const firstDefined = (...values: any[]) => values.find(value => value !== undefined && value !== null && value !== '');
 
 const getAttemptId = (response: any) =>
     response?.data?._id ||
@@ -55,94 +92,362 @@ const hasResultPayload = (result: any) => {
     );
 };
 
-const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenProps) => {
-    const { testId } = route.params || {};
-    const dispatch = useDispatch();
-    const { startTestResponse, submitTestResponse, testResult, isLoading, error, status } = useSelector((state: RootState) => state.MockTestReducer);
-    const attemptId = getAttemptId(startTestResponse);
-    const submittedAttemptId = getAttemptId(submitTestResponse) || attemptId;
+const getDurationSeconds = (response: any, routeDuration?: string | number) => {
+    const secondsValue = Number(
+        firstDefined(
+            response?.durationSeconds,
+            response?.durationInSeconds,
+            response?.timeLimitSeconds,
+            response?.quiz?.durationSeconds,
+            response?.attempt?.durationSeconds,
+            response?.data?.durationSeconds,
+        ),
+    );
 
-    useEffect(() => {
-        if (testId) {
-            dispatch(startTestRequest({ id: testId }));
-        }
-    }, [testId, dispatch]);
-    const testData = [
-        {
-            id: 1,
-            passage: "In a frictionless physics laboratory setup, object A of mass 2kg moving at 10 m/s collides with object B of mass 3kg which is initially at rest. The collision is completely inelastic, and both objects stick together post-collision moving together along the same path.",
-            question: "Which of the following statement about the hybridization of Carbon in ethyne (C2H2) is correct?",
-            options: ['sp³ hybridized with bond angle 109.5°', 'sp² hybridized with bond angle 120°', 'sp hybridized with bond angle 180°', 'sp² hybridized with bond angle 109.5°'],
-        },
-        {
-            id: 2,
-            passage: "A light ray travels from air (n=1) into a glass block (n=1.5). The angle of incidence is 45 degrees.",
-            question: "What is the approximate angle of refraction inside the glass?",
-            options: ['28 degrees', '30 degrees', '35 degrees', '45 degrees'],
-        },
-        {
-            id: 3,
-            passage: "A block of mass 5kg is placed on a rough horizontal surface. The coefficient of static friction is 0.4.",
-            question: "What is the minimum horizontal force required to just move the block? (Take g = 10 m/s²)",
-            options: ['10 N', '15 N', '20 N', '25 N'],
-        },
-        {
-            id: 4,
-            passage: "A simple pendulum has a time period of 2 seconds on the surface of the Earth.",
-            question: "What will be its time period if it is taken to a planet where acceleration due to gravity is 4 times that of Earth?",
-            options: ['0.5 s', '1 s', '2 s', '4 s'],
-        },
-        {
-            id: 5,
-            passage: "An ideal gas undergoes an isothermal expansion at temperature T.",
-            question: "Which of the following statements is true about the change in internal energy (ΔU) of the gas?",
-            options: ['ΔU > 0', 'ΔU < 0', 'ΔU = 0', 'Depends on volume'],
-        }
-    ];
+    if (Number.isFinite(secondsValue) && secondsValue > 0) {
+        return secondsValue;
+    }
 
-    const rawQuestions = getQuestions(startTestResponse) || testData;
+    const minutesValue = Number(
+        firstDefined(
+            response?.durationMinutes,
+            response?.duration,
+            response?.timeLimit,
+            response?.quiz?.durationMinutes,
+            response?.quiz?.duration,
+            response?.attempt?.durationMinutes,
+            response?.data?.durationMinutes,
+            routeDuration,
+        ),
+    );
 
-    const mappedQuestions = rawQuestions.map((q: any, i: number) => ({
+    if (Number.isFinite(minutesValue) && minutesValue > 0) {
+        return minutesValue * 60;
+    }
+
+    return DEFAULT_DURATION_SECONDS;
+};
+
+const formatClock = (seconds: number) => {
+    const safeSeconds = Math.max(0, seconds);
+    const hours = Math.floor(safeSeconds / 3600);
+    const minutes = Math.floor((safeSeconds % 3600) / 60);
+    const remainingSeconds = safeSeconds % 60;
+
+    return [hours, minutes, remainingSeconds].map(unit => String(unit).padStart(2, '0')).join(':');
+};
+
+const mapQuestions = (rawQuestions: any[]) =>
+    rawQuestions.map((q: any, i: number) => ({
         id: q.id || q._id || i,
-        passage: q.passage || q.instructions || "Read the question carefully and choose the correct option.",
-        question: q.text || q.question || q.questionText || "No question text provided.",
+        passage: q.passage || q.instructions || 'Read the question carefully and choose the correct option.',
+        question: q.text || q.question || q.questionText || 'No question text provided.',
         options: Array.isArray(q.options)
             ? q.options
             : Array.isArray(q.choices)
                 ? q.choices
                 : ['Option A', 'Option B', 'Option C', 'Option D'],
-        originalData: q
+        originalData: q,
     }));
 
+const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenProps) => {
+    const { testId, duration } = route.params || {};
+    const dispatch = useDispatch();
+    const { startTestResponse, submitTestResponse, testResult, isLoading, error, status } = useSelector((state: RootState) => state.MockTestReducer);
+
+    const [rawQuestions, setRawQuestions] = useState<any[]>([]);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [answers, setAnswers] = useState<Record<number, number>>({});
     const [showPalette, setShowPalette] = useState(false);
     const [visited, setVisited] = useState<Set<number>>(new Set([0]));
+    const [reviewed, setReviewed] = useState<Set<number>>(new Set());
     const [isSubmittingExam, setIsSubmittingExam] = useState(false);
+    const [remainingSeconds, setRemainingSeconds] = useState(DEFAULT_DURATION_SECONDS);
+    const [sessionLoaded, setSessionLoaded] = useState(false);
+    const [sessionMeta, setSessionMeta] = useState<Pick<SessionState, 'attemptId' | 'title' | 'startTimestamp' | 'endTimestamp' | 'durationSeconds'> | null>(null);
+    const [syncStatus, setSyncStatus] = useState<'saving' | 'saved' | 'offline'>('saved');
+    const [isOnline, setIsOnline] = useState(true);
+
+    const answersRef = useRef<Record<number, number>>({});
+    const visitedRef = useRef<Set<number>>(new Set([0]));
+    const reviewedRef = useRef<Set<number>>(new Set());
+    const currentIndexRef = useRef(0);
+    const sessionMetaRef = useRef<typeof sessionMeta>(null);
+    const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+    const autoSubmitTriggeredRef = useRef(false);
+    const submittingRef = useRef(false);
+    const fiveMinuteWarningShownRef = useRef(false);
+
+    const mappedQuestions = useMemo(() => mapQuestions(rawQuestions), [rawQuestions]);
+    const currentQ = mappedQuestions[currentQuestionIndex];
+    const selectedOption = answers[currentQuestionIndex] !== undefined ? answers[currentQuestionIndex] : null;
+    const submittedAttemptId = getAttemptId(submitTestResponse) || sessionMeta?.attemptId || getAttemptId(startTestResponse);
+    const questions = useMemo(() => Array.from({ length: mappedQuestions.length }, (_, i) => i + 1), [mappedQuestions.length]);
 
     useEffect(() => {
-        setVisited(prev => new Set(prev).add(currentQuestionIndex));
+        answersRef.current = answers;
+    }, [answers]);
+
+    useEffect(() => {
+        visitedRef.current = visited;
+    }, [visited]);
+
+    useEffect(() => {
+        reviewedRef.current = reviewed;
+    }, [reviewed]);
+
+    useEffect(() => {
+        currentIndexRef.current = currentQuestionIndex;
     }, [currentQuestionIndex]);
 
     useEffect(() => {
-        if (isSubmittingExam && submitTestResponse && submittedAttemptId && hasResultPayload(testResult)) {
-            setIsSubmittingExam(false);
-            navigation.replace('MockResult', { attemptId: submittedAttemptId });
+        sessionMetaRef.current = sessionMeta;
+    }, [sessionMeta]);
+
+    useEffect(() => {
+        const unsubscribe = NetInfo.addEventListener(state => {
+            const online = Boolean(state.isConnected && state.isInternetReachable !== false);
+            setIsOnline(online);
+            setSyncStatus(online ? 'saved' : 'offline');
+        });
+
+        return unsubscribe;
+    }, []);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const restoreSession = async () => {
+            try {
+                const cachedSession = await AsyncStorage.getItem(getSessionKey(testId));
+                if (!isMounted) {
+                    return;
+                }
+
+                if (cachedSession) {
+                    const parsed: SessionState = JSON.parse(cachedSession);
+                    if (String(parsed?.testId) === String(testId) && parsed?.endTimestamp) {
+                        setRawQuestions(Array.isArray(parsed.rawQuestions) ? parsed.rawQuestions : []);
+                        setCurrentQuestionIndex(parsed.currentQuestionIndex ?? 0);
+                        setAnswers(parsed.answers || {});
+                        setVisited(new Set(parsed.visited?.length ? parsed.visited : [0]));
+                        setReviewed(new Set(parsed.review || []));
+                        setSessionMeta({
+                            attemptId: parsed.attemptId ?? null,
+                            title: parsed.title || 'Mock Test',
+                            startTimestamp: parsed.startTimestamp,
+                            endTimestamp: parsed.endTimestamp,
+                            durationSeconds: parsed.durationSeconds || DEFAULT_DURATION_SECONDS,
+                        });
+                        autoSubmitTriggeredRef.current = Boolean(parsed.autoSubmitTriggered);
+                        fiveMinuteWarningShownRef.current = Math.max(0, Math.ceil((parsed.endTimestamp - Date.now()) / 1000)) <= FIVE_MIN_WARNING_SECONDS;
+                        setRemainingSeconds(Math.max(0, Math.ceil((parsed.endTimestamp - Date.now()) / 1000)));
+                        setSessionLoaded(true);
+                        return;
+                    }
+                }
+            } catch {
+                // Ignore broken cache and start fresh.
+            }
+
+            if (testId) {
+                dispatch(startTestRequest({ id: testId }));
+            }
+            setSessionLoaded(true);
+        };
+
+        restoreSession();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [dispatch, testId]);
+
+    useEffect(() => {
+        if (!sessionLoaded || sessionMetaRef.current) {
+            return;
         }
-    }, [isSubmittingExam, submitTestResponse, testResult, submittedAttemptId, navigation]);
+
+        const initialAttemptId = getAttemptId(startTestResponse);
+        if (!initialAttemptId && !getQuestions(startTestResponse)) {
+            return;
+        }
+
+        const questionsFromResponse = getQuestions(startTestResponse) || [];
+        const durationSeconds = getDurationSeconds(startTestResponse, duration);
+        const now = Date.now();
+
+        setRawQuestions(questionsFromResponse);
+        setCurrentQuestionIndex(0);
+        setAnswers({});
+        setVisited(new Set([0]));
+        setReviewed(new Set());
+        setSessionMeta({
+            attemptId: initialAttemptId,
+            title: startTestResponse?.title || startTestResponse?.quiz?.title || 'Mock Test',
+            startTimestamp: now,
+            endTimestamp: now + durationSeconds * 1000,
+            durationSeconds,
+        });
+        fiveMinuteWarningShownRef.current = false;
+        setRemainingSeconds(durationSeconds);
+    }, [sessionLoaded, startTestResponse]);
+
+    useEffect(() => {
+        if (!sessionLoaded || !sessionMeta) {
+            return;
+        }
+
+        const payload: SessionState = {
+            testId,
+            attemptId: sessionMeta.attemptId,
+            title: sessionMeta.title,
+            startTimestamp: sessionMeta.startTimestamp,
+            endTimestamp: sessionMeta.endTimestamp,
+            durationSeconds: sessionMeta.durationSeconds,
+            rawQuestions,
+            currentQuestionIndex,
+            answers,
+            visited: Array.from(visited),
+            review: Array.from(reviewed),
+            autoSubmitTriggered: autoSubmitTriggeredRef.current,
+        };
+
+        let cancelled = false;
+
+        const persistSession = async () => {
+            setSyncStatus(isOnline ? 'saving' : 'offline');
+            await AsyncStorage.setItem(getSessionKey(testId), JSON.stringify(payload));
+            if (!cancelled) {
+                setSyncStatus(isOnline ? 'saved' : 'offline');
+            }
+        };
+
+        persistSession();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [answers, currentQuestionIndex, isOnline, rawQuestions, reviewed, sessionLoaded, sessionMeta, testId, visited]);
+
+    useEffect(() => {
+        setVisited(prev => {
+            const next = new Set(prev);
+            next.add(currentQuestionIndex);
+            return next;
+        });
+    }, [currentQuestionIndex]);
+
+    const submitLatestAnswers = async (autoTriggered = false) => {
+        if (submittingRef.current) {
+            return;
+        }
+
+        const activeAttemptId = sessionMetaRef.current?.attemptId || getAttemptId(startTestResponse);
+        if (!activeAttemptId) {
+            Toast.show({ type: 'error', text1: 'Test session is not ready yet. Please try again.' });
+            return;
+        }
+
+        const formattedAnswers = Object.keys(answersRef.current).map(index => {
+            const questionIndex = Number(index);
+            const question = mappedQuestions[questionIndex];
+            const selectedIndex = answersRef.current[questionIndex];
+            const optionData = question?.options?.[selectedIndex];
+
+            let answerValue = ['A', 'B', 'C', 'D', 'E', 'F'][selectedIndex] || String(selectedIndex);
+            if (typeof optionData === 'object' && optionData !== null) {
+                answerValue = optionData.id || optionData._id || optionData.value || answerValue;
+            }
+
+            return {
+                questionId: question?.id,
+                selectedAnswer: answerValue,
+                isMarkedForReview: reviewedRef.current.has(questionIndex),
+            };
+        });
+
+        autoSubmitTriggeredRef.current = autoTriggered || autoSubmitTriggeredRef.current;
+        submittingRef.current = true;
+        setIsSubmittingExam(true);
+        dispatch(submitTestRequest({ id: activeAttemptId, answers: formattedAnswers }));
+    };
+
+    useEffect(() => {
+        if (!sessionMeta) {
+            return;
+        }
+
+        const tick = () => {
+            const secondsLeft = Math.max(0, Math.ceil((sessionMeta.endTimestamp - Date.now()) / 1000));
+            setRemainingSeconds(secondsLeft);
+
+            if (secondsLeft <= FIVE_MIN_WARNING_SECONDS && secondsLeft > PAGE_BUFFER_SECONDS && !fiveMinuteWarningShownRef.current) {
+                fiveMinuteWarningShownRef.current = true;
+                Toast.show({
+                    type: 'error',
+                    text1: '5 minutes left',
+                    text2: 'Please submit before the timeline ends. Your test will auto-submit near timeout.',
+                });
+            }
+
+            if (secondsLeft <= PAGE_BUFFER_SECONDS && !autoSubmitTriggeredRef.current) {
+                submitLatestAnswers(true);
+            }
+        };
+
+        tick();
+        const timerId = setInterval(tick, 1000);
+
+        return () => clearInterval(timerId);
+    }, [sessionMeta]);
+
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', (nextState) => {
+            const previousState = appStateRef.current;
+            appStateRef.current = nextState;
+
+            if ((previousState === 'background' || previousState === 'inactive') && nextState === 'active' && sessionMetaRef.current) {
+                const secondsLeft = Math.max(0, Math.ceil((sessionMetaRef.current.endTimestamp - Date.now()) / 1000));
+                setRemainingSeconds(secondsLeft);
+                if (secondsLeft <= PAGE_BUFFER_SECONDS && !autoSubmitTriggeredRef.current) {
+                    submitLatestAnswers(true);
+                }
+            }
+        });
+
+        return () => subscription.remove();
+    }, []);
+
+    useEffect(() => {
+        if (isSubmittingExam && submitTestResponse && submittedAttemptId && hasResultPayload(testResult)) {
+            const finishFlow = async () => {
+                await AsyncStorage.removeItem(getSessionKey(testId));
+                autoSubmitTriggeredRef.current = false;
+                submittingRef.current = false;
+                setIsSubmittingExam(false);
+                navigation.replace('MockResult', { attemptId: submittedAttemptId });
+            };
+
+            finishFlow();
+        }
+    }, [isSubmittingExam, navigation, submittedAttemptId, submitTestResponse, testId, testResult]);
 
     useEffect(() => {
         if (!isSubmittingExam || !submitTestResponse || !submittedAttemptId) {
             return;
         }
 
-        const fallbackId = setTimeout(() => {
+        const fallbackId = setTimeout(async () => {
+            await AsyncStorage.removeItem(getSessionKey(testId));
+            autoSubmitTriggeredRef.current = false;
+            submittingRef.current = false;
             setIsSubmittingExam(false);
             navigation.replace('MockResult', { attemptId: submittedAttemptId });
-        }, 3000); // Increased fallback time slightly to accommodate two API calls
+        }, 3000);
 
         return () => clearTimeout(fallbackId);
-    }, [isSubmittingExam, submitTestResponse, submittedAttemptId, navigation]);
+    }, [isSubmittingExam, navigation, submitTestResponse, submittedAttemptId, testId]);
 
     useEffect(() => {
         if (isSubmittingExam && submitTestResponse && !hasResultPayload(testResult)) {
@@ -151,60 +456,33 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
                 dispatch(getTestResultRequest({ id: resultId }));
             }
         }
-    }, [isSubmittingExam, submitTestResponse, testResult, status, submittedAttemptId, dispatch]);
+    }, [dispatch, isSubmittingExam, status, submitTestResponse, submittedAttemptId, testResult]);
 
     useEffect(() => {
-        if (isSubmittingExam && error) {
-            setIsSubmittingExam(false);
+        if (!isSubmittingExam || !error) {
+            return;
         }
-    }, [isSubmittingExam, error]);
 
-    const currentQ = mappedQuestions[currentQuestionIndex];
-    const selectedOption = answers[currentQuestionIndex] !== undefined ? answers[currentQuestionIndex] : null;
+        submittingRef.current = false;
+        setIsSubmittingExam(false);
 
-    const questions = Array.from({ length: mappedQuestions.length }, (_, i) => i + 1);
+        if (autoSubmitTriggeredRef.current) {
+            const retryId = setTimeout(() => {
+                if (isOnline) {
+                    submitLatestAnswers(true);
+                }
+            }, 3000);
+
+            return () => clearTimeout(retryId);
+        }
+    }, [error, isOnline, isSubmittingExam]);
 
     const handleNext = () => {
         if (currentQuestionIndex < mappedQuestions.length - 1) {
-            setCurrentQuestionIndex(currentQuestionIndex + 1);
+            setCurrentQuestionIndex(prev => prev + 1);
         } else {
-            handleSubmit();
+            submitLatestAnswers(false);
         }
-    };
-
-    const handleSubmit = () => {
-        if (isSubmittingExam) {
-            return;
-        }
-
-        if (!attemptId) {
-            if (testId) {
-                dispatch(startTestRequest({ id: testId }));
-            }
-            Toast.show({ type: 'error', text1: 'Test session is not ready yet. Please try again.' });
-            return;
-        }
-
-        const formattedAnswers = Object.keys(answers).map(index => {
-            const q = mappedQuestions[index as any];
-            const selOption = answers[index as any];
-            const optionData = q.options?.[selOption];
-            
-            let answerValue = ['A', 'B', 'C', 'D', 'E', 'F'][selOption] || String(selOption);
-            
-            if (typeof optionData === 'object' && optionData !== null) {
-                answerValue = optionData.id || optionData._id || answerValue;
-            }
-
-            return {
-                questionId: q.id,
-                selectedAnswer: answerValue,
-                isMarkedForReview: false
-            };
-        });
-
-        setIsSubmittingExam(true);
-        dispatch(submitTestRequest({ id: attemptId, answers: formattedAnswers }));
     };
 
     const handlePrev = () => {
@@ -212,12 +490,42 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
             return;
         }
         if (currentQuestionIndex > 0) {
-            setCurrentQuestionIndex(currentQuestionIndex - 1);
+            setCurrentQuestionIndex(prev => prev - 1);
         }
     };
 
     const handleSelectOption = (index: number) => {
         setAnswers(prev => ({ ...prev, [currentQuestionIndex]: index }));
+        setVisited(prev => {
+            const next = new Set(prev);
+            next.add(currentQuestionIndex);
+            return next;
+        });
+    };
+
+    const handleJumpToQuestion = (index: number) => {
+        setCurrentQuestionIndex(index);
+        setShowPalette(false);
+    };
+
+    const handleClearResponse = () => {
+        setAnswers(prev => {
+            const next = { ...prev };
+            delete next[currentQuestionIndex];
+            return next;
+        });
+    };
+
+    const handleToggleReview = () => {
+        setReviewed(prev => {
+            const next = new Set(prev);
+            if (next.has(currentQuestionIndex)) {
+                next.delete(currentQuestionIndex);
+            } else {
+                next.add(currentQuestionIndex);
+            }
+            return next;
+        });
     };
 
     if (isSubmittingExam) {
@@ -237,11 +545,19 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
                     <ShimmerPlaceholder style={{ width: 80, height: 20, borderRadius: 6, marginBottom: 16 }} />
                     <ShimmerPlaceholder style={{ width: '100%', height: 24, borderRadius: 6, marginBottom: 12 }} />
                     <ShimmerPlaceholder style={{ width: '80%', height: 24, borderRadius: 6, marginBottom: 32 }} />
-                    
                     <ShimmerPlaceholder style={{ width: '100%', height: 50, borderRadius: 8, marginBottom: 12 }} />
                     <ShimmerPlaceholder style={{ width: '100%', height: 50, borderRadius: 8, marginBottom: 12 }} />
                     <ShimmerPlaceholder style={{ width: '100%', height: 50, borderRadius: 8, marginBottom: 12 }} />
                     <ShimmerPlaceholder style={{ width: '100%', height: 50, borderRadius: 8 }} />
+                </View>
+
+                {/* Modern Professional Loading UI Overlay */}
+                <View style={styles.loadingOverlay}>
+                    <View style={styles.loadingCard}>
+                        <ActivityIndicator size="large" color={Colorpath.Primary} style={styles.loadingSpinner} />
+                        <Text style={styles.loadingOverlayTitle}>Preparing Result...</Text>
+                        <Text style={styles.loadingOverlaySubtitle}>Analyzing your performance</Text>
+                    </View>
                 </View>
             </View>
         );
@@ -257,7 +573,7 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
                         <Pressable onPress={() => navigation.goBack()} style={styles.iconButton}>
                             <Icon name="arrow-left" size={normalize(24)} color="#FFFFFF" />
                         </Pressable>
-                        <Text style={styles.headerTitle}>{startTestResponse?.title || startTestResponse?.quiz?.title || 'Mock Test'}</Text>
+                        <Text style={styles.headerTitle}>{sessionMeta?.title || startTestResponse?.title || startTestResponse?.quiz?.title || 'Mock Test'}</Text>
                         <Pressable style={styles.iconButton} onPress={() => setShowPalette(!showPalette)}>
                             <Icon name="grid" size={normalize(22)} color="#FFFFFF" />
                         </Pressable>
@@ -269,34 +585,42 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
                 <View style={styles.qCountBadge}>
                     <Text style={styles.qCountText}>Q {currentQuestionIndex + 1} / {mappedQuestions.length}</Text>
                 </View>
-                <View style={styles.timerBadge}>
-                    <Icon name="clock" size={normalize(14)} color="#FFFFFF" />
-                    <Text style={styles.timerText}>01:45:00</Text>
+                <View style={styles.subHeaderRight}>
+                    <View style={[styles.syncBadge, !isOnline && styles.syncBadgeOffline]}>
+                        <View style={[styles.syncDot, !isOnline && styles.syncDotOffline]} />
+                        <Text style={[styles.syncText, !isOnline && styles.syncTextOffline]}>
+                            {!isOnline ? 'Saved Offline' : syncStatus === 'saving' ? 'Saving...' : 'Saved'}
+                        </Text>
+                    </View>
+                    <View style={styles.timerBadge}>
+                        <Icon name="clock" size={normalize(14)} color="#FFFFFF" />
+                        <Text style={styles.timerText}>{formatClock(remainingSeconds)}</Text>
+                    </View>
                 </View>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                {isLoading && mappedQuestions.length === testData.length ? (
+                {isLoading && mappedQuestions.length === 0 ? (
                     <View style={{ marginTop: verticalScale(40), alignItems: 'center' }}>
                         <ActivityIndicator size="large" color={Colorpath.Primary} />
                         <Text style={{ marginTop: 10, color: '#6B7280' }}>Loading questions...</Text>
+                    </View>
+                ) : mappedQuestions.length === 0 ? (
+                    <View style={{ marginTop: verticalScale(40), alignItems: 'center', paddingHorizontal: normalize(24) }}>
+                        <Text style={{ color: '#6B7280', textAlign: 'center' }}>No questions were returned for this test yet.</Text>
                     </View>
                 ) : (
                     <>
                         <View style={styles.passageContainer}>
                             <Text style={styles.passageLabel}>READ CAREFULLY</Text>
-                            <Text style={styles.passageText}>
-                                {currentQ?.passage}
-                            </Text>
+                            <Text style={styles.passageText}>{currentQ?.passage}</Text>
                         </View>
 
                         <View style={styles.questionSection}>
                             <View style={styles.qTag}>
                                 <Text style={styles.qTagText}>Q {currentQuestionIndex + 1}</Text>
                             </View>
-                            <Text style={styles.questionText}>
-                                {currentQ?.question}
-                            </Text>
+                            <Text style={styles.questionText}>{currentQ?.question}</Text>
                         </View>
 
                         <View style={styles.optionsContainer}>
@@ -305,20 +629,18 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
                                     key={index}
                                     style={[
                                         styles.optionContainer,
-                                        selectedOption === index && styles.optionSelected
+                                        selectedOption === index && styles.optionSelected,
                                     ]}
                                     onPress={() => handleSelectOption(index)}
                                 >
                                     <View style={[
                                         styles.radioCircle,
-                                        selectedOption === index && styles.radioCircleSelected
+                                        selectedOption === index && styles.radioCircleSelected,
                                     ]}>
                                         {selectedOption === index && <View style={styles.radioDot} />}
                                     </View>
                                     <Text style={styles.optionLetter}>{['(A)', '(B)', '(C)', '(D)', '(E)', '(F)'][index]}</Text>
-                                    <Text style={styles.optionText}>
-                                        {typeof option === 'string' ? option : option?.text || option?.value || 'Option'}
-                                    </Text>
+                                    <Text style={styles.optionText}>{typeof option === 'string' ? option : option?.text || option?.value || 'Option'}</Text>
                                 </Pressable>
                             ))}
                         </View>
@@ -332,9 +654,19 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
                     <Text style={styles.prevButtonText}>Prev</Text>
                 </Pressable>
 
-                <Pressable style={[styles.reviewButton, isSubmittingExam && styles.disabledButton]} disabled={isSubmittingExam}>
-                    <Icon name="bookmark" size={normalize(16)} color="#D97706" style={styles.reviewIcon} />
-                    <Text style={styles.reviewButtonText}>Review</Text>
+                <Pressable
+                    style={[
+                        styles.reviewButton,
+                        reviewed.has(currentQuestionIndex) && styles.reviewButtonActive,
+                        isSubmittingExam && styles.disabledButton,
+                    ]}
+                    onPress={handleToggleReview}
+                    disabled={isSubmittingExam}
+                >
+                    <Icon name="bookmark" size={normalize(16)} color={reviewed.has(currentQuestionIndex) ? '#FFFFFF' : '#D97706'} style={styles.reviewIcon} />
+                    <Text style={[styles.reviewButtonText, reviewed.has(currentQuestionIndex) && styles.reviewButtonTextActive]}>
+                        {reviewed.has(currentQuestionIndex) ? 'Marked' : 'Review'}
+                    </Text>
                 </Pressable>
 
                 <Pressable style={[styles.nextButton, isSubmittingExam && styles.submittingButton]} onPress={handleNext} disabled={isSubmittingExam}>
@@ -346,7 +678,7 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
                     ) : (
                         <>
                             <Text style={styles.nextButtonText}>{currentQuestionIndex === mappedQuestions.length - 1 ? 'Submit Exam' : 'Next'}</Text>
-                            <Icon name={currentQuestionIndex === mappedQuestions.length - 1 ? "check" : "chevron-right"} size={normalize(18)} color="#FFFFFF" />
+                            <Icon name={currentQuestionIndex === mappedQuestions.length - 1 ? 'check' : 'chevron-right'} size={normalize(18)} color="#FFFFFF" />
                         </>
                     )}
                 </Pressable>
@@ -364,45 +696,65 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
                         </View>
                         <ScrollView showsVerticalScrollIndicator={false}>
                             <View style={styles.gridContainer}>
-                                {questions.map((q) => {
-                                    let type = 'unanswered';
-                                    let displayText: string | number = q;
+                                {questions.map((questionNumber) => {
+                                    const index = questionNumber - 1;
+                                    const hasAnswer = answers[index] !== undefined;
+                                    const isReview = reviewed.has(index);
+                                    const isCurrent = index === currentQuestionIndex;
+                                    const isVisited = visited.has(index);
 
-                                    if (answers[q - 1] !== undefined) {
-                                        type = 'answered';
-                                    } else if (visited.has(q - 1) && q - 1 !== currentQuestionIndex) {
-                                        type = 'skipped';
-                                        displayText = 'S';
-                                    }
+                                    let boxStyle = styles.gridBox;
+                                    let textStyle = styles.gridText;
 
-                                    if (q - 1 === currentQuestionIndex) {
-                                        type = 'current';
+                                    if (isCurrent) {
+                                        boxStyle = { ...styles.gridBox, ...styles.gridCurrent };
+                                        textStyle = { ...styles.gridText, ...styles.gridTextCurrent };
+                                    } else if (hasAnswer && isReview) {
+                                        boxStyle = { ...styles.gridBox, ...styles.gridAnsweredMarked };
+                                        textStyle = { ...styles.gridText, ...styles.gridTextAnswered };
+                                    } else if (isReview) {
+                                        boxStyle = { ...styles.gridBox, ...styles.gridReview };
+                                        textStyle = { ...styles.gridText, ...styles.gridTextReview };
+                                    } else if (hasAnswer) {
+                                        boxStyle = { ...styles.gridBox, ...styles.gridAnswered };
+                                        textStyle = { ...styles.gridText, ...styles.gridTextAnswered };
+                                    } else if (isVisited) {
+                                        boxStyle = { ...styles.gridBox, ...styles.gridSkipped };
+                                        textStyle = { ...styles.gridText, ...styles.gridTextSkipped };
                                     }
 
                                     return (
-                                        <View key={q} style={[
-                                            styles.gridBox,
-                                            type === 'answered' && { backgroundColor: '#10B981', borderWidth: 0 },
-                                            type === 'skipped' && { backgroundColor: '#FACC15', borderWidth: 0 },
-                                            type === 'current' && styles.gridCurrent
-                                        ]}>
-                                            <Text style={[
-                                                styles.gridText,
-                                                type === 'answered' && { color: '#FFFFFF' },
-                                                type === 'skipped' && { color: '#FFFFFF', fontWeight: 'bold' },
-                                                type === 'current' && styles.gridTextCurrent
-                                            ]}>{displayText}</Text>
-                                        </View>
+                                        <Pressable
+                                            key={questionNumber}
+                                            style={boxStyle}
+                                            onPress={() => handleJumpToQuestion(index)}
+                                        >
+                                            <Text style={textStyle}>{questionNumber}</Text>
+                                        </Pressable>
                                     );
                                 })}
                             </View>
                         </ScrollView>
+                        <View style={styles.paletteLegend}>
+                            <View style={styles.legendItem}>
+                                <View style={[styles.legendDot, styles.gridCurrent]} />
+                                <Text style={styles.legendText}>Current</Text>
+                            </View>
+                            <View style={styles.legendItem}>
+                                <View style={[styles.legendDot, styles.gridAnswered]} />
+                                <Text style={styles.legendText}>Attempted</Text>
+                            </View>
+                            <View style={styles.legendItem}>
+                                <View style={[styles.legendDot, styles.gridReview]} />
+                                <Text style={styles.legendText}>Review</Text>
+                            </View>
+                            <View style={styles.legendItem}>
+                                <View style={[styles.legendDot, styles.gridAnsweredMarked]} />
+                                <Text style={styles.legendText}>Ans + Review</Text>
+                            </View>
+                        </View>
                         <View style={styles.paletteFooter}>
-                            <Pressable style={[styles.footerBtnOutline, isSubmittingExam && styles.disabledButton]} disabled={isSubmittingExam} onPress={() => {
-                                const newAnswers = { ...answers };
-                                delete newAnswers[currentQuestionIndex];
-                                setAnswers(newAnswers);
-                            }}>
+                            <Pressable style={[styles.footerBtnOutline, isSubmittingExam && styles.disabledButton]} disabled={isSubmittingExam} onPress={handleClearResponse}>
                                 <Text style={styles.footerBtnText}>Clear Response</Text>
                             </Pressable>
                             <Pressable style={[styles.footerBtnSolid, isSubmittingExam && styles.submittingButton]} disabled={isSubmittingExam} onPress={() => {
@@ -432,6 +784,13 @@ const styles = StyleSheet.create({
     subHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: normalize(24), paddingVertical: verticalScale(16), backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
     qCountBadge: { paddingHorizontal: normalize(12), paddingVertical: verticalScale(6), backgroundColor: '#F3F4F6', borderRadius: normalize(12) },
     qCountText: { fontSize: normalize(14), fontWeight: 'bold', color: Colorpath.Primary },
+    subHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: normalize(10) },
+    syncBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ECFDF5', paddingHorizontal: normalize(10), paddingVertical: verticalScale(6), borderRadius: normalize(12) },
+    syncBadgeOffline: { backgroundColor: '#FEF2F2' },
+    syncDot: { width: normalize(7), height: normalize(7), borderRadius: normalize(4), backgroundColor: '#10B981', marginRight: normalize(6) },
+    syncDotOffline: { backgroundColor: '#EF4444' },
+    syncText: { color: '#047857', fontSize: normalize(11), fontWeight: '700' },
+    syncTextOffline: { color: '#B91C1C' },
     timerBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EF4444', paddingHorizontal: normalize(12), paddingVertical: verticalScale(6), borderRadius: normalize(12), gap: normalize(6) },
     timerText: { color: '#FFFFFF', fontSize: normalize(14), fontWeight: 'bold' },
     scrollContent: { paddingHorizontal: normalize(24), paddingTop: verticalScale(20), paddingBottom: verticalScale(100) },
@@ -446,7 +805,7 @@ const styles = StyleSheet.create({
     optionContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: normalize(16), paddingVertical: verticalScale(12), borderRadius: normalize(8), borderWidth: 1, borderColor: '#EEF2FF', borderLeftWidth: normalize(6), borderLeftColor: '#EEF2FF', backgroundColor: '#FFFFFF' },
     optionSelected: { borderColor: Colorpath.Primary, borderLeftColor: Colorpath.Primary, backgroundColor: '#FFFFFF' },
     radioCircle: { width: normalize(20), height: normalize(20), borderRadius: normalize(10), borderWidth: 2, borderColor: '#D1D5DB', alignItems: 'center', justifyContent: 'center', marginRight: normalize(12) },
-    radioCircleSelected: { borderColor: "#D97706" },
+    radioCircleSelected: { borderColor: '#D97706' },
     radioDot: { width: normalize(10), height: normalize(10), borderRadius: normalize(5), backgroundColor: Colorpath.Primary },
     optionLetter: { fontSize: normalize(15), color: '#374151', fontWeight: '600', marginRight: normalize(8) },
     optionText: { fontSize: normalize(15), color: '#374151', flex: 1 },
@@ -454,31 +813,83 @@ const styles = StyleSheet.create({
     prevButton: { flexDirection: 'row', alignItems: 'center', paddingVertical: verticalScale(10), paddingHorizontal: normalize(12) },
     prevButtonText: { color: '#4B5563', fontSize: normalize(15), fontWeight: '600', marginLeft: normalize(4) },
     reviewButton: { flexDirection: 'row', alignItems: 'center', paddingVertical: verticalScale(10), paddingHorizontal: normalize(20), borderRadius: normalize(10), borderWidth: 1, borderColor: '#F59E0B' },
+    reviewButtonActive: { backgroundColor: '#D97706', borderColor: '#D97706' },
     reviewIcon: { marginRight: normalize(6) },
     reviewButtonText: { color: '#D97706', fontSize: normalize(14), fontWeight: 'bold' },
+    reviewButtonTextActive: { color: '#FFFFFF' },
     nextButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: Colorpath.Primary, paddingVertical: verticalScale(10), paddingHorizontal: normalize(24), borderRadius: normalize(10), marginLeft: normalize(12) },
     nextButtonText: { color: '#FFFFFF', fontSize: normalize(15), fontWeight: 'bold', marginRight: normalize(4) },
     disabledButton: { opacity: 0.6 },
     submittingButton: { minWidth: normalize(150), justifyContent: 'center' },
     paletteOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100 },
     paletteBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
-    paletteContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, height: height * 0.55, backgroundColor: '#FFFFFF', borderTopLeftRadius: normalize(24), borderTopRightRadius: normalize(24), padding: normalize(24), paddingBottom: verticalScale(20) },
+    paletteContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, height: height * 0.6, backgroundColor: '#FFFFFF', borderTopLeftRadius: normalize(24), borderTopRightRadius: normalize(24), padding: normalize(24), paddingBottom: verticalScale(20) },
     paletteHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: verticalScale(20) },
     paletteTitle: { fontSize: normalize(18), fontWeight: 'bold', color: '#111827' },
     gridContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: normalize(10), justifyContent: 'flex-start' },
     gridBox: { width: normalize(40), height: normalize(40), borderRadius: normalize(8), backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D1D5DB', alignItems: 'center', justifyContent: 'center' },
-    gridAnswered: { backgroundColor: Colorpath.Primary },
+    gridAnswered: { backgroundColor: '#10B981', borderWidth: 0 },
+    gridAnsweredMarked: { backgroundColor: '#4F46E5', borderWidth: 0 },
     gridCurrent: { backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: Colorpath.Secondary },
-    gridReview: { backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: '#F59E0B' },
+    gridReview: { backgroundColor: '#FFF7ED', borderWidth: 2, borderColor: '#F59E0B' },
+    gridSkipped: { backgroundColor: '#FEF3C7', borderWidth: 0 },
     gridText: { fontSize: normalize(14), color: '#4B5563', fontWeight: '600' },
     gridTextAnswered: { color: '#FFFFFF' },
     gridTextCurrent: { color: Colorpath.Secondary },
     gridTextReview: { color: '#D97706' },
+    gridTextSkipped: { color: '#B45309' },
+    paletteLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: normalize(12), marginTop: verticalScale(18) },
+    legendItem: { flexDirection: 'row', alignItems: 'center' },
+    legendDot: { width: normalize(14), height: normalize(14), borderRadius: normalize(4), marginRight: normalize(6) },
+    legendText: { color: '#4B5563', fontSize: normalize(11), fontWeight: '600' },
     paletteFooter: { flexDirection: 'row', gap: normalize(12), marginTop: verticalScale(20) },
     footerBtnOutline: { flex: 1, paddingVertical: verticalScale(14), borderRadius: normalize(10), borderWidth: 1, borderColor: '#D1D5DB', alignItems: 'center' },
     footerBtnText: { color: '#374151', fontSize: normalize(14), fontWeight: '600' },
     footerBtnSolid: { flex: 1, backgroundColor: Colorpath.Primary, paddingVertical: verticalScale(14), borderRadius: normalize(10), alignItems: 'center' },
-    footerBtnSolidText: { color: '#FFFFFF', fontSize: normalize(14), fontWeight: '600' }
+    footerBtnSolidText: { color: '#FFFFFF', fontSize: normalize(14), fontWeight: '600' },
+    loadingOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1000,
+    },
+    loadingCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: normalize(16),
+        paddingHorizontal: normalize(32),
+        paddingVertical: verticalScale(32),
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        elevation: 10,
+        width: '80%',
+        borderWidth: 1,
+        borderColor: '#F3F4F6',
+    },
+    loadingSpinner: {
+        marginBottom: verticalScale(20),
+        transform: [{ scale: 1.2 }],
+    },
+    loadingOverlayTitle: {
+        fontSize: normalize(18),
+        fontWeight: 'bold',
+        color: '#111827',
+        textAlign: 'center',
+        marginBottom: verticalScale(8),
+    },
+    loadingOverlaySubtitle: {
+        fontSize: normalize(13),
+        color: '#6B7280',
+        textAlign: 'center',
+        fontWeight: '500',
+    },
 });
 
 export default MockTestQuestionScreen;

@@ -85,6 +85,11 @@ const MockTestSlice = createSlice({
             state.error = action.error || action.payload;
             state.isLoading = false;
         },
+        clearTestResult(state) {
+            state.testResult = null;
+            state.isLoading = false;
+            state.error = null;
+        },
         clearMockTestData(state) {
             return initialState;
         },
@@ -107,6 +112,7 @@ export const {
     getTestResultRequest,
     getTestResultSuccess,
     getTestResultFailure,
+    clearTestResult,
     clearMockTestData,
 } = MockTestSlice.actions;
 
