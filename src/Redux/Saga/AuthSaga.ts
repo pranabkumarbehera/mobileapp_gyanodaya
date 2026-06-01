@@ -20,6 +20,7 @@ import {
     changePasswordSuccess,
     changePasswordFailure,
 } from '../Reducers/AuthReducer';
+import { getProfileRequest, getProfileSuccess } from '../Reducers/ProfileReducer';
 import { postApi } from '../../Utils/Helpers/ApiRequest';
 import constants from '../../Utils/Helpers/constants';
 import Toast from 'react-native-toast-message';
@@ -68,6 +69,7 @@ export function* login_Saga(action: any): Generator<any, void, any> {
             if (token) {
                 yield call(AsyncStorage.setItem, constants.TOKEN, token);
                 yield put(tokenSuccess(token));
+                yield put(getProfileRequest({}));
             }
             if (refreshToken) {
                 yield call(AsyncStorage.setItem, constants.REFRESH_TOKEN, refreshToken);
@@ -95,9 +97,13 @@ export function* signupSaga(action: any): Generator<any, void, any> {
         
         if (token || response?.status === 200 || response?.status === 201) {
             yield put(signupSuccess({ ...response?.data, token }));
+            if (response?.data?.data) {
+                yield put(getProfileSuccess(response?.data?.data));
+            }
             if (token) {
                 yield call(AsyncStorage.setItem, constants.TOKEN, token);
                 yield put(tokenSuccess(token));
+                yield put(getProfileRequest({}));
             }
             if (refreshToken) {
                 yield call(AsyncStorage.setItem, constants.REFRESH_TOKEN, refreshToken);

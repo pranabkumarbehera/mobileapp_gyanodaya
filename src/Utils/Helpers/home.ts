@@ -97,6 +97,11 @@ export const getProfileImageUri = (profile: any) =>
         profile?.avatar,
         profile?.image,
         profile?.photo,
+        profile?.profile?.profileImage,
+        profile?.profile?.profilePicture,
+        profile?.profile?.avatar,
+        profile?.profile?.image,
+        profile?.profile?.photo,
         profile?.user?.profileImage,
         profile?.user?.avatar,
     ) || null;
@@ -109,6 +114,9 @@ export const getProfileName = (profile: any) =>
         profile?.username,
         profile?.studentName,
         [profile?.firstName, profile?.lastName].filter(Boolean).join(' ').trim(),
+        [profile?.profile?.firstName, profile?.profile?.lastName].filter(Boolean).join(' ').trim(),
+        profile?.profile?.name,
+        profile?.profile?.fullName,
         profile?.user?.name,
     ) || 'Student';
 

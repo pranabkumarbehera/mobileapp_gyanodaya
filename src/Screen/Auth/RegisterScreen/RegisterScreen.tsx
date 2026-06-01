@@ -14,7 +14,6 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import { signupRequest } from '../../../Redux/Reducers/AuthReducer';
 import { RootState } from '../../../Redux/Store';
-import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import Colorpath from '../../../Themes/Colorpath';
@@ -23,34 +22,111 @@ import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../Navigator/StackNav';
 
 type RegisterScreenProps = StackScreenProps<RootStackParamList, 'Register'>;
+type RegisterErrors = {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    password?: string;
+    gender?: string;
+};
 
 const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
+    const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
     const [secureText, setSecureText] = useState(true);
     const [gender, setGender] = useState<'Female' | 'Male' | null>('Female');
+    const [touched, setTouched] = useState({
+        firstName: false,
+        lastName: false,
+        email: false,
+        phone: false,
+        password: false,
+        gender: false,
+    });
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     const dispatch = useDispatch();
-    const { isLoading, token } = useSelector((state: RootState) => state.AuthReducer);
+    const { isLoading, token, signupResponse } = useSelector((state: RootState) => state.AuthReducer);
 
     useEffect(() => {
         if (token) {
             navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+            return;
         }
-    }, [token, navigation]);
+
+        if (signupResponse?.data?.id) {
+            navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        }
+    }, [token, signupResponse, navigation]);
+
+    const getErrors = (): RegisterErrors => {
+        const errors: RegisterErrors = {};
+
+        if (!firstName.trim()) {
+            errors.firstName = 'First name is required';
+        }
+
+        if (!lastName.trim()) {
+            errors.lastName = 'Last name is required';
+        }
+
+        if (!email.trim()) {
+            errors.email = 'Email is required';
+        } else if (!emailRegex.test(email.trim())) {
+            errors.email = 'Enter valid email address';
+        }
+
+        if (!phone) {
+            errors.phone = 'Phone number is required';
+        } else if (phone.length !== 10) {
+            errors.phone = 'Phone number must be 10 digits';
+        }
+
+        if (!password) {
+            errors.password = 'Password is required';
+        } else if (password.length < 8) {
+            errors.password = 'Password must be at least 8 characters';
+        }
+
+        if (!gender) {
+            errors.gender = 'Gender is required';
+        }
+
+        return errors;
+    };
+
+    const errors = getErrors();
+
+    const updateTouched = (field: keyof typeof touched) => {
+        setTouched((prev) => ({ ...prev, [field]: true }));
+    };
 
     const handleRegister = () => {
-        if (!firstName || !lastName || !email || !password) {
-            Toast.show({ type: 'error', text1: 'Please fill all required fields' });
+        const nextErrors = getErrors();
+        if (Object.keys(nextErrors).length > 0) {
+            setTouched({
+                firstName: true,
+                lastName: true,
+                email: true,
+                phone: true,
+                password: true,
+                gender: true,
+            });
             return;
         }
-        if (password.length < 8) {
-            Toast.show({ type: 'error', text1: 'Password must be at least 8 characters' });
-            return;
-        }
-        dispatch(signupRequest({ firstName, lastName, email, password }));
+        dispatch(signupRequest({
+            email: email.trim(),
+            password,
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            gender,
+            phone,
+        }));
     };
 
     return (
@@ -75,61 +151,117 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                     <View style={styles.formContainer}>
                         
                         <View style={styles.row}>
-                            <View style={[styles.inputContainer, styles.halfInput]}>
-                                <Icon name="user" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="First name"
-                                    placeholderTextColor="#9CA3AF"
-                                    value={firstName}
-                                    onChangeText={setFirstName}
-                                />
+                            <View style={[styles.fieldWrapper, styles.halfInput]}>
+                                <View style={[styles.inputContainer, touched.firstName && errors.firstName ? styles.inputContainerError : null]}>
+                                    <Icon name="user" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="First name"
+                                        placeholderTextColor="#9CA3AF"
+                                        value={firstName}
+                                        onChangeText={(value) => {
+                                            updateTouched('firstName');
+                                            setFirstName(value);
+                                        }}
+                                        onFocus={() => updateTouched('firstName')}
+                                        onBlur={() => updateTouched('firstName')}
+                                    />
+                                </View>
+                                {touched.firstName && errors.firstName ? <Text style={styles.errorText}>{errors.firstName}</Text> : null}
                             </View>
-                            <View style={[styles.inputContainer, styles.halfInput]}>
-                                <Icon name="user" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="Last name"
-                                    placeholderTextColor="#9CA3AF"
-                                    value={lastName}
-                                    onChangeText={setLastName}
-                                />
+                            <View style={[styles.fieldWrapper, styles.halfInput]}>
+                                <View style={[styles.inputContainer, touched.lastName && errors.lastName ? styles.inputContainerError : null]}>
+                                    <Icon name="user" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="Last name"
+                                        placeholderTextColor="#9CA3AF"
+                                        value={lastName}
+                                        onChangeText={(value) => {
+                                            updateTouched('lastName');
+                                            setLastName(value);
+                                        }}
+                                        onFocus={() => updateTouched('lastName')}
+                                        onBlur={() => updateTouched('lastName')}
+                                    />
+                                </View>
+                                {touched.lastName && errors.lastName ? <Text style={styles.errorText}>{errors.lastName}</Text> : null}
                             </View>
                         </View>
 
-                        <View style={styles.inputContainer}>
-                            <Icon name="mail" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Email address"
-                                placeholderTextColor="#9CA3AF"
-                                value={email}
-                                onChangeText={setEmail}
-                                keyboardType="email-address"
-                                autoCapitalize="none"
-                            />
+                        <View style={styles.fieldWrapper}>
+                            <View style={[styles.inputContainer, touched.email && errors.email ? styles.inputContainerError : null]}>
+                                <Icon name="mail" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Email address"
+                                    placeholderTextColor="#9CA3AF"
+                                    value={email}
+                                    onChangeText={(value) => {
+                                        updateTouched('email');
+                                        setEmail(value);
+                                    }}
+                                    onFocus={() => updateTouched('email')}
+                                    onBlur={() => updateTouched('email')}
+                                    keyboardType="email-address"
+                                    autoCapitalize="none"
+                                />
+                            </View>
+                            {touched.email && errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
                         </View>
 
-                        <View style={styles.inputContainer}>
-                            <Icon name="lock" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Create password"
-                                placeholderTextColor="#9CA3AF"
-                                secureTextEntry={secureText}
-                                value={password}
-                                onChangeText={setPassword}
-                            />
-                            <Pressable onPress={() => setSecureText(!secureText)} style={styles.eyeIcon}>
-                                <Icon name={secureText ? "eye-off" : "eye"} size={normalize(18)} color="#9CA3AF" />
-                            </Pressable>
+                        <View style={styles.fieldWrapper}>
+                            <View style={[styles.inputContainer, touched.phone && errors.phone ? styles.inputContainerError : null]}>
+                                <Icon name="phone" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Phone number"
+                                    placeholderTextColor="#9CA3AF"
+                                    value={phone}
+                                    onChangeText={(text) => {
+                                        updateTouched('phone');
+                                        setPhone(text.replace(/[^0-9]/g, '').slice(0, 10));
+                                    }}
+                                    onFocus={() => updateTouched('phone')}
+                                    onBlur={() => updateTouched('phone')}
+                                    keyboardType="phone-pad"
+                                    maxLength={10}
+                                />
+                            </View>
+                            {touched.phone && errors.phone ? <Text style={styles.errorText}>{errors.phone}</Text> : null}
+                        </View>
+
+                        <View style={styles.fieldWrapper}>
+                            <View style={[styles.inputContainer, touched.password && errors.password ? styles.inputContainerError : null]}>
+                                <Icon name="lock" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Create password"
+                                    placeholderTextColor="#9CA3AF"
+                                    secureTextEntry={secureText}
+                                    value={password}
+                                    onChangeText={(value) => {
+                                        updateTouched('password');
+                                        setPassword(value);
+                                    }}
+                                    onFocus={() => updateTouched('password')}
+                                    onBlur={() => updateTouched('password')}
+                                />
+                                <Pressable onPress={() => setSecureText(!secureText)} style={styles.eyeIcon}>
+                                    <Icon name={secureText ? "eye-off" : "eye"} size={normalize(18)} color="#9CA3AF" />
+                                </Pressable>
+                            </View>
+                            {touched.password && errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
                         </View>
 
                         <Text style={styles.genderLabel}>Gender</Text>
-                        <View style={styles.genderContainer}>
+                        <View style={[styles.genderContainer, touched.gender && errors.gender ? styles.genderContainerError : null]}>
                             <Pressable 
                                 style={styles.radioOption} 
-                                onPress={() => setGender('Female')}
+                                onPress={() => {
+                                    setGender('Female');
+                                    updateTouched('gender');
+                                }}
                             >
                                 <View style={styles.radioCircle}>
                                     {gender === 'Female' && <View style={styles.radioInnerCircle} />}
@@ -139,7 +271,10 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                             
                             <Pressable 
                                 style={styles.radioOption} 
-                                onPress={() => setGender('Male')}
+                                onPress={() => {
+                                    setGender('Male');
+                                    updateTouched('gender');
+                                }}
                             >
                                 <View style={styles.radioCircle}>
                                     {gender === 'Male' && <View style={styles.radioInnerCircle} />}
@@ -147,6 +282,7 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                                 <Text style={styles.radioText}>Male</Text>
                             </Pressable>
                         </View>
+                        {touched.gender && errors.gender ? <Text style={styles.errorText}>{errors.gender}</Text> : null}
 
                         <Pressable style={styles.createButton} onPress={handleRegister} disabled={isLoading}>
                             {isLoading ? (
@@ -211,6 +347,9 @@ const styles = StyleSheet.create({
     halfInput: {
         flex: 1,
     },
+    fieldWrapper: {
+        marginBottom: verticalScale(16),
+    },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -219,8 +358,10 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#E5E7EB',
         height: verticalScale(55),
-        marginBottom: verticalScale(16),
         paddingHorizontal: normalize(16),
+    },
+    inputContainerError: {
+        borderColor: '#EF4444',
     },
     inputIcon: {
         marginRight: normalize(12),
@@ -242,8 +383,14 @@ const styles = StyleSheet.create({
     },
     genderContainer: {
         flexDirection: 'row',
-        marginBottom: verticalScale(40),
         gap: normalize(30),
+        borderRadius: normalize(12),
+        borderWidth: 1,
+        borderColor: 'transparent',
+        paddingVertical: verticalScale(4),
+    },
+    genderContainerError: {
+        borderColor: '#EF4444',
     },
     radioOption: {
         flexDirection: 'row',
@@ -269,12 +416,19 @@ const styles = StyleSheet.create({
         fontSize: normalize(15),
         color: '#374151',
     },
+    errorText: {
+        color: '#EF4444',
+        fontSize: normalize(12),
+        marginTop: verticalScale(6),
+        marginLeft: normalize(4),
+    },
     createButton: {
         backgroundColor: Colorpath.Primary,
         borderRadius: normalize(12),
         height: verticalScale(55),
         justifyContent: 'center',
         alignItems: 'center',
+        marginTop: verticalScale(24),
         marginBottom: verticalScale(30),
     },
     createButtonText: {

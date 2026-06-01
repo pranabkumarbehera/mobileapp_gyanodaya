@@ -19,6 +19,7 @@ import EmptyState from '../../Components/EmptyState';
 import { RootStackParamList } from '../../Navigator/StackNav';
 import { bootstrapHomeRequest } from '../../Redux/Reducers/HomeReducer';
 import { clearTestResult, getTestResultRequest } from '../../Redux/Reducers/MockTestReducer';
+import { getProfileRequest } from '../../Redux/Reducers/ProfileReducer';
 import { RootState } from '../../Redux/Store';
 import Colorpath from '../../Themes/Colorpath';
 import {
@@ -119,12 +120,12 @@ const RecentItemCard = memo(({ item, isLoading, onPress }: RecentItemCardProps) 
 
 const HomeScreen = ({ navigation }: HomeScreenProps) => {
     const dispatch = useDispatch();
+    const authState = useSelector((state: RootState) => state.AuthReducer);
     const profileState = useSelector((state: RootState) => state.ProfileReducer);
     const homeState = useSelector((state: RootState) => state.HomeReducer);
     const mockTestState = useSelector((state: RootState) => state.MockTestReducer);
     const [pendingItem, setPendingItem] = useState<any>(null);
     const profileSource = profileState.profileData || homeState.dashboardData?.user || homeState.dashboardData?.student || homeState.dashboardData?.profile;
-
     const profileName = useMemo(() => getProfileName(profileSource), [profileSource]);
     const profileImage = useMemo(() => getProfileImageUri(profileSource), [profileSource]);
     const stats = useMemo(() => normalizeDashboardStats(homeState.dashboardData), [homeState.dashboardData]);
@@ -165,6 +166,12 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
     useEffect(() => {
         dispatch(bootstrapHomeRequest({}));
     }, [dispatch]);
+
+    useEffect(() => {
+        if (authState.token && !profileState.profileData && !profileState.isLoading) {
+            dispatch(getProfileRequest({}));
+        }
+    }, [authState.token, dispatch, profileState.isLoading, profileState.profileData]);
 
     useEffect(() => {
         if (

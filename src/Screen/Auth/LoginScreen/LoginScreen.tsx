@@ -13,7 +13,6 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import { loginRequest } from '../../../Redux/Reducers/AuthReducer';
 import { RootState } from '../../../Redux/Store';
-import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
@@ -23,11 +22,21 @@ import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../Navigator/StackNav';
 
 type LoginScreenProps = StackScreenProps<RootStackParamList, 'Login'>;
+type LoginErrors = {
+    email?: string;
+    password?: string;
+};
 
 const LoginScreen = ({ navigation }: LoginScreenProps) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [secureText, setSecureText] = useState(true);
+    const [touched, setTouched] = useState<{ email: boolean; password: boolean }>({
+        email: false,
+        password: false,
+    });
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     const dispatch = useDispatch();
     const { isLoading, loginResponse } = useSelector((state: RootState) => state.AuthReducer);
@@ -36,14 +45,43 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
         if (loginResponse && (loginResponse.accessToken || loginResponse.token || loginResponse.success || loginResponse.message)) {
             navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
         }
-    }, [loginResponse]);
+    }, [loginResponse, navigation]);
 
-    const handleLogin = () => {
-        if (!email || !password) {
-            Toast.show({ type: 'error', text1: 'Please enter email and password' });
+    const getErrors = (): LoginErrors => {
+        const errors: LoginErrors = {};
+
+        if (!email.trim()) {
+            errors.email = 'Email is required';
+        } else if (!emailRegex.test(email.trim())) {
+            errors.email = 'Enter valid email address';
+        }
+
+        if (!password) {
+            errors.password = 'Password is required';
+        }
+
+        return errors;
+    };
+
+    const errors = getErrors();
+
+    const updateField = (field: 'email' | 'password', value: string) => {
+        if (field === 'email') {
+            setTouched((prev) => ({ ...prev, email: true }));
+            setEmail(value);
             return;
         }
-        dispatch(loginRequest({ email, password, deviceType: 'mobile' }));
+        setTouched((prev) => ({ ...prev, password: true }));
+        setPassword(value);
+    };
+
+    const handleLogin = () => {
+        const nextErrors = getErrors();
+        if (Object.keys(nextErrors).length > 0) {
+            setTouched({ email: true, password: true });
+            return;
+        }
+        dispatch(loginRequest({ email: email.trim(), password, deviceType: 'mobile' }));
     };
 
     return (
@@ -60,32 +98,42 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                 </View>
 
                 <View style={styles.formContainer}>
-                    <View style={styles.inputContainer}>
-                        <Icon name="mail" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Email address"
-                            placeholderTextColor="#9CA3AF"
-                            value={email}
-                            onChangeText={setEmail}
-                            keyboardType="email-address"
-                            autoCapitalize="none"
-                        />
+                    <View style={styles.fieldWrapper}>
+                        <View style={[styles.inputContainer, touched.email && errors.email ? styles.inputContainerError : null]}>
+                            <Icon name="mail" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Email address"
+                                placeholderTextColor="#9CA3AF"
+                                value={email}
+                                onChangeText={(value) => updateField('email', value)}
+                                onFocus={() => setTouched((prev) => ({ ...prev, email: true }))}
+                                onBlur={() => setTouched((prev) => ({ ...prev, email: true }))}
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                            />
+                        </View>
+                        {touched.email && errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
                     </View>
 
-                    <View style={styles.inputContainer}>
-                        <Icon name="lock" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Password"
-                            placeholderTextColor="#9CA3AF"
-                            secureTextEntry={secureText}
-                            value={password}
-                            onChangeText={setPassword}
-                        />
-                        <Pressable onPress={() => setSecureText(!secureText)} style={styles.eyeIcon}>
-                            <Icon name={secureText ? "eye-off" : "eye"} size={normalize(18)} color="#9CA3AF" />
-                        </Pressable>
+                    <View style={styles.fieldWrapper}>
+                        <View style={[styles.inputContainer, touched.password && errors.password ? styles.inputContainerError : null]}>
+                            <Icon name="lock" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Password"
+                                placeholderTextColor="#9CA3AF"
+                                secureTextEntry={secureText}
+                                value={password}
+                                onChangeText={(value) => updateField('password', value)}
+                                onFocus={() => setTouched((prev) => ({ ...prev, password: true }))}
+                                onBlur={() => setTouched((prev) => ({ ...prev, password: true }))}
+                            />
+                            <Pressable onPress={() => setSecureText(!secureText)} style={styles.eyeIcon}>
+                                <Icon name={secureText ? "eye-off" : "eye"} size={normalize(18)} color="#9CA3AF" />
+                            </Pressable>
+                        </View>
+                        {touched.password && errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
                     </View>
 
                     <Pressable onPress={() => navigation.navigate('ForgotPassword')} style={styles.forgotPasswordContainer}>
@@ -155,6 +203,9 @@ const styles = StyleSheet.create({
     formContainer: {
         flex: 1,
     },
+    fieldWrapper: {
+        marginBottom: verticalScale(16),
+    },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -163,8 +214,10 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#E5E7EB',
         height: verticalScale(55),
-        marginBottom: verticalScale(16),
         paddingHorizontal: normalize(16),
+    },
+    inputContainerError: {
+        borderColor: '#EF4444',
     },
     inputIcon: {
         marginRight: normalize(12),
@@ -176,6 +229,12 @@ const styles = StyleSheet.create({
     },
     eyeIcon: {
         padding: normalize(8),
+    },
+    errorText: {
+        color: '#EF4444',
+        fontSize: normalize(12),
+        marginTop: verticalScale(6),
+        marginLeft: normalize(4),
     },
     forgotPasswordContainer: {
         alignItems: 'flex-end',

@@ -13,7 +13,6 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import { forgotPasswordRequest } from '../../../Redux/Reducers/AuthReducer';
 import { RootState } from '../../../Redux/Store';
-import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import Colorpath from '../../../Themes/Colorpath';
@@ -25,6 +24,9 @@ type ForgotPasswordScreenProps = StackScreenProps<RootStackParamList, 'ForgotPas
 
 const ForgotPasswordScreen = ({ navigation }: ForgotPasswordScreenProps) => {
     const [email, setEmail] = useState('');
+    const [touched, setTouched] = useState(false);
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     const dispatch = useDispatch();
     const { isLoading, forgotPasswordResponse } = useSelector((state: RootState) => state.AuthReducer);
@@ -33,14 +35,28 @@ const ForgotPasswordScreen = ({ navigation }: ForgotPasswordScreenProps) => {
         if (forgotPasswordResponse?.success || forgotPasswordResponse?.message) {
             navigation.navigate('ChangePassword');
         }
-    }, [forgotPasswordResponse]);
+    }, [forgotPasswordResponse, navigation]);
+
+    const getEmailError = () => {
+        if (!email.trim()) {
+            return 'Email is required';
+        }
+
+        if (!emailRegex.test(email.trim())) {
+            return 'Enter valid email address';
+        }
+
+        return '';
+    };
+
+    const emailError = getEmailError();
 
     const handleSendOTP = () => {
-        if (!email) {
-            Toast.show({ type: 'error', text1: 'Please enter your email' });
+        if (emailError) {
+            setTouched(true);
             return;
         }
-        dispatch(forgotPasswordRequest({ email }));
+        dispatch(forgotPasswordRequest({ email: email.trim() }));
     };
 
     return (
@@ -67,17 +83,25 @@ const ForgotPasswordScreen = ({ navigation }: ForgotPasswordScreenProps) => {
                     </View>
 
                     <View style={styles.formContainer}>
-                        <View style={styles.inputContainer}>
-                            <Icon name="mail" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Enter your email"
-                                placeholderTextColor="#9CA3AF"
-                                value={email}
-                                onChangeText={setEmail}
-                                keyboardType="email-address"
-                                autoCapitalize="none"
-                            />
+                        <View style={styles.fieldWrapper}>
+                            <View style={[styles.inputContainer, touched && emailError ? styles.inputContainerError : null]}>
+                                <Icon name="mail" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Enter your email"
+                                    placeholderTextColor="#9CA3AF"
+                                    value={email}
+                                    onChangeText={(value) => {
+                                        setTouched(true);
+                                        setEmail(value);
+                                    }}
+                                    onFocus={() => setTouched(true)}
+                                    onBlur={() => setTouched(true)}
+                                    keyboardType="email-address"
+                                    autoCapitalize="none"
+                                />
+                            </View>
+                            {touched && emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
                         </View>
 
                         <Pressable 
@@ -149,6 +173,9 @@ const styles = StyleSheet.create({
     formContainer: {
         marginBottom: verticalScale(30),
     },
+    fieldWrapper: {
+        marginBottom: verticalScale(30),
+    },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -157,8 +184,10 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#E5E7EB',
         height: verticalScale(55),
-        marginBottom: verticalScale(30),
         paddingHorizontal: normalize(16),
+    },
+    inputContainerError: {
+        borderColor: '#EF4444',
     },
     inputIcon: {
         marginRight: normalize(12),
@@ -167,6 +196,12 @@ const styles = StyleSheet.create({
         flex: 1,
         color: '#111827',
         fontSize: normalize(15),
+    },
+    errorText: {
+        color: '#EF4444',
+        fontSize: normalize(12),
+        marginTop: verticalScale(6),
+        marginLeft: normalize(4),
     },
     submitButton: {
         backgroundColor: Colorpath.Primary,

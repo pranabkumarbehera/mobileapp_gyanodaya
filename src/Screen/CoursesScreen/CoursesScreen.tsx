@@ -1,27 +1,399 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Icon from 'react-native-vector-icons/Feather';
+import Feather from 'react-native-vector-icons/Feather';
+import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import Colorpath from '../../Themes/Colorpath';
 import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
-import { StackScreenProps } from '@react-navigation/stack';
-import { RootStackParamList } from '../../Navigator/StackNav';
+import { useDispatch, useSelector } from 'react-redux';
+import { getMockTestListRequest } from '../../Redux/Reducers/MockTestReducer';
+import { RootState } from '../../Redux/Store';
 
-type CoursesScreenProps = StackScreenProps<RootStackParamList, 'Courses'>;
+type CoursesScreenProps = {
+    navigation: any;
+};
+
+const EXAM_CATEGORIES = [
+    {
+        id: 'ssb-tgt',
+        name: 'SSB TGT',
+        icon: 'book',
+        iconType: 'Feather',
+        bgColor: '#EEF2FF',
+        iconColor: '#3F51B5',
+        pattern: {
+            questions: 100,
+            marks: 150,
+            marksPerQuestion: '+1.5',
+            negativeMarking: '-0.5',
+            duration: '2 Hours',
+            note: 'One prose & one poetry'
+        },
+        subjects: [
+            { name: 'TGT ARTS', bgColor: '#EEF2FF', textColor: '#4F46E5' },
+            { name: 'TGT PCM', bgColor: '#FEF3C7', textColor: '#D97706' },
+            { name: 'TGT CBZ', bgColor: '#ECFDF5', textColor: '#059669' },
+            { name: 'TGT ODIA', bgColor: '#FDF2F8', textColor: '#DB2777' },
+            { name: 'SANSKRIT', bgColor: '#F5F3FF', textColor: '#7C3AED' },
+            { name: 'HINDI', bgColor: '#FFF7ED', textColor: '#EA580C' }
+        ]
+    },
+    {
+        id: 'ssb-pgt',
+        name: 'SSB PGT',
+        icon: 'graduation-cap',
+        iconType: 'FontAwesome5',
+        bgColor: '#E0F2FE',
+        iconColor: '#0284C7',
+        pattern: {
+            questions: 100,
+            marks: 100,
+            marksPerQuestion: '+1.0',
+            negativeMarking: '-0.25',
+            duration: '2 Hours',
+            note: 'Post Graduate Syllabus'
+        },
+        subjects: [
+            { name: 'PGT PHYSICS', bgColor: '#EEF2FF', textColor: '#4F46E5' },
+            { name: 'PGT CHEMISTRY', bgColor: '#FEF3C7', textColor: '#D97706' },
+            { name: 'PGT MATHS', bgColor: '#ECFDF5', textColor: '#059669' }
+        ]
+    },
+    {
+        id: 'ltr',
+        name: 'LTR',
+        icon: 'bookmark',
+        iconType: 'Feather',
+        bgColor: '#FEF3C7',
+        iconColor: '#D97706',
+        pattern: {
+            questions: 100,
+            marks: 100,
+            marksPerQuestion: '+1.0',
+            negativeMarking: '-0.25',
+            duration: '90 Mins',
+            note: 'General Knowledge & Aptitude'
+        },
+        subjects: [
+            { name: 'GENERAL STUDIES', bgColor: '#EEF2FF', textColor: '#4F46E5' },
+            { name: 'CURRENT AFFAIRS', bgColor: '#FEF3C7', textColor: '#D97706' }
+        ]
+    },
+    {
+        id: 'rht',
+        name: 'RHT',
+        icon: 'school',
+        iconType: 'FontAwesome5',
+        bgColor: '#D1FAE5',
+        iconColor: '#059669',
+        pattern: {
+            questions: 150,
+            marks: 150,
+            marksPerQuestion: '+1.0',
+            negativeMarking: '-0.25',
+            duration: '2.5 Hours',
+            note: 'Regular High School Teacher'
+        },
+        subjects: [
+            { name: 'RHT ARTS', bgColor: '#EEF2FF', textColor: '#4F46E5' },
+            { name: 'RHT SCIENCE', bgColor: '#ECFDF5', textColor: '#059669' }
+        ]
+    },
+    {
+        id: 'net-jrf',
+        name: 'NET / JRF',
+        icon: 'award',
+        iconType: 'Feather',
+        bgColor: '#FEF3C7',
+        iconColor: '#B45309',
+        pattern: {
+            questions: 150,
+            marks: 300,
+            marksPerQuestion: '+2.0',
+            negativeMarking: '0.0',
+            duration: '3 Hours',
+            note: 'Paper I & Paper II combined'
+        },
+        subjects: [
+            { name: 'PAPER 1', bgColor: '#EEF2FF', textColor: '#4F46E5' },
+            { name: 'COMPUTER SCIENCE', bgColor: '#F5F3FF', textColor: '#7C3AED' }
+        ]
+    },
+    {
+        id: 'osstet',
+        name: 'OSSTET',
+        icon: 'clipboard',
+        iconType: 'Feather',
+        bgColor: '#F3E8FF',
+        iconColor: '#7C3AED',
+        pattern: {
+            questions: 150,
+            marks: 150,
+            marksPerQuestion: '+1.0',
+            negativeMarking: '0.0',
+            duration: '2.5 Hours',
+            note: 'Category I & II'
+        },
+        subjects: [
+            { name: 'OSSTET ARTS', bgColor: '#EEF2FF', textColor: '#4F46E5' },
+            { name: 'OSSTET SCIENCE', bgColor: '#ECFDF5', textColor: '#059669' }
+        ]
+    },
+    {
+        id: 'otet',
+        name: 'OTET',
+        icon: 'check-circle',
+        iconType: 'Feather',
+        bgColor: '#D1FAE5',
+        iconColor: '#059669',
+        pattern: {
+            questions: 150,
+            marks: 150,
+            marksPerQuestion: '+1.0',
+            negativeMarking: '0.0',
+            duration: '2.5 Hours',
+            note: 'Paper I compulsory'
+        },
+        subjects: [
+            { name: 'OTET PAPER 1', bgColor: '#EEF2FF', textColor: '#4F46E5' }
+        ]
+    },
+    {
+        id: 'bed',
+        name: 'B.ED',
+        icon: 'bar-chart-2',
+        iconType: 'Feather',
+        bgColor: '#EEF2FF',
+        iconColor: '#4F46E5',
+        pattern: {
+            questions: 100,
+            marks: 100,
+            marksPerQuestion: '+1.0',
+            negativeMarking: '-0.25',
+            duration: '2 Hours',
+            note: 'Arts & Science streams'
+        },
+        subjects: [
+            { name: 'B.ED ARTS', bgColor: '#EEF2FF', textColor: '#4F46E5' },
+            { name: 'B.ED SCIENCE', bgColor: '#ECFDF5', textColor: '#059669' }
+        ]
+    },
+    {
+        id: 'shiksha-shastri',
+        name: 'Shiksha Shastri',
+        icon: 'heart',
+        iconType: 'Feather',
+        bgColor: '#FEE2E2',
+        iconColor: '#DC2626',
+        pattern: {
+            questions: 100,
+            marks: 100,
+            marksPerQuestion: '+1.0',
+            negativeMarking: '-0.25',
+            duration: '2 Hours',
+            note: 'Sanskrit teacher eligibility'
+        },
+        subjects: [
+            { name: 'SHIKSHA SHASTRI', bgColor: '#F5F3FF', textColor: '#7C3AED' }
+        ]
+    },
+    {
+        id: 'otet-paper-ii',
+        name: 'OTET Paper II',
+        icon: 'monitor',
+        iconType: 'Feather',
+        bgColor: '#FFEDD5',
+        iconColor: '#D97706',
+        pattern: {
+            questions: 150,
+            marks: 150,
+            marksPerQuestion: '+1.0',
+            negativeMarking: '0.0',
+            duration: '2.5 Hours',
+            note: 'Paper II optional subject'
+        },
+        subjects: [
+            { name: 'SOCIAL STUDIES', bgColor: '#EEF2FF', textColor: '#4F46E5' },
+            { name: 'MATHS & SCIENCE', bgColor: '#ECFDF5', textColor: '#059669' }
+        ]
+    }
+];
 
 const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
-    const [activeTab, setActiveTab] = useState('All');
+    const dispatch = useDispatch();
+    const { mockTestList } = useSelector((state: RootState) => state.MockTestReducer);
 
-    const courses = [
-        { id: 1, title: 'Calculus Mastery', stats: '45 hrs • 110 lessons', progress: 36, status: 'Ongoing' },
-        { id: 2, title: 'Algebra Crash Course', stats: '32 hrs • 80 lessons', progress: 100, status: 'Completed' },
-        { id: 3, title: 'Advanced Physics', stats: '60 hrs • 120 lessons', progress: 12, status: 'Ongoing' },
-        { id: 4, title: 'Organic Chemistry', stats: '40 hrs • 90 lessons', progress: 0, status: 'Not Started' },
-    ];
+    const [selectedExam, setSelectedExam] = useState<any>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedSubjectName, setSelectedSubjectName] = useState<string | null>(null);
 
-    const filteredCourses = activeTab === 'All' 
-        ? courses 
-        : courses.filter(course => course.status === activeTab);
+    useEffect(() => {
+        dispatch(getMockTestListRequest({}));
+    }, [dispatch]);
+
+    const handleSelectSubject = (subject: any) => {
+        setSelectedSubjectName(subject.name);
+        
+        // Find corresponding mock test by subject name matching (case insensitive)
+        const tests = Array.isArray(mockTestList)
+            ? mockTestList
+            : mockTestList?.data || mockTestList?.quizzes || mockTestList?.items || [];
+            
+        const matchedTest = tests.find((test: any) => {
+            const testTitle = (test.title || test.name || '').toLowerCase();
+            const subjectName = subject.name.toLowerCase();
+            return testTitle.includes(subjectName) || subjectName.includes(testTitle);
+        });
+
+        const targetTestId = matchedTest?.id || matchedTest?._id || matchedTest?.testId || (tests[0]?.id || tests[0]?._id || 1);
+
+        setTimeout(() => {
+            navigation.navigate('MockTestRules', { testId: targetTestId });
+            // Reset selection after navigating to ensure clean state if user returns
+            setSelectedSubjectName(null);
+        }, 200);
+    };
+
+    const renderIcon = (name: string, type: string, size: number, color: string) => {
+        if (type === 'FontAwesome5') {
+            return <FontAwesome5 name={name} size={size} color={color} />;
+        }
+        return <Feather name={name} size={size} color={color} />;
+    };
+
+    const filteredExams = EXAM_CATEGORIES.filter(exam =>
+        exam.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    if (selectedExam) {
+        return (
+            <View style={styles.container}>
+                <StatusBar backgroundColor={Colorpath.Primary} barStyle="light-content" />
+
+                <View style={styles.detailHeader}>
+                    <SafeAreaView edges={['top']}>
+                        <View style={styles.detailHeaderContent}>
+                            <Pressable onPress={() => setSelectedExam(null)} style={styles.backBtn}>
+                                <Feather name="arrow-left" size={normalize(20)} color="#FFFFFF" />
+                            </Pressable>
+                            <View style={styles.headerTextColumn}>
+                                <Text style={styles.headerTagline}>EXAM CATEGORY</Text>
+                                <Text style={styles.headerMainTitle}>{selectedExam.name}</Text>
+                            </View>
+                            <View style={styles.headerRightIcon}>
+                                {renderIcon(selectedExam.icon, selectedExam.iconType, normalize(20), Colorpath.Primary)}
+                            </View>
+                        </View>
+                    </SafeAreaView>
+                </View>
+
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.detailScrollContent}>
+                    <Text style={styles.sectionTitle}>Exam Pattern</Text>
+                    
+                    <View style={styles.patternCard}>
+                        <View style={styles.patternGrid}>
+                            <View style={styles.patternItem}>
+                                <View style={[styles.patternIconWrap, { backgroundColor: '#EFF6FF' }]}>
+                                    <Feather name="help-circle" size={normalize(18)} color="#1D4ED8" />
+                                </View>
+                                <View>
+                                    <Text style={styles.patternLabel}>Total Questions</Text>
+                                    <Text style={styles.patternValue}>{selectedExam.pattern.questions}</Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.patternItem}>
+                                <View style={[styles.patternIconWrap, { backgroundColor: '#FEF3C7' }]}>
+                                    <Feather name="star" size={normalize(16)} color="#D97706" />
+                                </View>
+                                <View>
+                                    <Text style={styles.patternLabel}>Total Marks</Text>
+                                    <Text style={styles.patternValue}>{selectedExam.pattern.marks}</Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.patternItem}>
+                                <View style={[styles.patternIconWrap, { backgroundColor: '#ECFDF5' }]}>
+                                    <Feather name="check-circle" size={normalize(16)} color="#059669" />
+                                </View>
+                                <View>
+                                    <Text style={styles.patternLabel}>Marks / Question</Text>
+                                    <Text style={styles.patternValue}>{selectedExam.pattern.marksPerQuestion}</Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.patternItem}>
+                                <View style={[styles.patternIconWrap, { backgroundColor: '#FEE2E2' }]}>
+                                    <Feather name="minus-circle" size={normalize(16)} color="#DC2626" />
+                                </View>
+                                <View>
+                                    <Text style={styles.patternLabel}>Negative Marking</Text>
+                                    <Text style={styles.patternValue}>{selectedExam.pattern.negativeMarking}</Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.patternItem}>
+                                <View style={[styles.patternIconWrap, { backgroundColor: '#F5F3FF' }]}>
+                                    <Feather name="clock" size={normalize(16)} color="#7C3AED" />
+                                </View>
+                                <View>
+                                    <Text style={styles.patternLabel}>Duration</Text>
+                                    <Text style={styles.patternValue}>{selectedExam.pattern.duration}</Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.patternItem}>
+                                <View style={[styles.patternIconWrap, { backgroundColor: '#FFF7ED' }]}>
+                                    <Feather name="book-open" size={normalize(16)} color="#EA580C" />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.patternLabel}>Note</Text>
+                                    <Text style={styles.patternValue} numberOfLines={2}>{selectedExam.pattern.note}</Text>
+                                </View>
+                            </View>
+                        </View>
+                    </View>
+
+                    <Text style={styles.sectionTitle}>Available Subjects</Text>
+                    <Text style={styles.subjectSubtitle}>Tap a subject to start practice</Text>
+
+                    <View style={styles.subjectList}>
+                        {selectedExam.subjects.map((subject: any, idx: number) => {
+                            const isSelected = selectedSubjectName === subject.name;
+                            return (
+                                <Pressable
+                                    key={idx}
+                                    style={[
+                                        styles.subjectCard,
+                                        isSelected && styles.subjectCardSelected,
+                                        !isSelected && { backgroundColor: subject.bgColor + '25' } // subtle opacity
+                                    ]}
+                                    onPress={() => handleSelectSubject(subject)}
+                                >
+                                    <View style={[styles.subjectIconWrap, { backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.2)' : subject.bgColor }]}>
+                                        <Feather name="book-open" size={normalize(18)} color={isSelected ? '#FFFFFF' : subject.textColor} />
+                                    </View>
+                                    <Text style={[styles.subjectTitle, isSelected && styles.subjectTitleSelected]}>
+                                        {subject.name}
+                                    </Text>
+                                    {isSelected ? (
+                                        <View style={styles.subjectRightSelected}>
+                                            <Text style={styles.selectedLabel}>SELECTED</Text>
+                                            <Feather name="chevron-right" size={normalize(16)} color="#F0A335" />
+                                        </View>
+                                    ) : (
+                                        <Feather name="chevron-right" size={normalize(16)} color="#9CA3AF" />
+                                    )}
+                                </Pressable>
+                            );
+                        })}
+                    </View>
+
+                    <View style={{ height: verticalScale(50) }} />
+                </ScrollView>
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>
@@ -30,101 +402,355 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
             <View style={styles.headerBackground}>
                 <SafeAreaView edges={['top']}>
                     <View style={styles.topBar}>
-                        <Pressable onPress={() => navigation.goBack()} style={styles.iconButton}>
-                            <Icon name="arrow-left" size={normalize(24)} color="#FFFFFF" />
-                        </Pressable>
-                        <Text style={styles.headerTitle}>My Courses</Text>
-                        <Pressable style={styles.iconButton}>
-                            <Icon name="search" size={normalize(20)} color="#FFFFFF" />
-                        </Pressable>
+                        <Text style={styles.brandText}>GYANODAYA</Text>
+                        <Text style={styles.titleText}>Exam Categories</Text>
+                        <Text style={styles.subtitleText}>Select an exam to view details & start practice</Text>
                     </View>
                 </SafeAreaView>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                
-                <View style={styles.tabsContainer}>
-                    {['All', 'Ongoing', 'Completed'].map((tab) => (
-                        <Pressable 
-                            key={tab}
-                            style={[styles.tab, activeTab === tab && styles.activeTab]}
-                            onPress={() => setActiveTab(tab)}
+                <View style={styles.searchContainer}>
+                    <Feather name="search" size={normalize(18)} color="#9CA3AF" style={styles.searchIcon} />
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder="Search exam category..."
+                        placeholderTextColor="#9CA3AF"
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                    />
+                </View>
+
+                <View style={styles.statsContainer}>
+                    <View style={styles.statCard}>
+                        <Text style={[styles.statValue, { color: '#092948' }]}>10</Text>
+                        <Text style={styles.statLabel}>Exams</Text>
+                    </View>
+                    <View style={styles.statCard}>
+                        <Text style={[styles.statValue, { color: '#10B981' }]}>30+</Text>
+                        <Text style={styles.statLabel}>Subjects</Text>
+                    </View>
+                    <View style={styles.statCard}>
+                        <Text style={[styles.statValue, { color: '#F0A335' }]}>500+</Text>
+                        <Text style={styles.statLabel}>Mock Tests</Text>
+                    </View>
+                </View>
+
+                <Text style={styles.allExamsTitle}>All Exams</Text>
+
+                <View style={styles.gridContainer}>
+                    {filteredExams.map((exam) => (
+                        <Pressable
+                            key={exam.id}
+                            style={styles.gridItem}
+                            onPress={() => setSelectedExam(exam)}
                         >
-                            <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{tab}</Text>
+                            <View style={[styles.circleContainer, { backgroundColor: exam.bgColor }]}>
+                                {renderIcon(exam.icon, exam.iconType, normalize(26), exam.iconColor)}
+                            </View>
+                            <Text style={styles.examLabel}>{exam.name}</Text>
                         </Pressable>
                     ))}
                 </View>
 
-                {filteredCourses.map((course, i) => (
-                    <View key={i} style={styles.courseCard}>
-                        <View style={styles.cardHeader}>
-                            <View style={styles.courseIconContainer}>
-                                <Icon name="play-circle" size={normalize(24)} color={Colorpath.Primary} />
-                            </View>
-                            <View style={styles.courseInfo}>
-                                <Text style={styles.courseTitle}>{course.title}</Text>
-                                <Text style={styles.courseSubtitle}>{course.stats}</Text>
-                            </View>
-                        </View>
-                        
-                        <View style={styles.progressSection}>
-                            <View style={styles.progressRow}>
-                                <Text style={styles.progressLabel}>Progress</Text>
-                                <Text style={styles.progressValue}>{course.progress}%</Text>
-                            </View>
-                            <View style={styles.progressBarBg}>
-                                <View style={[styles.progressBarFill, { width: `${course.progress}%` }]} />
-                            </View>
-                        </View>
-                        
-                        <Pressable 
-                            style={styles.actionButton}
-                            onPress={() => {
-                                if (course.progress === 100) {
-                                    navigation.navigate('MockResult');
-                                }
-                            }}
-                        >
-                            <Text style={styles.actionButtonText}>
-                                {course.progress === 0 ? 'Start Course' : course.progress === 100 ? 'View Result' : 'Continue Learning'}
-                            </Text>
-                        </Pressable>
-                    </View>
-                ))}
-                
-                <View style={{height: verticalScale(100)}} />
+                <View style={{ height: verticalScale(100) }} />
             </ScrollView>
-
         </View>
     );
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#FAFBFF' },
-    headerBackground: { backgroundColor: Colorpath.Primary },
-    topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: normalize(24), paddingTop: verticalScale(10), paddingBottom: verticalScale(16) },
-    iconButton: { padding: normalize(4) },
-    headerTitle: { fontSize: normalize(18), fontWeight: 'bold', color: '#FFFFFF' },
-    scrollContent: { paddingHorizontal: normalize(24), paddingTop: verticalScale(20) },
-    tabsContainer: { flexDirection: 'row', backgroundColor: '#F3F4F6', borderRadius: normalize(12), padding: normalize(4), marginBottom: verticalScale(24) },
-    tab: { flex: 1, paddingVertical: verticalScale(10), alignItems: 'center', borderRadius: normalize(10) },
-    activeTab: { backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
-    tabText: { fontSize: normalize(14), fontWeight: '600', color: '#6B7280' },
-    activeTabText: { color: Colorpath.Primary },
-    courseCard: { backgroundColor: '#FFFFFF', borderRadius: normalize(16), padding: normalize(20), marginBottom: verticalScale(16), shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
-    cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: verticalScale(20) },
-    courseIconContainer: { width: normalize(52), height: normalize(52), borderRadius: normalize(14), backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginRight: normalize(16) },
-    courseInfo: { flex: 1 },
-    courseTitle: { fontSize: normalize(16), fontWeight: 'bold', color: Colorpath.Primary, marginBottom: verticalScale(6) },
-    courseSubtitle: { fontSize: normalize(13), color: '#6B7280' },
-    progressSection: { marginBottom: verticalScale(20) },
-    progressRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: verticalScale(8) },
-    progressLabel: { fontSize: normalize(13), color: '#6B7280', fontWeight: '500' },
-    progressValue: { fontSize: normalize(13), color: Colorpath.Primary, fontWeight: '700' },
-    progressBarBg: { width: '100%', height: verticalScale(6), backgroundColor: '#E5E7EB', borderRadius: normalize(3), overflow: 'hidden' },
-    progressBarFill: { height: '100%', backgroundColor: Colorpath.Secondary, borderRadius: normalize(3) },
-    actionButton: { width: '100%', backgroundColor: '#F8FAFC', paddingVertical: verticalScale(12), borderRadius: normalize(10), borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center' },
-    actionButtonText: { color: Colorpath.Primary, fontSize: normalize(14), fontWeight: 'bold' },
+    container: {
+        flex: 1,
+        backgroundColor: '#FAFBFF'
+    },
+    headerBackground: {
+        backgroundColor: Colorpath.Primary,
+        borderBottomLeftRadius: normalize(24),
+        borderBottomRightRadius: normalize(24),
+        paddingBottom: verticalScale(12)
+    },
+    topBar: {
+        paddingHorizontal: normalize(24),
+        paddingTop: verticalScale(16),
+        paddingBottom: verticalScale(12)
+    },
+    brandText: {
+        fontSize: normalize(11),
+        fontWeight: 'bold',
+        color: 'rgba(255, 255, 255, 0.6)',
+        letterSpacing: 1.5,
+        marginBottom: verticalScale(4)
+    },
+    titleText: {
+        fontSize: normalize(24),
+        fontWeight: '800',
+        color: '#FFFFFF',
+        marginBottom: verticalScale(6)
+    },
+    subtitleText: {
+        fontSize: normalize(13),
+        color: 'rgba(255, 255, 255, 0.85)',
+        lineHeight: normalize(18)
+    },
+    scrollContent: {
+        paddingHorizontal: normalize(20),
+        paddingTop: verticalScale(20)
+    },
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: normalize(12),
+        paddingHorizontal: normalize(14),
+        height: verticalScale(48),
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.04,
+        shadowRadius: 6,
+        elevation: 2,
+        marginBottom: verticalScale(20)
+    },
+    searchIcon: {
+        marginRight: normalize(8)
+    },
+    searchInput: {
+        flex: 1,
+        fontSize: normalize(14),
+        color: '#1F2937',
+        height: '100%',
+        paddingVertical: 0
+    },
+    statsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: verticalScale(24)
+    },
+    statCard: {
+        flex: 1,
+        backgroundColor: '#FFFFFF',
+        borderRadius: normalize(12),
+        paddingVertical: verticalScale(12),
+        alignItems: 'center',
+        marginHorizontal: normalize(4),
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.02,
+        shadowRadius: 2,
+        elevation: 1
+    },
+    statValue: {
+        fontSize: normalize(16),
+        fontWeight: '800'
+    },
+    statLabel: {
+        fontSize: normalize(11),
+        color: '#6B7280',
+        fontWeight: '600',
+        marginTop: verticalScale(2)
+    },
+    allExamsTitle: {
+        fontSize: normalize(16),
+        fontWeight: 'bold',
+        color: '#1F2937',
+        marginBottom: verticalScale(16)
+    },
+    gridContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'flex-start',
+        marginHorizontal: -normalize(8)
+    },
+    gridItem: {
+        width: '33.33%',
+        alignItems: 'center',
+        marginBottom: verticalScale(20),
+        paddingHorizontal: normalize(8)
+    },
+    circleContainer: {
+        width: normalize(72),
+        height: normalize(72),
+        borderRadius: normalize(36),
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.06,
+        shadowRadius: 6,
+        elevation: 3,
+        borderWidth: 1,
+        borderColor: '#FFFFFF'
+    },
+    examLabel: {
+        fontSize: normalize(11),
+        fontWeight: '700',
+        color: '#374151',
+        textAlign: 'center',
+        marginTop: verticalScale(8),
+        lineHeight: normalize(15)
+    },
+
+    // Detail Screen styles
+    detailHeader: {
+        backgroundColor: Colorpath.Primary,
+        borderBottomLeftRadius: normalize(20),
+        borderBottomRightRadius: normalize(20)
+    },
+    detailHeaderContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: normalize(20),
+        paddingTop: verticalScale(12),
+        paddingBottom: verticalScale(20)
+    },
+    backBtn: {
+        width: normalize(36),
+        height: normalize(36),
+        borderRadius: normalize(18),
+        backgroundColor: 'rgba(255, 255, 255, 0.15)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: normalize(16)
+    },
+    headerTextColumn: {
+        flex: 1
+    },
+    headerTagline: {
+        fontSize: normalize(10),
+        fontWeight: 'bold',
+        color: 'rgba(255, 255, 255, 0.6)',
+        letterSpacing: 1
+    },
+    headerMainTitle: {
+        fontSize: normalize(20),
+        fontWeight: '800',
+        color: '#FFFFFF',
+        marginTop: verticalScale(2)
+    },
+    headerRightIcon: {
+        width: normalize(36),
+        height: normalize(36),
+        borderRadius: normalize(18),
+        backgroundColor: '#FFFFFF',
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
+    detailScrollContent: {
+        paddingHorizontal: normalize(20),
+        paddingTop: verticalScale(20)
+    },
+    sectionTitle: {
+        fontSize: normalize(16),
+        fontWeight: '800',
+        color: '#1F2937',
+        marginBottom: verticalScale(12)
+    },
+    patternCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: normalize(14),
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        padding: normalize(16),
+        marginBottom: verticalScale(20),
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.02,
+        shadowRadius: 4,
+        elevation: 2
+    },
+    patternGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        marginHorizontal: -normalize(6)
+    },
+    patternItem: {
+        width: '50%',
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: normalize(6),
+        marginBottom: verticalScale(12)
+    },
+    patternIconWrap: {
+        width: normalize(34),
+        height: normalize(34),
+        borderRadius: normalize(8),
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: normalize(8)
+    },
+    patternLabel: {
+        fontSize: normalize(9),
+        color: '#9CA3AF',
+        fontWeight: 'bold',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5
+    },
+    patternValue: {
+        fontSize: normalize(12),
+        fontWeight: '800',
+        color: '#1F2937',
+        marginTop: verticalScale(1)
+    },
+    subjectSubtitle: {
+        fontSize: normalize(12),
+        color: '#6B7280',
+        marginTop: -verticalScale(8),
+        marginBottom: verticalScale(12)
+    },
+    subjectList: {
+        marginBottom: verticalScale(20)
+    },
+    subjectCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderRadius: normalize(12),
+        paddingHorizontal: normalize(12),
+        paddingVertical: verticalScale(10),
+        marginBottom: verticalScale(10),
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.01,
+        shadowRadius: 1,
+        elevation: 1
+    },
+    subjectCardSelected: {
+        backgroundColor: '#092948',
+        borderColor: '#092948'
+    },
+    subjectIconWrap: {
+        width: normalize(36),
+        height: normalize(36),
+        borderRadius: normalize(8),
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: normalize(12)
+    },
+    subjectTitle: {
+        flex: 1,
+        fontSize: normalize(13),
+        fontWeight: 'bold',
+        color: '#374151'
+    },
+    subjectTitleSelected: {
+        color: '#FFFFFF'
+    },
+    subjectRightSelected: {
+        flexDirection: 'row',
+        alignItems: 'center'
+    },
+    selectedLabel: {
+        fontSize: normalize(10),
+        fontWeight: '800',
+        color: '#F0A335',
+        marginRight: normalize(4),
+        letterSpacing: 0.5
+    }
 });
 
 export default CoursesScreen;
