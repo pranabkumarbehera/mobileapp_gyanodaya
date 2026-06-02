@@ -10,6 +10,7 @@ import {
     StatusBar,
     ActivityIndicator,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDispatch, useSelector } from 'react-redux';
 import { loginRequest } from '../../../Redux/Reducers/AuthReducer';
 import { RootState } from '../../../Redux/Store';
@@ -20,6 +21,8 @@ import Colorpath from '../../../Themes/Colorpath';
 import { normalize, verticalScale } from '../../../Utils/Helpers/normalize';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../Navigator/StackNav';
+import constants from '../../../Utils/Helpers/constants';
+import { useIsFocused } from '@react-navigation/native';
 
 type LoginScreenProps = StackScreenProps<RootStackParamList, 'Login'>;
 type LoginErrors = {
@@ -28,8 +31,10 @@ type LoginErrors = {
 };
 
 const LoginScreen = ({ navigation }: LoginScreenProps) => {
+    const isFocused = useIsFocused();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [rememberPassword, setRememberPassword] = useState(false);
     const [secureText, setSecureText] = useState(true);
     const [touched, setTouched] = useState<{ email: boolean; password: boolean }>({
         email: false,
@@ -43,9 +48,67 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
 
     useEffect(() => {
         if (loginResponse && (loginResponse.accessToken || loginResponse.token || loginResponse.success || loginResponse.message)) {
-            navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+            const handleSuccess = async () => {
+                try {
+                    if (rememberPassword) {
+                        await AsyncStorage.multiSet([
+                            [constants.REMEMBER_PASSWORD, 'true'],
+                            [constants.SAVED_EMAIL, email.trim()],
+                            [constants.SAVED_PASSWORD, password],
+                        ]);
+                    } else {
+                        await AsyncStorage.multiRemove([
+                            constants.SAVED_EMAIL,
+                            constants.SAVED_PASSWORD,
+                        ]);
+                        await AsyncStorage.setItem(constants.REMEMBER_PASSWORD, 'false');
+                    }
+                } catch (error) {
+                    console.log('Error saving remembered login', error);
+                }
+                navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+            };
+            handleSuccess();
         }
-    }, [loginResponse, navigation]);
+    }, [loginResponse, navigation, rememberPassword, email, password]);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadRememberedLogin = async () => {
+            try {
+                const rememberValue = await AsyncStorage.getItem(constants.REMEMBER_PASSWORD);
+                const savedEmail = await AsyncStorage.getItem(constants.SAVED_EMAIL);
+                const savedPassword = await AsyncStorage.getItem(constants.SAVED_PASSWORD);
+
+                if (!isMounted) {
+                    return;
+                }
+
+                if (rememberValue === 'true' && savedEmail && savedPassword) {
+                    setEmail(savedEmail);
+                    setPassword(savedPassword);
+                    setRememberPassword(true);
+                } else {
+                    setEmail('');
+                    setPassword('');
+                    setRememberPassword(false);
+                }
+            } catch (error) {
+                if (isMounted) {
+                    setEmail('');
+                    setPassword('');
+                    setRememberPassword(false);
+                }
+            }
+        };
+
+        loadRememberedLogin();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [isFocused]);
 
     const getErrors = (): LoginErrors => {
         const errors: LoginErrors = {};
@@ -58,6 +121,8 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
 
         if (!password) {
             errors.password = 'Password is required';
+        } else if (password.length < 7) {
+            errors.password = 'Password must be at least 7 characters';
         }
 
         return errors;
@@ -75,12 +140,13 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
         setPassword(value);
     };
 
-    const handleLogin = () => {
+    const handleLogin = async () => {
         const nextErrors = getErrors();
         if (Object.keys(nextErrors).length > 0) {
             setTouched({ email: true, password: true });
             return;
         }
+
         dispatch(loginRequest({ email: email.trim(), password, deviceType: 'mobile' }));
     };
 
@@ -136,9 +202,20 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                         {touched.password && errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
                     </View>
 
-                    <Pressable onPress={() => navigation.navigate('ForgotPassword')} style={styles.forgotPasswordContainer}>
-                        <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-                    </Pressable>
+                    <View style={styles.helperRow}>
+                        <Pressable style={styles.rememberRow} onPress={() => setRememberPassword((prev) => !prev)}>
+                            <Icon
+                                name={rememberPassword ? 'check-square' : 'square'}
+                                size={normalize(18)}
+                                color={rememberPassword ? Colorpath.Primary : '#9CA3AF'}
+                            />
+                            <Text style={styles.rememberText}>Remember the password</Text>
+                        </Pressable>
+
+                        <Pressable onPress={() => navigation.navigate('ForgotPassword')} style={styles.forgotPasswordContainer}>
+                            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                        </Pressable>
+                    </View>
 
                     <Pressable style={styles.loginButton} onPress={handleLogin} disabled={isLoading}>
                         {isLoading ? (
@@ -236,9 +313,24 @@ const styles = StyleSheet.create({
         marginTop: verticalScale(6),
         marginLeft: normalize(4),
     },
+    helperRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: verticalScale(24),
+    },
+    rememberRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: normalize(10),
+    },
+    rememberText: {
+        color: '#374151',
+        fontSize: normalize(13),
+        fontWeight: '500',
+    },
     forgotPasswordContainer: {
         alignItems: 'flex-end',
-        marginBottom: verticalScale(24),
     },
     forgotPasswordText: {
         color: Colorpath.Secondary,

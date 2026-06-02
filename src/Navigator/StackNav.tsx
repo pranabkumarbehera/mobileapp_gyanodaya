@@ -25,7 +25,7 @@ export type RootStackParamList = {
     Login: undefined;
     Register: undefined;
     ForgotPassword: undefined;
-    ChangePassword: undefined;
+    ChangePassword: { token?: string } | undefined;
     Home: undefined; // We'll map Home to TabNav for drop-in replacement
     Teacher: undefined;
     MockTestRules: { testId?: string | number };

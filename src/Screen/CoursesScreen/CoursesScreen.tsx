@@ -233,25 +233,35 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
     const handleSelectSubject = (subject: any) => {
         setSelectedSubjectName(subject.name);
-        
+
         // Find corresponding mock test by subject name matching (case insensitive)
         const tests = Array.isArray(mockTestList)
             ? mockTestList
             : mockTestList?.data || mockTestList?.quizzes || mockTestList?.items || [];
-            
-        const matchedTest = tests.find((test: any) => {
+
+        // 1st: find a test matching the subject that has price zero
+        let matchedTest = tests.find((test: any) => {
             const testTitle = (test.title || test.name || '').toLowerCase();
             const subjectName = subject.name.toLowerCase();
-            return testTitle.includes(subjectName) || subjectName.includes(testTitle);
+            const testPrice = Number(test?.price ?? 0);
+            return (testTitle.includes(subjectName) || subjectName.includes(testTitle)) && testPrice <= 0;
         });
 
-        const targetTestId = matchedTest?.id || matchedTest?._id || matchedTest?.testId || (tests[0]?.id || tests[0]?._id || 1);
+        // 2nd: if no exact match, just get the first free test
+        if (!matchedTest) {
+            matchedTest = tests.find((test: any) => Number(test?.price ?? 0) <= 0);
+        }
 
-        setTimeout(() => {
-            navigation.navigate('MockTestRules', { testId: targetTestId });
-            // Reset selection after navigating to ensure clean state if user returns
+        if (matchedTest) {
+            const targetTestId = matchedTest.id || matchedTest._id || matchedTest.testId;
+            setTimeout(() => {
+                navigation.navigate('MockTestRules', { testId: targetTestId });
+                // Reset selection after navigating to ensure clean state if user returns
+                setSelectedSubjectName(null);
+            }, 200);
+        } else {
             setSelectedSubjectName(null);
-        }, 200);
+        }
     };
 
     const renderIcon = (name: string, type: string, size: number, color: string) => {
@@ -289,7 +299,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
                 <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.detailScrollContent}>
                     <Text style={styles.sectionTitle}>Exam Pattern</Text>
-                    
+
                     <View style={styles.patternCard}>
                         <View style={styles.patternGrid}>
                             <View style={styles.patternItem}>
@@ -402,7 +412,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
             <View style={styles.headerBackground}>
                 <SafeAreaView edges={['top']}>
                     <View style={styles.topBar}>
-                        <Text style={styles.brandText}>GYANODAYA</Text>
+                        {/* <Text style={styles.brandText}>GYANODAYA</Text> */}
                         <Text style={styles.titleText}>Exam Categories</Text>
                         <Text style={styles.subtitleText}>Select an exam to view details & start practice</Text>
                     </View>
@@ -506,11 +516,11 @@ const styles = StyleSheet.create({
         height: verticalScale(48),
         borderWidth: 1,
         borderColor: '#E5E7EB',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 6,
-        elevation: 2,
+        // shadowColor: '#000',
+        // shadowOffset: { width: 0, height: 2 },
+        // shadowOpacity: 0.04,
+        // shadowRadius: 6,
+        // elevation: 2,
         marginBottom: verticalScale(20)
     },
     searchIcon: {
@@ -537,11 +547,11 @@ const styles = StyleSheet.create({
         marginHorizontal: normalize(4),
         borderWidth: 1,
         borderColor: '#E5E7EB',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.02,
-        shadowRadius: 2,
-        elevation: 1
+        // shadowColor: '#000',
+        // shadowOffset: { width: 0, height: 1 },
+        // shadowOpacity: 0.02,
+        // shadowRadius: 2,
+        // elevation: 1
     },
     statValue: {
         fontSize: normalize(16),
@@ -656,11 +666,11 @@ const styles = StyleSheet.create({
         borderColor: '#E5E7EB',
         padding: normalize(16),
         marginBottom: verticalScale(20),
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.02,
-        shadowRadius: 4,
-        elevation: 2
+        // shadowColor: '#000',
+        // shadowOffset: { width: 0, height: 2 },
+        // shadowOpacity: 0.02,
+        // shadowRadius: 4,
+        // elevation: 2
     },
     patternGrid: {
         flexDirection: 'row',
@@ -713,11 +723,11 @@ const styles = StyleSheet.create({
         marginBottom: verticalScale(10),
         borderWidth: 1,
         borderColor: '#E5E7EB',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.01,
-        shadowRadius: 1,
-        elevation: 1
+        // shadowColor: '#000',
+        // shadowOffset: { width: 0, height: 1 },
+        // shadowOpacity: 0.01,
+        // shadowRadius: 1,
+        // elevation: 1
     },
     subjectCardSelected: {
         backgroundColor: '#092948',

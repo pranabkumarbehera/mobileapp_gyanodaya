@@ -176,9 +176,17 @@ export function* logoutSaga(): Generator<any, void, any> {
     } catch (error: any) {
         yield put(logoutFailure(error));
     } finally {
-        yield call(AsyncStorage.clear);
+        const rememberPassword = yield call(AsyncStorage.getItem, constants.REMEMBER_PASSWORD);
         yield call(AsyncStorage.removeItem, constants.TOKEN);
         yield call(AsyncStorage.removeItem, constants.REFRESH_TOKEN);
+        yield call(AsyncStorage.removeItem, constants.USER_DATA);
+        if (rememberPassword !== 'true') {
+            yield call(AsyncStorage.multiRemove, [
+                constants.SAVED_EMAIL,
+                constants.SAVED_PASSWORD,
+            ]);
+            yield call(AsyncStorage.setItem, constants.REMEMBER_PASSWORD, 'false');
+        }
         yield put(tokenSuccess(null));
         yield put(logoutSuccess('logout'));
         yield put({ type: 'Profile/clearProfile' });

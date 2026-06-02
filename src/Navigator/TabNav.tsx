@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/Feather';
 import Colorpath from '../Themes/Colorpath';
 import { normalize, verticalScale } from '../Utils/Helpers/normalize';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import HomeScreen from '../Screen/HomeScreen/HomeScreen';
 import MockBankScreen from '../Screen/MockBankScreen/MockBankScreen';
@@ -20,6 +21,9 @@ export type TabParamList = {
 const Tab = createBottomTabNavigator<TabParamList>();
 
 const TabNav = () => {
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, verticalScale(8));
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -58,9 +62,9 @@ const TabNav = () => {
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
           borderTopWidth: 1,
-          borderTopColor: '#F3F4F6',
-          height: verticalScale(65),
-          paddingBottom: verticalScale(10),
+          borderTopColor: '#b3c7ef',
+          height: verticalScale(64) + bottomInset,
+          paddingBottom: bottomInset,
           paddingTop: verticalScale(10),
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },
