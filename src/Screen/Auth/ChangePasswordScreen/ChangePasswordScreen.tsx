@@ -46,13 +46,17 @@ const ChangePasswordScreen = ({ navigation, route }: ChangePasswordScreenProps) 
     });
 
     const dispatch = useDispatch();
-    const { isLoading, changePasswordResponse } = useSelector((state: RootState) => state.AuthReducer);
+    const { isLoading, changePasswordResponse, token } = useSelector((state: RootState) => state.AuthReducer);
 
     useEffect(() => {
         if (changePasswordResponse?.success || changePasswordResponse?.message) {
-            navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+            if (token) {
+                navigation.navigate('Home' as never, { screen: 'Profile' } as never);
+            } else {
+                navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+            }
         }
-    }, [changePasswordResponse, navigation]);
+    }, [changePasswordResponse, navigation, token]);
 
     const getErrors = (): ChangePasswordErrors => {
         const errors: ChangePasswordErrors = {};
@@ -99,10 +103,10 @@ const ChangePasswordScreen = ({ navigation, route }: ChangePasswordScreenProps) 
             return;
         }
 
-        const token = await AsyncStorage.getItem(constants.TOKEN);
+        // const token = await AsyncStorage.getItem(constants.TOKEN);
 
         dispatch(changePasswordRequest({
-            token: token || route.params?.token,
+            oldPassword: currentPassword,
             newPassword,
         }));
     };
