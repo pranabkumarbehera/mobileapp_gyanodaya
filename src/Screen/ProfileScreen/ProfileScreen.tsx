@@ -11,6 +11,7 @@ import {
     Modal,
     TextInput,
     Linking,
+    Share,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { logoutRequest } from '../../Redux/Reducers/AuthReducer';
@@ -63,6 +64,8 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
     const profileData = profileState.profileData;
     const [isEditVisible, setIsEditVisible] = useState(false);
     const [form, setForm] = useState<EditableProfile>(DEFAULT_FORM);
+    const [imageError, setImageError] = useState(false);
+    const [editImageError, setEditImageError] = useState(false);
 
     useEffect(() => {
         if (logoutResponse === 'logout') {
@@ -113,6 +116,14 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
     const initials = useMemo(() => getInitials(profileName), [profileName]);
     const avatarBackground = useMemo(() => getAvatarBackgroundColor(profileName), [profileName]);
 
+    useEffect(() => {
+        setImageError(false);
+    }, [displayedAvatar]);
+
+    useEffect(() => {
+        setEditImageError(false);
+    }, [form.avatarUrl]);
+
     const handleLogout = () => {
         dispatch(logoutRequest());
     };
@@ -123,6 +134,16 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
             await Linking.openURL(mailUrl);
         } catch (error) {
             // Ignore if mail app is unavailable.
+        }
+    };
+
+    const handleShareApp = async () => {
+        try {
+            await Share.share({
+                message: 'Prepare for your teaching career with Gyanodaya! Download the app now: https://play.google.com/store/apps/details?id=com.gyanodaya',
+            });
+        } catch (error) {
+            console.log('Error sharing app:', error);
         }
     };
 
@@ -208,9 +229,13 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
 
                 <View style={styles.profileCardWrapper}>
                     <View style={styles.profileCard}>
-                        <View style={[styles.avatarContainer, !displayedAvatar ? { backgroundColor: avatarBackground } : null]}>
-                            {displayedAvatar ? (
-                                <Image source={{ uri: displayedAvatar }} style={styles.avatarImage} />
+                        <View style={[styles.avatarContainer, (!displayedAvatar || imageError) ? { backgroundColor: avatarBackground } : null]}>
+                            {(displayedAvatar && !imageError) ? (
+                                <Image 
+                                    source={{ uri: displayedAvatar }} 
+                                    style={styles.avatarImage} 
+                                    onError={() => setImageError(true)} 
+                                />
                             ) : (
                                 <Text style={styles.avatarFallbackText}>{initials}</Text>
                             )}
@@ -261,13 +286,7 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                         </View>
                     </View>
 
-                    <Text style={styles.sectionTitle}>About Us</Text>
-                    <View style={styles.performanceCard}>
-                        <Text style={styles.detailValue}>
-                            Gyanodaya is a learning platform designed to help students prepare smarter with quality courses,
-                            mock tests, performance tracking, and guided academic support in one place.
-                        </Text>
-                    </View>
+
 
                     <Text style={styles.sectionTitle}>Account Settings</Text>
                     <View style={styles.settingsContainer}>
@@ -275,14 +294,36 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                             <View style={styles.settingIconBg}>
                                 <Icon name="edit-3" size={normalize(18)} color={Colorpath.Primary} />
                             </View>
-                            <Text style={styles.settingText}>Edit Profile</Text>
+                            <View style={styles.settingCopy}>
+                                <Text style={styles.settingText}>Edit Profile</Text>
+                            </View>
                             <Icon name="chevron-right" size={normalize(18)} color="#9CA3AF" />
                         </Pressable>
                         <Pressable style={styles.settingItem} onPress={() => navigation.navigate('ChangePassword')}>
                             <View style={styles.settingIconBg}>
                                 <Icon name="lock" size={normalize(18)} color={Colorpath.Primary} />
                             </View>
-                            <Text style={styles.settingText}>Change Password</Text>
+                            <View style={styles.settingCopy}>
+                                <Text style={styles.settingText}>Change Password</Text>
+                            </View>
+                            <Icon name="chevron-right" size={normalize(18)} color="#9CA3AF" />
+                        </Pressable>
+                        <Pressable style={styles.settingItem} onPress={() => navigation.navigate('AboutUs')}>
+                            <View style={styles.settingIconBg}>
+                                <Icon name="info" size={normalize(18)} color={Colorpath.Primary} />
+                            </View>
+                            <View style={styles.settingCopy}>
+                                <Text style={styles.settingText}>About Us</Text>
+                            </View>
+                            <Icon name="chevron-right" size={normalize(18)} color="#9CA3AF" />
+                        </Pressable>
+                        <Pressable style={styles.settingItem} onPress={handleShareApp}>
+                            <View style={styles.settingIconBg}>
+                                <Icon name="share-2" size={normalize(18)} color={Colorpath.Primary} />
+                            </View>
+                            <View style={styles.settingCopy}>
+                                <Text style={styles.settingText}>Refer Now</Text>
+                            </View>
                             <Icon name="chevron-right" size={normalize(18)} color="#9CA3AF" />
                         </Pressable>
                         <Pressable style={styles.settingItem} onPress={handleSupportPress}>
@@ -306,7 +347,9 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                                     <Icon name="log-out" size={normalize(18)} color="#EF4444" />
                                 )}
                             </View>
-                            <Text style={[styles.settingText, { color: '#EF4444' }]}>Logout</Text>
+                            <View style={styles.settingCopy}>
+                                <Text style={[styles.settingText, { color: '#EF4444' }]}>Logout</Text>
+                            </View>
                             <Icon name="chevron-right" size={normalize(18)} color="#9CA3AF" />
                         </Pressable>
                     </View>
@@ -330,9 +373,13 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                         </View>
 
                         <Pressable onPress={handlePickImage} style={styles.imagePickerButton}>
-                            <View style={[styles.editAvatarPreview, !form.avatarUrl ? { backgroundColor: avatarBackground } : null]}>
-                                {form.avatarUrl ? (
-                                    <Image source={{ uri: form.avatarUrl }} style={styles.avatarImage} />
+                            <View style={[styles.editAvatarPreview, (!form.avatarUrl || editImageError) ? { backgroundColor: avatarBackground } : null]}>
+                                {(form.avatarUrl && !editImageError) ? (
+                                    <Image 
+                                        source={{ uri: form.avatarUrl }} 
+                                        style={styles.avatarImage} 
+                                        onError={() => setEditImageError(true)} 
+                                    />
                                 ) : (
                                     <Text style={styles.avatarFallbackText}>
                                         {getInitials(`${form.firstName} ${form.lastName}`.trim() || profileName)}

@@ -186,14 +186,7 @@ const SplashScreen = ({ navigation }: SplashScreenProps) => {
             <View style={styles.content}>
 
                 {/* Large Logo Section====== */}
-                <Animated.View
-                    style={[
-                        styles.logoWrapper,
-                        {
-                            opacity: logoFade,
-                            transform: [{ scale: logoScale }]
-                        }
-                    ]}>
+                <View style={styles.logoWrapper}>
                     {/* Ripples */}
                     <Animated.View style={[
                         styles.ripple,
@@ -210,7 +203,7 @@ const SplashScreen = ({ navigation }: SplashScreenProps) => {
                         style={styles.logo}
                         resizeMode="contain"
                     />
-                </Animated.View>
+                </View>
 
                 {/* Typography */}
                 {/* <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: verticalScale(8) }}>

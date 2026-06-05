@@ -17,7 +17,7 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
     const dispatch = useDispatch();
     const { mockTestList, isLoading } = useSelector((state: RootState) => state.MockTestReducer);
 
-    const [activeTab, setActiveTab] = useState('Free Tests');
+    const [activeTab, setActiveTab] = useState('Mock Bank');
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [selectedMock, setSelectedMock] = useState<any>(null);
 
@@ -36,17 +36,34 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
         ? mockTestList
         : mockTestList?.data || mockTestList?.quizzes || mockTestList?.items || fallbackData;
 
-    const displayData = rawData.map((mock: any) => ({
-        id: mock.id || mock._id || mock.testId,
-        title: mock.title || 'Untitled Test',
-        subjects: mock.subjects || mock.description || 'General Syllabus',
-        questions: mock.questionsCount || mock.questions?.length || 50,
-        duration: mock.durationMinutes || mock.duration || 60,
-        marking: mock.negativeMarking ? `+${mock.defaultMarks || 4}/-${mock.negativeMarking.value || 1}` : '+4/-1',
-        type: mock.price > 0 ? 'premium' : 'free',
-        price: mock.price || 0,
-        originalData: mock
-    })).filter((mock: any) => activeTab === 'Free Tests' ? mock.type === 'free' : mock.type === 'premium');
+    const displayData = rawData.map((mock: any) => {
+        const correctMarks = mock?.positiveMarks ?? mock?.correctMarks ?? mock?.defaultMarks ?? mock?.marksPerQuestion ?? mock?.quiz?.positiveMarks ?? mock?.quiz?.defaultMarks ?? mock?.quiz?.marksPerQuestion ?? 1;
+        const rawNeg = mock?.negativeMarks ?? mock?.negativeMarking ?? mock?.penalty ?? mock?.quiz?.negativeMarks ?? mock?.quiz?.negativeMarking ?? 0;
+        const negVal = typeof rawNeg === 'object' && rawNeg !== null ? rawNeg.value : rawNeg;
+        
+        let markingStr = `+${correctMarks}`;
+        if (Number(negVal) > 0) {
+            markingStr += `/-${Number(negVal)}`;
+        } else if (Number(negVal) < 0) {
+            markingStr += `/${Number(negVal)}`;
+        } else {
+            markingStr += `/0`;
+        }
+
+        const price = Number(mock?.price || 0);
+
+        return {
+            id: mock.id || mock._id || mock.testId,
+            title: mock.title || mock?.quiz?.title || 'Untitled Test',
+            subjects: mock.subjects || mock.description || mock?.quiz?.description || 'General Syllabus',
+            questions: mock.questionsCount || mock.questions?.length || mock?.quiz?.questionsCount || mock?.quiz?.questions?.length || 50,
+            duration: mock.durationMinutes || mock.duration || mock?.quiz?.durationMinutes || mock?.quiz?.duration || 60,
+            marking: markingStr,
+            type: price > 0 ? 'premium' : 'free',
+            price: price,
+            originalData: mock
+        };
+    }).filter((mock: any) => activeTab === 'Mock Bank');
 
     const handleStartTest = (mock: any) => {
         if (mock.type === 'premium') {
@@ -73,16 +90,22 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
 
                 <View style={styles.tabsContainer}>
                     <Pressable
-                        style={[styles.tab, activeTab === 'Free Tests' && styles.activeTab]}
-                        onPress={() => setActiveTab('Free Tests')}
+                        style={[styles.tab, activeTab === 'Mock Bank' && styles.activeTab]}
+                        onPress={() => setActiveTab('Mock Bank')}
                     >
-                        <Text style={[styles.tabText, activeTab === 'Free Tests' && styles.activeTabText]}>Free Tests</Text>
+                        <Text style={[styles.tabText, activeTab === 'Mock Bank' && styles.activeTabText]}>Mock Bank</Text>
                     </Pressable>
                     <Pressable
-                        style={[styles.tab, activeTab === 'Premium' && styles.activeTab]}
-                        onPress={() => setActiveTab('Premium')}
+                        style={[styles.tab, activeTab === 'Notes Bank' && styles.activeTab]}
+                        onPress={() => setActiveTab('Notes Bank')}
                     >
-                        <Text style={[styles.tabText, activeTab === 'Premium' && styles.activeTabText]}>Premium</Text>
+                        <Text style={[styles.tabText, activeTab === 'Notes Bank' && styles.activeTabText]}>Notes Bank</Text>
+                    </Pressable>
+                    <Pressable
+                        style={[styles.tab, activeTab === 'Question Bank' && styles.activeTab]}
+                        onPress={() => setActiveTab('Question Bank')}
+                    >
+                        <Text style={[styles.tabText, activeTab === 'Question Bank' && styles.activeTabText]}>Question Bank</Text>
                     </Pressable>
                 </View>
 
@@ -99,13 +122,17 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
                         <View style={styles.cardTopRow}>
                             <Text style={styles.testTitle}>{mock.title}</Text>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: normalize(8) }}>
-                                {mock.type === 'premium' && (
-                                    <View style={styles.premiumBadge}>
-                                        <FontAwesome5 name="crown" size={normalize(12)} color="#D97706" />
+                                {mock.price > 0 ? (
+                                    <View style={[styles.markingBadge, { backgroundColor: '#DCFCE7' }]}>
+                                        <Text style={[styles.markingText, { color: '#16A34A' }]}>₹{mock.price}</Text>
+                                    </View>
+                                ) : (
+                                    <View style={[styles.markingBadge, { backgroundColor: '#FEF3C7' }]}>
+                                        <Text style={[styles.markingText, { color: '#D97706' }]}>Free</Text>
                                     </View>
                                 )}
-                                <View style={styles.markingBadge}>
-                                    <Text style={styles.markingText}>{mock.marking}</Text>
+                                <View style={[styles.markingBadge, { backgroundColor: '#F3F4F6' }]}>
+                                    <Text style={[styles.markingText, { color: '#4B5563' }]}>{mock.marking}</Text>
                                 </View>
                             </View>
                         </View>

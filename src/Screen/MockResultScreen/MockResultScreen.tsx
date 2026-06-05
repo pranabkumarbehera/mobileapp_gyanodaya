@@ -61,6 +61,26 @@ const isOptionMatch = (option: any, target: any) => {
     ].some(value => value !== undefined && value !== null && String(value) === String(target));
 };
 
+const hasUserAnswered = (item: any) => {
+    const rawAnswer =
+        item?.userAnswer ??
+        item?.selectedAnswer?.value ??
+        item?.selectedAnswer?.text ??
+        item?.selectedAnswer ??
+        item?.studentAnswer ??
+        item?.answer;
+
+    if (Array.isArray(rawAnswer)) {
+        return rawAnswer.length > 0;
+    }
+
+    if (typeof rawAnswer === 'string') {
+        return rawAnswer.trim() !== '';
+    }
+
+    return rawAnswer !== undefined && rawAnswer !== null && rawAnswer !== '';
+};
+
 const getReviewItems = (resultData: any) => {
     const rawItems =
         resultData?.results ||
@@ -122,6 +142,18 @@ const getReviewItems = (resultData: any) => {
             ? Number(selectedIndex)
             : options.findIndex(option => isOptionMatch(option, selectedRaw));
 
+        const isAnswered = hasUserAnswered(item);
+        let status = 'skipped';
+        if (isAnswered) {
+            if (item?.isCorrect === true || (resolvedCorrectIndex >= 0 && resolvedSelectedIndex === resolvedCorrectIndex)) {
+                status = 'correct';
+            } else {
+                status = 'incorrect';
+            }
+        } else {
+            status = 'skipped';
+        }
+
         return {
             id: item?._id || question?._id || question?.id || `${index}`,
             questionNumber: index + 1,
@@ -133,16 +165,7 @@ const getReviewItems = (resultData: any) => {
             userAnswerLabel: safeSelectedLabel,
             selectedIndex: resolvedSelectedIndex >= 0 ? resolvedSelectedIndex : null,
             correctIndex: resolvedCorrectIndex >= 0 ? resolvedCorrectIndex : null,
-            status:
-                item?.isCorrect === true
-                    ? 'correct'
-                    : item?.isCorrect === false
-                        ? 'incorrect'
-                        : resolvedSelectedIndex === null
-                            ? 'skipped'
-                            : resolvedCorrectIndex >= 0 && resolvedSelectedIndex === resolvedCorrectIndex
-                                ? 'correct'
-                                : 'incorrect',
+            status,
         };
     });
 };
@@ -160,25 +183,7 @@ const getRawResultItems = (resultData: any) => {
     return Array.isArray(rawItems) ? rawItems : [];
 };
 
-const hasUserAnswered = (item: any) => {
-    const rawAnswer =
-        item?.userAnswer ??
-        item?.selectedAnswer?.value ??
-        item?.selectedAnswer?.text ??
-        item?.selectedAnswer ??
-        item?.studentAnswer ??
-        item?.answer;
 
-    if (Array.isArray(rawAnswer)) {
-        return rawAnswer.length > 0;
-    }
-
-    if (typeof rawAnswer === 'string') {
-        return rawAnswer.trim() !== '';
-    }
-
-    return rawAnswer !== undefined && rawAnswer !== null && rawAnswer !== '';
-};
 
 const formatTimeSpent = (value: any) => {
     const seconds = Number(value);
@@ -263,8 +268,19 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
     const skipped = rawResultItems.length > 0
         ? skippedFromUserAnswer
         : resultData?.skippedQuestions ?? resultData?.skipped ?? resultData?.stats?.skipped ?? reviewItems.filter(item => item.status === 'skipped').length;
-    const penalty = resultData?.negativeMarks ?? resultData?.penalty ?? resultData?.stats?.penalty ?? 0;
-    const earned = resultData?.score ?? resultData?.marksEarned ?? resultData?.stats?.earned ?? submitData?.score ?? score;
+    const rawNegativeMarkingText = reviewItems.some(item => Number(item.marksAwarded) < 0)
+        ? `${Math.min(...reviewItems.map(item => Number(item.marksAwarded) || 0))}`
+        : '0';
+    const negativeMarkingValue = Math.abs(Number(rawNegativeMarkingText));
+    const calculatedPenalty = Number(wrong) * negativeMarkingValue;
+    const penalty = calculatedPenalty > 0 ? calculatedPenalty : (resultData?.negativeMarks ?? resultData?.penalty ?? resultData?.stats?.penalty ?? 0);
+
+    const rawCorrectMarkingText = reviewItems.some(item => Number(item.questionMarks) > 0)
+        ? `${Math.max(...reviewItems.map(item => Number(item.questionMarks) || 0))}`
+        : '';
+    const correctMarkingValue = Math.abs(Number(rawCorrectMarkingText));
+    const calculatedEarned = Number(correct) * correctMarkingValue;
+    const earned = calculatedEarned > 0 ? calculatedEarned : (resultData?.score ?? resultData?.marksEarned ?? resultData?.stats?.earned ?? submitData?.score ?? score);
     // const rank = resultData?.rank ?? resultData?.allIndiaRank ?? resultData?.air ?? '-';
     const attemptedQuestions = Number(attempted ?? 0);
     const correctAnswers = Number(correct ?? 0);
@@ -280,9 +296,7 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
         0,
     );
     const title = route.params?.title || resultData?.title || resultData?.quiz?.title || startTestResponse?.title || startTestResponse?.quiz?.title || 'Mock Test';
-    const negativeMarkingText = reviewItems.some(item => Number(item.marksAwarded) < 0)
-        ? `${Math.min(...reviewItems.map(item => Number(item.marksAwarded) || 0))}`
-        : '0';
+    const negativeMarkingText = rawNegativeMarkingText;
 
     const loadMore = () => {
         if (visibleCount < reviewItems.length) {
@@ -319,8 +333,8 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
 
                     <View style={styles.scorePillsRow}>
                         <View style={[styles.scorePill, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
-                            <Text style={[styles.pillValue, { color: '#059669' }]}>+{earned}</Text>
-                            <Text style={[styles.pillLabel, { color: '#059669' }]}>Marks Earned</Text>
+                            <Text style={[styles.pillValue, { color: '#059669' }]}>+{score}</Text>
+                            <Text style={[styles.pillLabel, { color: '#059669' }]}>Total Marks Earned</Text>
                         </View>
                         <View style={[styles.scorePill, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
                             <Text style={[styles.pillValue, { color: '#DC2626' }]}>{accuracy}%</Text>
@@ -376,7 +390,7 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
 
                     <View style={styles.penaltyTotalRow}>
                         <Text style={styles.penaltyTotalTitle}>Final Score</Text>
-                        <Text style={styles.penaltyTotalValue}>{score}</Text>
+                        <Text style={styles.penaltyTotalValue}>{(Number(earned) - Number(penalty)).toFixed(2).replace(/\.00$/, '')}</Text>
                     </View>
                 </View>
 
@@ -426,7 +440,7 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
                 <View>
                     <Text style={styles.reviewQNum}>Q {item.questionNumber}</Text>
                     <Text style={styles.reviewMeta}>
-                        +{item.questionMarks || 0} marks{Number(item.marksAwarded) < 0 ? `  |  ${item.marksAwarded}` : ''}
+                        {item.status === 'correct' ? `+${item.questionMarks || 0} marks` : item.status === 'incorrect' ? `${item.marksAwarded} marks` : '0 marks'}
                     </Text>
                 </View>
                 <View style={[
@@ -441,7 +455,7 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
                         item.status === 'incorrect' && styles.incorrectBadgeText,
                         item.status === 'skipped' && styles.skippedBadgeText,
                     ]}>
-                        {item.status === 'correct' ? 'Correct' : item.status === 'incorrect' ? 'Incorrect' : 'Skipped'}
+                        {item.status === 'correct' ? 'Correct' : item.status === 'incorrect' ? 'Incorrect' : 'Not Answered'}
                     </Text>
                 </View>
             </View>

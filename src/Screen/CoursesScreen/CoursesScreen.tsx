@@ -452,14 +452,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                         </View>
                     </View>
 
-                    {selectedExam.description ? (
-                        <>
-                            <Text style={styles.sectionTitle}>Description</Text>
-                            <View style={styles.patternCard}>
-                                <Text style={styles.descriptionText}>{selectedExam.description}</Text>
-                            </View>
-                        </>
-                    ) : null}
+
 
                     <Text style={styles.sectionTitle}>Available Subjects</Text>
                     <Text style={styles.subjectSubtitle}>Tap a subject to start practice</Text>

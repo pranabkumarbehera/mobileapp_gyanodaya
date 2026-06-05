@@ -11,15 +11,19 @@ type PrivacyPolicyScreenProps = StackScreenProps<RootStackParamList, 'PrivacyPol
 
 const PrivacyPolicyScreen = ({ navigation }: PrivacyPolicyScreenProps) => {
     return (
-        <SafeAreaView style={styles.container}>
-            <StatusBar backgroundColor="#FAFBFF" barStyle="dark-content" />
+        <View style={styles.container}>
+            <StatusBar backgroundColor={Colorpath.Primary} barStyle="light-content" />
 
-            <View style={styles.header}>
-                <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
-                    <Icon name="arrow-left" size={normalize(20)} color="#111827" />
-                </Pressable>
-                <Text style={styles.headerTitle}>Privacy Policy</Text>
-                <View style={styles.headerSpacer} />
+            <View style={styles.headerBackground}>
+                <SafeAreaView edges={['top']}>
+                    <View style={styles.topBar}>
+                        <Pressable onPress={() => navigation.goBack()} style={styles.iconButton}>
+                            <Icon name="arrow-left" size={normalize(24)} color="#FFFFFF" />
+                        </Pressable>
+                        <Text style={styles.headerTitle}>Privacy Policy</Text>
+                        <View style={styles.iconButton} />
+                    </View>
+                </SafeAreaView>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
@@ -85,7 +89,7 @@ const PrivacyPolicyScreen = ({ navigation }: PrivacyPolicyScreenProps) => {
                 <Text style={styles.contactLine}>Email: support@gyanodaya.cloud</Text>
                 <Text style={styles.contactLine}>Website: gyanodaya.cloud</Text>
             </ScrollView>
-        </SafeAreaView>
+        </View>
     );
 };
 
@@ -94,30 +98,10 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#FAFBFF',
     },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: normalize(20),
-        paddingTop: verticalScale(8),
-        paddingBottom: verticalScale(16),
-    },
-    backButton: {
-        width: normalize(36),
-        height: normalize(36),
-        borderRadius: normalize(18),
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#FFFFFF',
-    },
-    headerTitle: {
-        fontSize: normalize(18),
-        fontWeight: '700',
-        color: '#111827',
-    },
-    headerSpacer: {
-        width: normalize(36),
-    },
+    headerBackground: { backgroundColor: Colorpath.Primary, paddingBottom: verticalScale(16) },
+    topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: normalize(20), paddingTop: verticalScale(10) },
+    iconButton: { padding: normalize(8), width: normalize(40) },
+    headerTitle: { fontSize: normalize(18), fontWeight: 'bold', color: '#FFFFFF' },
     content: {
         paddingHorizontal: normalize(24),
         paddingBottom: verticalScale(30),

@@ -20,6 +20,7 @@ import MockTestQuestionScreen from '../Screen/MockTestQuestionScreen/MockTestQue
 import TeacherProfileScreen from '../Screen/TeacherProfileScreen/TeacherProfileScreen';
 import CoursesScreen from '../Screen/CoursesScreen/CoursesScreen';
 import MockResultScreen from '../Screen/MockResultScreen/MockResultScreen';
+import AboutUsScreen from '../Screen/AboutUsScreen/AboutUsScreen';
 
 export type RootStackParamList = {
     Splash: undefined;
@@ -34,6 +35,7 @@ export type RootStackParamList = {
     Teacher: undefined;
     MockTestRules: { testId?: string | number };
     MockTestQuestion: { testId?: string | number; duration?: string | number };
+    AboutUs: undefined;
     TeacherProfile: { teacher: { name: string, subject: string, rating: string, experience: string, designation: string } };
     MockResult: {
         attemptId?: string | number;
@@ -69,6 +71,7 @@ const AppStack = () => (
         <Stack.Screen name="MockTestQuestion" component={MockTestQuestionScreen} />
         <Stack.Screen name="TeacherProfile" component={TeacherProfileScreen} />
         <Stack.Screen name="MockResult" component={MockResultScreen} />
+        <Stack.Screen name="AboutUs" component={AboutUsScreen} />
     </Stack.Navigator>
 );
 
