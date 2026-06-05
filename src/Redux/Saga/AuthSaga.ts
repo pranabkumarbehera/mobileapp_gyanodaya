@@ -92,22 +92,18 @@ export function* signupSaga(action: any): Generator<any, void, any> {
     };
     try {
         const response = yield call(postApi, 'auth/student/register', action.payload, header);
-        const token = getAccessToken(response);
-        const refreshToken = getRefreshToken(response);
         
-        if (token || response?.status === 200 || response?.status === 201) {
-            yield put(signupSuccess({ ...response?.data, token }));
-            if (response?.data?.data) {
-                yield put(getProfileSuccess(response?.data?.data));
-            }
-            if (token) {
-                yield call(AsyncStorage.setItem, constants.TOKEN, token);
-                yield put(tokenSuccess(token));
-                yield put(getProfileRequest({}));
-            }
-            if (refreshToken) {
-                yield call(AsyncStorage.setItem, constants.REFRESH_TOKEN, refreshToken);
-            }
+        if (response?.status === 200 || response?.status === 201) {
+            yield put(signupSuccess(response?.data));
+            yield call(AsyncStorage.multiRemove, [
+                constants.SAVED_EMAIL,
+                constants.SAVED_PASSWORD,
+                constants.TOKEN,
+                constants.REFRESH_TOKEN,
+                constants.USER_DATA,
+            ]);
+            yield call(AsyncStorage.setItem, constants.REMEMBER_PASSWORD, 'false');
+            yield put(tokenSuccess(null));
             Toast.show({ type: 'success', text1: 'Registration Successful' });
         } else {
             yield put(signupFailure(response?.data));

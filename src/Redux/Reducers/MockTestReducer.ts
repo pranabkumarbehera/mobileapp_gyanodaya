@@ -4,6 +4,8 @@ const initialState = {
     status: '',
     isLoading: false,
     mockTestList: null as any,
+    bundleList: null as any,
+    bundleDetails: null as any,
     mockTestDetails: null as any,
     startTestResponse: null as any,
     submitTestResponse: null as any,
@@ -25,6 +27,34 @@ const MockTestSlice = createSlice({
             state.isLoading = false;
         },
         getMockTestListFailure(state, action: any) {
+            state.status = action.type;
+            state.error = action.error || action.payload;
+            state.isLoading = false;
+        },
+        getBundleListRequest(state, action) {
+            state.status = action.type;
+            state.isLoading = true;
+        },
+        getBundleListSuccess(state, action) {
+            state.bundleList = action.payload;
+            state.status = action.type;
+            state.isLoading = false;
+        },
+        getBundleListFailure(state, action: any) {
+            state.status = action.type;
+            state.error = action.error || action.payload;
+            state.isLoading = false;
+        },
+        bundleIDRequest(state, action) {
+            state.status = action.type;
+            state.isLoading = true;
+        },
+        bundleIDSuccess(state, action) {
+            state.bundleDetails = action.payload;
+            state.status = action.type;
+            state.isLoading = false;
+        },
+        bundleIDFailure(state, action: any) {
             state.status = action.type;
             state.error = action.error || action.payload;
             state.isLoading = false;
@@ -100,6 +130,12 @@ export const {
     getMockTestListRequest,
     getMockTestListSuccess,
     getMockTestListFailure,
+    getBundleListRequest,
+    getBundleListSuccess,
+    getBundleListFailure,
+    bundleIDRequest,
+    bundleIDSuccess,
+    bundleIDFailure,
     getMockTestDetailsRequest,
     getMockTestDetailsSuccess,
     getMockTestDetailsFailure,

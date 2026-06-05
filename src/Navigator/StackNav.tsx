@@ -9,6 +9,8 @@ import LoginScreen from '../Screen/Auth/LoginScreen/LoginScreen';
 import RegisterScreen from '../Screen/Auth/RegisterScreen/RegisterScreen';
 import ForgotPasswordScreen from '../Screen/Auth/ForgotPasswordScreen/ForgotPasswordScreen';
 import ChangePasswordScreen from '../Screen/Auth/ChangePasswordScreen/ChangePasswordScreen';
+import PrivacyPolicyScreen from '../Screen/Auth/PrivacyPolicyScreen/PrivacyPolicyScreen';
+import TermsConditionsScreen from '../Screen/Auth/TermsConditionsScreen/TermsConditionsScreen';
 import HomeScreen from '../Screen/HomeScreen/HomeScreen';
 import TabNav from './TabNav';
 import TeacherScreen from '../Screen/TeacherScreen/TeacherScreen';
@@ -24,6 +26,8 @@ export type RootStackParamList = {
     Onboarding: undefined;
     Login: undefined;
     Register: undefined;
+    PrivacyPolicy: undefined;
+    TermsConditions: undefined;
     ForgotPassword: undefined;
     ChangePassword: { token?: string } | undefined;
     Home: undefined; // We'll map Home to TabNav for drop-in replacement
@@ -49,6 +53,8 @@ const AuthStack = () => (
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
+        <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+        <Stack.Screen name="TermsConditions" component={TermsConditionsScreen} />
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
         <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
     </Stack.Navigator>

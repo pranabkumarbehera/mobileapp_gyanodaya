@@ -147,6 +147,39 @@ const getReviewItems = (resultData: any) => {
     });
 };
 
+const getRawResultItems = (resultData: any) => {
+    const rawItems =
+        resultData?.results ||
+        resultData?.review ||
+        resultData?.questions ||
+        resultData?.attempt?.questions ||
+        resultData?.answers ||
+        resultData?.result ||
+        [];
+
+    return Array.isArray(rawItems) ? rawItems : [];
+};
+
+const hasUserAnswered = (item: any) => {
+    const rawAnswer =
+        item?.userAnswer ??
+        item?.selectedAnswer?.value ??
+        item?.selectedAnswer?.text ??
+        item?.selectedAnswer ??
+        item?.studentAnswer ??
+        item?.answer;
+
+    if (Array.isArray(rawAnswer)) {
+        return rawAnswer.length > 0;
+    }
+
+    if (typeof rawAnswer === 'string') {
+        return rawAnswer.trim() !== '';
+    }
+
+    return rawAnswer !== undefined && rawAnswer !== null && rawAnswer !== '';
+};
+
 const formatTimeSpent = (value: any) => {
     const seconds = Number(value);
     if (!Number.isFinite(seconds) || seconds <= 0) {
@@ -211,30 +244,30 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
 
     const score = route.params?.score ?? resultData?.score ?? resultData?.finalScore ?? resultData?.obtainedMarks ?? submitData?.score ?? 0;
     const totalMarks = resultData?.maxScore ?? resultData?.maxMarks ?? resultData?.quiz?.totalMarks ?? submitData?.maxScore ?? 0;
-    const attempted = resultData?.questionCount ?? resultData?.attempted ?? resultData?.stats?.attempted ?? resultData?.results?.length ?? submitData?.answers?.length ?? reviewItems.filter(item => item.status !== 'skipped').length;
-    const correct = resultData?.correctAnswers ?? resultData?.correct ?? resultData?.stats?.correct ?? reviewItems.filter(item => item.status === 'correct').length;
-    const wrong = resultData?.wrongAnswers ?? resultData?.wrong ?? resultData?.stats?.wrong ?? reviewItems.filter(item => item.status === 'incorrect').length;
-    const skipped = resultData?.skippedQuestions ?? resultData?.skipped ?? resultData?.stats?.skipped ?? reviewItems.filter(item => item.status === 'skipped').length;
+    const rawResultItems = getRawResultItems(resultWhole);
+    const totalQuestionsFromResults = rawResultItems.length || reviewItems.length;
+    const attemptedFromUserAnswer = rawResultItems.filter(item => hasUserAnswered(item)).length;
+    const correctFromUserAnswer = rawResultItems.filter(item => hasUserAnswered(item) && item?.isCorrect === true).length;
+    const wrongFromUserAnswer = rawResultItems.filter(item => hasUserAnswered(item) && item?.isCorrect === false).length;
+    const skippedFromUserAnswer = Math.max(totalQuestionsFromResults - attemptedFromUserAnswer, 0);
+
+    const attempted = rawResultItems.length > 0
+        ? attemptedFromUserAnswer
+        : resultData?.questionCount ?? resultData?.attempted ?? resultData?.stats?.attempted ?? resultData?.results?.length ?? submitData?.answers?.length ?? reviewItems.filter(item => item.status !== 'skipped').length;
+    const correct = rawResultItems.length > 0
+        ? correctFromUserAnswer
+        : resultData?.correctAnswers ?? resultData?.correct ?? resultData?.stats?.correct ?? reviewItems.filter(item => item.status === 'correct').length;
+    const wrong = rawResultItems.length > 0
+        ? wrongFromUserAnswer
+        : resultData?.wrongAnswers ?? resultData?.wrong ?? resultData?.stats?.wrong ?? reviewItems.filter(item => item.status === 'incorrect').length;
+    const skipped = rawResultItems.length > 0
+        ? skippedFromUserAnswer
+        : resultData?.skippedQuestions ?? resultData?.skipped ?? resultData?.stats?.skipped ?? reviewItems.filter(item => item.status === 'skipped').length;
     const penalty = resultData?.negativeMarks ?? resultData?.penalty ?? resultData?.stats?.penalty ?? 0;
     const earned = resultData?.score ?? resultData?.marksEarned ?? resultData?.stats?.earned ?? submitData?.score ?? score;
     // const rank = resultData?.rank ?? resultData?.allIndiaRank ?? resultData?.air ?? '-';
-    const attemptedQuestions = Number(
-        resultData?.attempted_questions ??
-        resultData?.attemptedQuestions ??
-        resultData?.attempted ??
-        resultData?.questionCount ??
-        resultData?.stats?.attempted ??
-        attempted ??
-        0,
-    );
-    const correctAnswers = Number(
-        resultData?.correct_answers ??
-        resultData?.correctAnswers ??
-        resultData?.correct ??
-        resultData?.stats?.correct ??
-        correct ??
-        0,
-    );
+    const attemptedQuestions = Number(attempted ?? 0);
+    const correctAnswers = Number(correct ?? 0);
     const accuracy = attemptedQuestions > 0
         ? ((correctAnswers / attemptedQuestions) * 100).toFixed(0)
         : '0';

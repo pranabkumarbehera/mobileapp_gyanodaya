@@ -3,6 +3,7 @@ import {
     ActivityIndicator,
     AppState,
     AppStateStatus,
+    Animated,
     Dimensions,
     Pressable,
     ScrollView,
@@ -177,6 +178,7 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
     const autoSubmitTriggeredRef = useRef(false);
     const submittingRef = useRef(false);
     const fiveMinuteWarningShownRef = useRef(false);
+    const jumpPulse = useRef(new Animated.Value(0)).current;
 
     const mappedQuestions = useMemo(() => mapQuestions(rawQuestions), [rawQuestions]);
     const currentQ = mappedQuestions[currentQuestionIndex];
@@ -213,6 +215,31 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
 
         return unsubscribe;
     }, []);
+
+    useEffect(() => {
+        const animation = Animated.loop(
+            Animated.sequence([
+                Animated.parallel([
+                    Animated.timing(jumpPulse, {
+                        toValue: 1,
+                        duration: 700,
+                        useNativeDriver: true,
+                    }),
+                ]),
+                Animated.timing(jumpPulse, {
+                    toValue: 0,
+                    duration: 700,
+                    useNativeDriver: true,
+                }),
+            ]),
+        );
+
+        animation.start();
+
+        return () => {
+            animation.stop();
+        };
+    }, [jumpPulse]);
 
     useEffect(() => {
         let isMounted = true;
@@ -574,7 +601,27 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
                             <Icon name="arrow-left" size={normalize(24)} color="#FFFFFF" />
                         </Pressable>
                         <Text style={styles.headerTitle}>{sessionMeta?.title || startTestResponse?.title || startTestResponse?.quiz?.title || 'Mock Test'}</Text>
-                        <Pressable style={styles.iconButton} onPress={() => setShowPalette(!showPalette)}>
+                        <Pressable style={styles.jumpButton} onPress={() => setShowPalette(!showPalette)}>
+                            <Animated.Text
+                                style={[
+                                    styles.jumpButtonText,
+                                    {
+                                        opacity: jumpPulse.interpolate({
+                                            inputRange: [0, 1],
+                                            outputRange: [0.7, 1],
+                                        }),
+                                        transform: [
+                                            {
+                                                scale: jumpPulse.interpolate({
+                                                    inputRange: [0, 1],
+                                                    outputRange: [1, 1.08],
+                                                }),
+                                            },
+                                        ],
+                                    },
+                                ]}>
+                                Jump
+                            </Animated.Text>
                             <Icon name="grid" size={normalize(22)} color="#FFFFFF" />
                         </Pressable>
                     </View>
@@ -780,6 +827,8 @@ const styles = StyleSheet.create({
     headerBackground: { backgroundColor: Colorpath.Primary },
     topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: normalize(24), paddingTop: verticalScale(10), paddingBottom: verticalScale(16) },
     iconButton: { padding: normalize(4) },
+    jumpButton: { flexDirection: 'row', alignItems: 'center', padding: normalize(4) },
+    jumpButtonText: { color: '#FF4D4F', fontSize: normalize(14), fontWeight: '800', marginRight: normalize(8) },
     headerTitle: { fontSize: normalize(18), fontWeight: 'bold', color: '#FFFFFF' },
     subHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: normalize(24), paddingVertical: verticalScale(16), backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
     qCountBadge: { paddingHorizontal: normalize(12), paddingVertical: verticalScale(6), backgroundColor: '#F3F4F6', borderRadius: normalize(12) },

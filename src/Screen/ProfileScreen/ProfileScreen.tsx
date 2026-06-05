@@ -10,6 +10,7 @@ import {
     ActivityIndicator,
     Modal,
     TextInput,
+    Linking,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { logoutRequest } from '../../Redux/Reducers/AuthReducer';
@@ -114,6 +115,15 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
 
     const handleLogout = () => {
         dispatch(logoutRequest());
+    };
+
+    const handleSupportPress = async () => {
+        const mailUrl = 'mailto:gyanodaya43@gmail.com';
+        try {
+            await Linking.openURL(mailUrl);
+        } catch (error) {
+            // Ignore if mail app is unavailable.
+        }
     };
 
     const updateField = (field: keyof EditableProfile, value: string) => {
@@ -251,6 +261,14 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                         </View>
                     </View>
 
+                    <Text style={styles.sectionTitle}>About Us</Text>
+                    <View style={styles.performanceCard}>
+                        <Text style={styles.detailValue}>
+                            Gyanodaya is a learning platform designed to help students prepare smarter with quality courses,
+                            mock tests, performance tracking, and guided academic support in one place.
+                        </Text>
+                    </View>
+
                     <Text style={styles.sectionTitle}>Account Settings</Text>
                     <View style={styles.settingsContainer}>
                         <Pressable style={styles.settingItem} onPress={openEditModal}>
@@ -265,6 +283,16 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                                 <Icon name="lock" size={normalize(18)} color={Colorpath.Primary} />
                             </View>
                             <Text style={styles.settingText}>Change Password</Text>
+                            <Icon name="chevron-right" size={normalize(18)} color="#9CA3AF" />
+                        </Pressable>
+                        <Pressable style={styles.settingItem} onPress={handleSupportPress}>
+                            <View style={styles.settingIconBg}>
+                                <Icon name="mail" size={normalize(18)} color={Colorpath.Primary} />
+                            </View>
+                            <View style={styles.settingCopy}>
+                                <Text style={styles.settingText}>Support</Text>
+                                <Text style={styles.settingSubText}>gyanodaya43@gmail.com</Text>
+                            </View>
                             <Icon name="chevron-right" size={normalize(18)} color="#9CA3AF" />
                         </Pressable>
                         <Pressable
@@ -420,7 +448,9 @@ const styles = StyleSheet.create({
     settingItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: verticalScale(16), borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
     settingItemLast: { borderBottomWidth: 0 },
     settingIconBg: { width: normalize(36), height: normalize(36), borderRadius: normalize(10), backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginRight: normalize(12) },
-    settingText: { flex: 1, fontSize: normalize(15), fontWeight: '600', color: '#374151' },
+    settingCopy: { flex: 1 },
+    settingText: { fontSize: normalize(15), fontWeight: '600', color: '#374151' },
+    settingSubText: { fontSize: normalize(12), color: '#6B7280', marginTop: verticalScale(2) },
     modalBackdrop: { flex: 1, backgroundColor: 'rgba(9, 41, 72, 0.35)', justifyContent: 'flex-end' },
     modalCard: { backgroundColor: '#FFFFFF', borderTopLeftRadius: normalize(28), borderTopRightRadius: normalize(28), paddingHorizontal: normalize(24), paddingTop: normalize(20), paddingBottom: normalize(32) },
     modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: verticalScale(20) },

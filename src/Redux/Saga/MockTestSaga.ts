@@ -3,6 +3,12 @@ import {
     getMockTestListRequest,
     getMockTestListSuccess,
     getMockTestListFailure,
+    getBundleListRequest,
+    getBundleListSuccess,
+    getBundleListFailure,
+    bundleIDRequest,
+    bundleIDSuccess,
+    bundleIDFailure,
     getMockTestDetailsRequest,
     getMockTestDetailsSuccess,
     getMockTestDetailsFailure,
@@ -41,6 +47,51 @@ export function* getMockTestListSaga(action: any): Generator<any, void, any> {
         }
     } catch (error: any) {
         yield put(getMockTestListFailure(error));
+        Toast.show({ type: 'error', text1: error?.response?.data?.message || '!Oops something went wrong' });
+    }
+}
+
+export function* getBundleListSaga(action: any): Generator<any, void, any> {
+    const auth = yield select(getAuth);
+    const header = {
+        Accept: 'application/json',
+        contenttype: 'application/json',
+        authorization: auth.token,
+    };
+    try {
+        const queryParams = new URLSearchParams(action.payload || {}).toString();
+        const url = queryParams ? `quizzes/bundles?${queryParams}` : 'quizzes/bundles';
+
+        const response = yield call(getApi, url, header);
+        if (response?.data?.success === true || response?.status === 200) {
+            yield put(getBundleListSuccess(response?.data?.data || response?.data));
+        } else {
+            yield put(getBundleListFailure(response?.data));
+            Toast.show({ type: 'error', text1: response?.data?.message || 'Failed to fetch bundles' });
+        }
+    } catch (error: any) {
+        yield put(getBundleListFailure(error));
+        Toast.show({ type: 'error', text1: error?.response?.data?.message || '!Oops something went wrong' });
+    }
+}
+
+export function* getBundleDetailsSaga(action: any): Generator<any, void, any> {
+    const auth = yield select(getAuth);
+    const header = {
+        Accept: 'application/json',
+        contenttype: 'application/json',
+        authorization: auth.token,
+    };
+    try {
+        const response = yield call(getApi, `quizzes/bundles/${action.payload.id}`, header);
+        if (response?.data?.success === true || response?.status === 200) {
+            yield put(bundleIDSuccess(response?.data?.data || response?.data));
+        } else {
+            yield put(bundleIDFailure(response?.data));
+            Toast.show({ type: 'error', text1: response?.data?.message || 'Failed to fetch bundle details' });
+        }
+    } catch (error: any) {
+        yield put(bundleIDFailure(error));
         Toast.show({ type: 'error', text1: error?.response?.data?.message || '!Oops something went wrong' });
     }
 }
@@ -136,6 +187,8 @@ export function* getTestResultSaga(action: any): Generator<any, void, any> {
 
 const MockTestSaga = [
     takeLatest(getMockTestListRequest.type, getMockTestListSaga),
+    takeLatest(getBundleListRequest.type, getBundleListSaga),
+    takeLatest(bundleIDRequest.type, getBundleDetailsSaga),
     takeLatest(getMockTestDetailsRequest.type, getMockTestDetailsSaga),
     takeLatest(startTestRequest.type, startTestSaga),
     takeLatest(submitTestRequest.type, submitTestSaga),

@@ -16,7 +16,6 @@ import { loginRequest } from '../../../Redux/Reducers/AuthReducer';
 import { RootState } from '../../../Redux/Store';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import Colorpath from '../../../Themes/Colorpath';
 import { normalize, verticalScale } from '../../../Utils/Helpers/normalize';
 import { StackScreenProps } from '@react-navigation/stack';
@@ -224,23 +223,6 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                             <Text style={styles.loginButtonText}>Sign In</Text>
                         )}
                     </Pressable>
-
-                    <View style={styles.dividerContainer}>
-                        <View style={styles.divider} />
-                        <Text style={styles.dividerText}>Or continue with</Text>
-                        <View style={styles.divider} />
-                    </View>
-
-                    <View style={styles.socialButtonsContainer}>
-                        <Pressable style={styles.socialButton}>
-                            <FontAwesome5 name="google" size={normalize(18)} color="#EA4335" />
-                            <Text style={styles.socialButtonText}>Google</Text>
-                        </Pressable>
-                        <Pressable style={styles.socialButton}>
-                            <FontAwesome5 name="apple" size={normalize(20)} color="#000000" />
-                            <Text style={styles.socialButtonText}>Apple</Text>
-                        </Pressable>
-                    </View>
                 </View>
 
                 <Pressable onPress={() => navigation.navigate('Register')} style={styles.footerLink}>
@@ -349,43 +331,6 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: normalize(16),
         fontWeight: '700',
-    },
-    dividerContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: verticalScale(24),
-    },
-    divider: {
-        flex: 1,
-        height: 1,
-        backgroundColor: '#E5E7EB',
-    },
-    dividerText: {
-        color: '#6B7280',
-        paddingHorizontal: normalize(16),
-        fontSize: normalize(13),
-    },
-    socialButtonsContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        gap: normalize(16),
-    },
-    socialButton: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: verticalScale(50),
-        backgroundColor: '#FFFFFF',
-        borderRadius: normalize(12),
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-    },
-    socialButtonText: {
-        color: '#374151',
-        fontSize: normalize(14),
-        fontWeight: '600',
-        marginLeft: normalize(10),
     },
     footerLink: {
         alignItems: 'center',

@@ -12,8 +12,6 @@ import {
     ActivityIndicator,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import constants from '../../../Utils/Helpers/constants';
 import { changePasswordRequest } from '../../../Redux/Reducers/AuthReducer';
 import { RootState } from '../../../Redux/Store';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,7 +30,7 @@ type ChangePasswordErrors = {
 
 const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{7,}$/;
 
-const ChangePasswordScreen = ({ navigation, route }: ChangePasswordScreenProps) => {
+const ChangePasswordScreen = ({ navigation }: ChangePasswordScreenProps) => {
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');

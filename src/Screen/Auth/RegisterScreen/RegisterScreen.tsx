@@ -29,6 +29,7 @@ type RegisterErrors = {
     phone?: string;
     password?: string;
     gender?: string;
+    acceptedTerms?: string;
 };
 
 const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
@@ -39,6 +40,7 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
     const [password, setPassword] = useState('');
     const [secureText, setSecureText] = useState(true);
     const [gender, setGender] = useState<'Female' | 'Male' | null>('Female');
+    const [acceptedTerms, setAcceptedTerms] = useState(false);
     const [touched, setTouched] = useState({
         firstName: false,
         lastName: false,
@@ -46,23 +48,24 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
         phone: false,
         password: false,
         gender: false,
+        acceptedTerms: false,
     });
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     const dispatch = useDispatch();
-    const { isLoading, token, signupResponse } = useSelector((state: RootState) => state.AuthReducer);
+    const { isLoading, signupResponse } = useSelector((state: RootState) => state.AuthReducer);
 
     useEffect(() => {
-        if (token) {
-            navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
-            return;
-        }
-
-        if (signupResponse?.data?.id) {
+        if (
+            signupResponse?.data?.id ||
+            signupResponse?.data?._id ||
+            signupResponse?.success === true ||
+            signupResponse?.message
+        ) {
             navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
         }
-    }, [token, signupResponse, navigation]);
+    }, [signupResponse, navigation]);
 
     const getErrors = (): RegisterErrors => {
         const errors: RegisterErrors = {};
@@ -97,6 +100,10 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
             errors.gender = 'Gender is required';
         }
 
+        if (!acceptedTerms) {
+            errors.acceptedTerms = 'Please accept Terms & Condition and Privacy & Policy';
+        }
+
         return errors;
     };
 
@@ -116,6 +123,7 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                 phone: true,
                 password: true,
                 gender: true,
+                acceptedTerms: true,
             });
             return;
         }
@@ -284,6 +292,32 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                         </View>
                         {touched.gender && errors.gender ? <Text style={styles.errorText}>{errors.gender}</Text> : null}
 
+                        <Pressable
+                            style={styles.checkboxRow}
+                            onPress={() => {
+                                setAcceptedTerms((prev) => !prev);
+                                updateTouched('acceptedTerms');
+                            }}
+                        >
+                            <Icon
+                                name={acceptedTerms ? 'check-square' : 'square'}
+                                size={normalize(20)}
+                                color={acceptedTerms ? Colorpath.Primary : '#9CA3AF'}
+                                style={styles.checkboxIcon}
+                            />
+                            <Text style={styles.checkboxText}>
+                                I agree with GYANODAYA{' '}
+                                <Text style={styles.termsLinkText} onPress={() => navigation.navigate('TermsConditions')}>
+                                    Terms & Condition
+                                </Text>
+                                {' '}and{' '}
+                                <Text style={styles.privacyLinkText} onPress={() => navigation.navigate('PrivacyPolicy')}>
+                                    Privacy & Policy
+                                </Text>
+                            </Text>
+                        </Pressable>
+                        {touched.acceptedTerms && errors.acceptedTerms ? <Text style={styles.errorText}>{errors.acceptedTerms}</Text> : null}
+
                         <Pressable style={styles.createButton} onPress={handleRegister} disabled={isLoading}>
                             {isLoading ? (
                                 <ActivityIndicator color="#FFFFFF" />
@@ -293,11 +327,6 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                         </Pressable>
 
                     </View>
-
-                    <Pressable onPress={() => navigation.navigate('Login')} style={styles.footerLink}>
-                        <Text style={styles.footerText}>Already have an account? <Text style={styles.footerTextBold}>Login</Text></Text>
-                    </Pressable>
-                    
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -415,6 +444,28 @@ const styles = StyleSheet.create({
     radioText: {
         fontSize: normalize(15),
         color: '#374151',
+    },
+    checkboxRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: verticalScale(18),
+    },
+    checkboxIcon: {
+        marginRight: normalize(12),
+    },
+    checkboxText: {
+        flex: 1,
+        fontSize: normalize(13),
+        color: '#4B5563',
+        lineHeight: normalize(20),
+    },
+    termsLinkText: {
+        color: '#F59E0B',
+        fontWeight: '700',
+    },
+    privacyLinkText: {
+        color: '#F59E0B',
+        fontWeight: '700',
     },
     errorText: {
         color: '#EF4444',

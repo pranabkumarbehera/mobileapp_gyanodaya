@@ -6,7 +6,7 @@ import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import Colorpath from '../../Themes/Colorpath';
 import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
 import { useDispatch, useSelector } from 'react-redux';
-import { getMockTestListRequest } from '../../Redux/Reducers/MockTestReducer';
+import { bundleIDRequest, getBundleListRequest } from '../../Redux/Reducers/MockTestReducer';
 import { RootState } from '../../Redux/Store';
 
 type CoursesScreenProps = {
@@ -219,28 +219,99 @@ const EXAM_CATEGORIES = [
     }
 ];
 
+const DEFAULT_EXAM_META = {
+    icon: 'book-open',
+    iconType: 'Feather',
+    bgColor: '#EEF2FF',
+    iconColor: '#4F46E5',
+    pattern: {
+        questions: '-',
+        marks: '-',
+        marksPerQuestion: '-',
+        negativeMarking: '-',
+        duration: '-',
+        note: '-'
+    },
+    subjects: []
+};
+
+const normalizeTitle = (value: string = '') =>
+    value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+const getBundleItems = (bundleList: any) =>
+    Array.isArray(bundleList)
+        ? bundleList
+        : bundleList?.data || bundleList?.bundles || bundleList?.quizzes || bundleList?.items || [];
+
+const getExamMetaByTitle = (title: string = '') => {
+    const normalizedBundleTitle = normalizeTitle(title);
+    return EXAM_CATEGORIES.find(exam => normalizeTitle(exam.name) === normalizedBundleTitle)
+        || EXAM_CATEGORIES.find(exam => normalizedBundleTitle.includes(normalizeTitle(exam.name)) || normalizeTitle(exam.name).includes(normalizedBundleTitle))
+        || DEFAULT_EXAM_META;
+};
+
+const parseBundleDescription = (description: string = '') => {
+    const getValue = (key: string) => {
+        const match = description.match(new RegExp(`${key}\\s*:\\s*['"]?([^,\\n'"]+)['"]?`, 'i'));
+        return match?.[1]?.trim() || DEFAULT_EXAM_META.pattern[key as keyof typeof DEFAULT_EXAM_META.pattern];
+    };
+
+    return {
+        questions: getValue('questions'),
+        marks: getValue('marks'),
+        marksPerQuestion: getValue('marksPerQuestion'),
+        negativeMarking: getValue('negativeMarking'),
+        duration: getValue('duration'),
+        note: getValue('note')
+    };
+};
+
+const buildSelectedExam = (bundle: any) => {
+    const examMeta = getExamMetaByTitle(bundle?.title || bundle?.name || '');
+    return {
+        ...examMeta,
+        id: bundle?.id || bundle?._id || bundle?.testId,
+        name: bundle?.title || bundle?.name || '',
+        description: bundle?.description || '',
+        quizIds: Array.isArray(bundle?.quizIds) ? bundle?.quizIds : [],
+        pattern: {
+            ...examMeta.pattern,
+            ...parseBundleDescription(bundle?.description || '')
+        },
+        subjects: examMeta.subjects || [],
+        rawBundle: bundle
+    };
+};
+
 const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     const dispatch = useDispatch();
-    const { mockTestList } = useSelector((state: RootState) => state.MockTestReducer);
+    const { bundleList, bundleDetails } = useSelector((state: RootState) => state.MockTestReducer);
 
     const [selectedExam, setSelectedExam] = useState<any>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedSubjectName, setSelectedSubjectName] = useState<string | null>(null);
 
     useEffect(() => {
-        dispatch(getMockTestListRequest({}));
+        dispatch(getBundleListRequest({ limit: 10, page: 1 }));
     }, [dispatch]);
+
+    useEffect(() => {
+        if (bundleDetails) {
+            setSelectedExam(buildSelectedExam(bundleDetails));
+        }
+    }, [bundleDetails]);
 
     const handleSelectSubject = (subject: any) => {
         setSelectedSubjectName(subject.name);
 
-        // Find corresponding mock test by subject name matching (case insensitive)
-        const tests = Array.isArray(mockTestList)
-            ? mockTestList
-            : mockTestList?.data || mockTestList?.quizzes || mockTestList?.items || [];
+        // Match against bundle detail quizIds so the selected quiz _id reaches the existing start test flow.
+        const tests = Array.isArray(selectedExam?.quizIds) ? selectedExam.quizIds : [];
 
         // 1st: find a test matching the subject that has price zero
         let matchedTest = tests.find((test: any) => {
+            if (!test || typeof test !== 'object') {
+                return false;
+            }
             const testTitle = (test.title || test.name || '').toLowerCase();
             const subjectName = subject.name.toLowerCase();
             const testPrice = Number(test?.price ?? 0);
@@ -249,11 +320,19 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
         // 2nd: if no exact match, just get the first free test
         if (!matchedTest) {
-            matchedTest = tests.find((test: any) => Number(test?.price ?? 0) <= 0);
+            matchedTest = tests.find((test: any) => test && typeof test === 'object' && Number(test?.price ?? 0) <= 0);
+        }
+
+        // 3rd: if quizIds only has raw ids, just use the first one
+        if (!matchedTest && tests.length > 0) {
+            matchedTest = tests[0];
         }
 
         if (matchedTest) {
-            const targetTestId = matchedTest.id || matchedTest._id || matchedTest.testId;
+            const targetTestId =
+                typeof matchedTest === 'object'
+                    ? matchedTest.id || matchedTest._id || matchedTest.testId
+                    : matchedTest;
             setTimeout(() => {
                 navigation.navigate('MockTestRules', { testId: targetTestId });
                 // Reset selection after navigating to ensure clean state if user returns
@@ -264,6 +343,14 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         }
     };
 
+    const handleBundlePress = (bundle: any) => {
+        const bundleId = bundle?.id || bundle?._id || bundle?.testId;
+        if (!bundleId) {
+            return;
+        }
+        dispatch(bundleIDRequest({ id: bundleId }));
+    };
+
     const renderIcon = (name: string, type: string, size: number, color: string) => {
         if (type === 'FontAwesome5') {
             return <FontAwesome5 name={name} size={size} color={color} />;
@@ -271,8 +358,9 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         return <Feather name={name} size={size} color={color} />;
     };
 
-    const filteredExams = EXAM_CATEGORIES.filter(exam =>
-        exam.name.toLowerCase().includes(searchQuery.toLowerCase())
+    const bundleItems = getBundleItems(bundleList);
+    const filteredExams = bundleItems.filter((bundle: any) =>
+        (bundle?.title || bundle?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     if (selectedExam) {
@@ -364,6 +452,15 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                         </View>
                     </View>
 
+                    {selectedExam.description ? (
+                        <>
+                            <Text style={styles.sectionTitle}>Description</Text>
+                            <View style={styles.patternCard}>
+                                <Text style={styles.descriptionText}>{selectedExam.description}</Text>
+                            </View>
+                        </>
+                    ) : null}
+
                     <Text style={styles.sectionTitle}>Available Subjects</Text>
                     <Text style={styles.subjectSubtitle}>Tap a subject to start practice</Text>
 
@@ -433,7 +530,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
                 <View style={styles.statsContainer}>
                     <View style={styles.statCard}>
-                        <Text style={[styles.statValue, { color: '#092948' }]}>10</Text>
+                        <Text style={[styles.statValue, { color: '#092948' }]}>{bundleItems.length}</Text>
                         <Text style={styles.statLabel}>Exams</Text>
                     </View>
                     <View style={styles.statCard}>
@@ -449,18 +546,21 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                 <Text style={styles.allExamsTitle}>All Exams</Text>
 
                 <View style={styles.gridContainer}>
-                    {filteredExams.map((exam) => (
+                    {filteredExams.map((bundle: any, index: number) => {
+                        const exam = getExamMetaByTitle(bundle?.title || bundle?.name || '');
+                        return (
                         <Pressable
-                            key={exam.id}
+                            key={bundle?.id || bundle?._id || bundle?.testId || index}
                             style={styles.gridItem}
-                            onPress={() => setSelectedExam(exam)}
+                            onPress={() => handleBundlePress(bundle)}
                         >
                             <View style={[styles.circleContainer, { backgroundColor: exam.bgColor }]}>
                                 {renderIcon(exam.icon, exam.iconType, normalize(26), exam.iconColor)}
                             </View>
-                            <Text style={styles.examLabel}>{exam.name}</Text>
+                            <Text style={styles.examLabel}>{bundle?.title || bundle?.name}</Text>
                         </Pressable>
-                    ))}
+                        );
+                    })}
                 </View>
 
                 <View style={{ height: verticalScale(100) }} />
@@ -760,6 +860,11 @@ const styles = StyleSheet.create({
         color: '#F0A335',
         marginRight: normalize(4),
         letterSpacing: 0.5
+    },
+    descriptionText: {
+        fontSize: normalize(13),
+        color: '#374151',
+        lineHeight: normalize(20)
     }
 });
 
