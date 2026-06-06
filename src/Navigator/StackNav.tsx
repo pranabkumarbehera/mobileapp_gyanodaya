@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../Redux/Store';
 import { createStackNavigator } from '@react-navigation/stack';
+import { ActivityIndicator, StatusBar, Text, View } from 'react-native';
 import SplashScreen from '../Screen/SplashScreen/SplashScreen';
 import OnboardingScreen from '../Screen/Auth/OnboardingScreen/OnboardingScreen';
 import LoginScreen from '../Screen/Auth/LoginScreen/LoginScreen';
@@ -21,6 +22,8 @@ import TeacherProfileScreen from '../Screen/TeacherProfileScreen/TeacherProfileS
 import CoursesScreen from '../Screen/CoursesScreen/CoursesScreen';
 import MockResultScreen from '../Screen/MockResultScreen/MockResultScreen';
 import AboutUsScreen from '../Screen/AboutUsScreen/AboutUsScreen';
+import { bootstrapHomeRequest } from '../Redux/Reducers/HomeReducer';
+import Colorpath from '../Themes/Colorpath';
 
 export type RootStackParamList = {
     Splash: undefined;
@@ -76,7 +79,27 @@ const AppStack = () => (
 );
 
 const StackNav = () => {
+    const dispatch = useDispatch();
     const token = useSelector((state: RootState) => state.AuthReducer.token);
+    const homeState = useSelector((state: RootState) => state.HomeReducer);
+
+    useEffect(() => {
+        if (token && !homeState.dashboardData && !homeState.isBootstrapping) {
+            dispatch(bootstrapHomeRequest({}));
+        }
+    }, [dispatch, homeState.dashboardData, homeState.isBootstrapping, token]);
+
+    if (token && homeState.isBootstrapping && !homeState.dashboardData) {
+        return (
+            <View style={{ flex: 1, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center' }}>
+                <StatusBar backgroundColor="#F8FAFC" barStyle="dark-content" />
+                <View style={{ backgroundColor: '#FFFFFF', paddingHorizontal: 28, paddingVertical: 24, borderRadius: 18, alignItems: 'center' }}>
+                    <ActivityIndicator size="large" color={Colorpath.Primary} />
+                    <Text style={{ marginTop: 12, color: '#111827', fontSize: 14, fontWeight: '600' }}>Loading your dashboard...</Text>
+                </View>
+            </View>
+        );
+    }
 
     return (
         <NavigationContainer ref={navigationRef}>

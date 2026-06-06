@@ -9,6 +9,7 @@ import {
     Platform,
     StatusBar,
     ActivityIndicator,
+    Modal,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDispatch, useSelector } from 'react-redux';
@@ -65,11 +66,10 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                 } catch (error) {
                     console.log('Error saving remembered login', error);
                 }
-                navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
             };
             handleSuccess();
         }
-    }, [loginResponse, navigation, rememberPassword, email, password]);
+    }, [loginResponse, rememberPassword, email, password]);
 
     useEffect(() => {
         let isMounted = true;
@@ -176,6 +176,7 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                                 onBlur={() => setTouched((prev) => ({ ...prev, email: true }))}
                                 keyboardType="email-address"
                                 autoCapitalize="none"
+                                editable={!isLoading}
                             />
                         </View>
                         {touched.email && errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
@@ -193,8 +194,9 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                                 onChangeText={(value) => updateField('password', value)}
                                 onFocus={() => setTouched((prev) => ({ ...prev, password: true }))}
                                 onBlur={() => setTouched((prev) => ({ ...prev, password: true }))}
+                                editable={!isLoading}
                             />
-                            <Pressable onPress={() => setSecureText(!secureText)} style={styles.eyeIcon}>
+                            <Pressable onPress={() => setSecureText(!secureText)} style={styles.eyeIcon} disabled={isLoading}>
                                 <Icon name={secureText ? "eye-off" : "eye"} size={normalize(18)} color="#9CA3AF" />
                             </Pressable>
                         </View>
@@ -202,7 +204,7 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                     </View>
 
                     <View style={styles.helperRow}>
-                        <Pressable style={styles.rememberRow} onPress={() => setRememberPassword((prev) => !prev)}>
+                        <Pressable style={styles.rememberRow} onPress={() => setRememberPassword((prev) => !prev)} disabled={isLoading}>
                             <Icon
                                 name={rememberPassword ? 'check-square' : 'square'}
                                 size={normalize(18)}
@@ -211,24 +213,29 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                             <Text style={styles.rememberText}>Remember the password</Text>
                         </Pressable>
 
-                        <Pressable onPress={() => navigation.navigate('ForgotPassword')} style={styles.forgotPasswordContainer}>
+                        <Pressable onPress={() => navigation.navigate('ForgotPassword')} style={styles.forgotPasswordContainer} disabled={isLoading}>
                             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
                         </Pressable>
                     </View>
 
                     <Pressable style={styles.loginButton} onPress={handleLogin} disabled={isLoading}>
-                        {isLoading ? (
-                            <ActivityIndicator color="#FFFFFF" />
-                        ) : (
-                            <Text style={styles.loginButtonText}>Sign In</Text>
-                        )}
+                        <Text style={styles.loginButtonText}>Sign In</Text>
                     </Pressable>
                 </View>
 
-                <Pressable onPress={() => navigation.navigate('Register')} style={styles.footerLink}>
+                <Pressable onPress={() => navigation.navigate('Register')} style={styles.footerLink} disabled={isLoading}>
                     <Text style={styles.footerText}>Don't have an account? <Text style={styles.footerTextBold}>Register</Text></Text>
                 </Pressable>
             </KeyboardAvoidingView>
+
+            <Modal visible={isLoading} transparent animationType="fade" statusBarTranslucent onRequestClose={() => {}}>
+                <View style={styles.loadingOverlay}>
+                    <View style={styles.loadingCard}>
+                        <ActivityIndicator size="large" color={Colorpath.Primary} />
+                        <Text style={styles.loadingText}>Signing you in...</Text>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 };
@@ -240,9 +247,8 @@ const styles = StyleSheet.create({
     },
     keyboardView: {
         flex: 1,
-        justifyContent: 'space-between',
         paddingHorizontal: normalize(24),
-        paddingTop: verticalScale(40),
+        paddingTop: verticalScale(80),
         paddingBottom: verticalScale(20),
     },
     headerContainer: {
@@ -260,7 +266,6 @@ const styles = StyleSheet.create({
         color: '#6B7280',
     },
     formContainer: {
-        flex: 1,
     },
     fieldWrapper: {
         marginBottom: verticalScale(16),
@@ -343,6 +348,29 @@ const styles = StyleSheet.create({
     footerTextBold: {
         color: Colorpath.Primary,
         fontWeight: '700',
+    },
+    loadingOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(250, 251, 255, 0.82)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1000,
+    },
+    loadingCard: {
+        minWidth: normalize(180),
+        backgroundColor: '#FFFFFF',
+        borderRadius: normalize(16),
+        paddingHorizontal: normalize(24),
+        paddingVertical: verticalScale(22),
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+    },
+    loadingText: {
+        marginTop: verticalScale(12),
+        color: '#111827',
+        fontSize: normalize(14),
+        fontWeight: '600',
     },
 });
 

@@ -163,9 +163,12 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
         () => getDashboardHeadline(homeState.dashboardData, recentItems),
         [homeState.dashboardData, recentItems],
     );
+
     useEffect(() => {
-        dispatch(bootstrapHomeRequest({}));
-    }, [dispatch]);
+        if (!homeState.dashboardData && !homeState.isBootstrapping) {
+            dispatch(bootstrapHomeRequest({}));
+        }
+    }, [dispatch, homeState.dashboardData, homeState.isBootstrapping]);
 
     useEffect(() => {
         if (authState.token && !profileState.profileData && !profileState.isLoading) {

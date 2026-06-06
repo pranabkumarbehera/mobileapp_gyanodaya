@@ -13,212 +13,6 @@ type CoursesScreenProps = {
     navigation: any;
 };
 
-const EXAM_CATEGORIES = [
-    {
-        id: 'ssb-tgt',
-        name: 'SSB TGT',
-        icon: 'book',
-        iconType: 'Feather',
-        bgColor: '#EEF2FF',
-        iconColor: '#3F51B5',
-        pattern: {
-            questions: 100,
-            marks: 150,
-            marksPerQuestion: '+1.5',
-            negativeMarking: '-0.5',
-            duration: '2 Hours',
-            note: 'One prose & one poetry'
-        },
-        subjects: [
-            { name: 'TGT ARTS', bgColor: '#EEF2FF', textColor: '#4F46E5' },
-            { name: 'TGT PCM', bgColor: '#FEF3C7', textColor: '#D97706' },
-            { name: 'TGT CBZ', bgColor: '#ECFDF5', textColor: '#059669' },
-            { name: 'TGT ODIA', bgColor: '#FDF2F8', textColor: '#DB2777' },
-            { name: 'SANSKRIT', bgColor: '#F5F3FF', textColor: '#7C3AED' },
-            { name: 'HINDI', bgColor: '#FFF7ED', textColor: '#EA580C' }
-        ]
-    },
-    {
-        id: 'ssb-pgt',
-        name: 'SSB PGT',
-        icon: 'graduation-cap',
-        iconType: 'FontAwesome5',
-        bgColor: '#E0F2FE',
-        iconColor: '#0284C7',
-        pattern: {
-            questions: 100,
-            marks: 100,
-            marksPerQuestion: '+1.0',
-            negativeMarking: '-0.25',
-            duration: '2 Hours',
-            note: 'Post Graduate Syllabus'
-        },
-        subjects: [
-            { name: 'PGT PHYSICS', bgColor: '#EEF2FF', textColor: '#4F46E5' },
-            { name: 'PGT CHEMISTRY', bgColor: '#FEF3C7', textColor: '#D97706' },
-            { name: 'PGT MATHS', bgColor: '#ECFDF5', textColor: '#059669' }
-        ]
-    },
-    {
-        id: 'ltr',
-        name: 'LTR',
-        icon: 'bookmark',
-        iconType: 'Feather',
-        bgColor: '#FEF3C7',
-        iconColor: '#D97706',
-        pattern: {
-            questions: 100,
-            marks: 100,
-            marksPerQuestion: '+1.0',
-            negativeMarking: '-0.25',
-            duration: '90 Mins',
-            note: 'General Knowledge & Aptitude'
-        },
-        subjects: [
-            { name: 'GENERAL STUDIES', bgColor: '#EEF2FF', textColor: '#4F46E5' },
-            { name: 'CURRENT AFFAIRS', bgColor: '#FEF3C7', textColor: '#D97706' }
-        ]
-    },
-    {
-        id: 'rht',
-        name: 'RHT',
-        icon: 'school',
-        iconType: 'FontAwesome5',
-        bgColor: '#D1FAE5',
-        iconColor: '#059669',
-        pattern: {
-            questions: 150,
-            marks: 150,
-            marksPerQuestion: '+1.0',
-            negativeMarking: '-0.25',
-            duration: '2.5 Hours',
-            note: 'Regular High School Teacher'
-        },
-        subjects: [
-            { name: 'RHT ARTS', bgColor: '#EEF2FF', textColor: '#4F46E5' },
-            { name: 'RHT SCIENCE', bgColor: '#ECFDF5', textColor: '#059669' }
-        ]
-    },
-    {
-        id: 'net-jrf',
-        name: 'NET / JRF',
-        icon: 'award',
-        iconType: 'Feather',
-        bgColor: '#FEF3C7',
-        iconColor: '#B45309',
-        pattern: {
-            questions: 150,
-            marks: 300,
-            marksPerQuestion: '+2.0',
-            negativeMarking: '0.0',
-            duration: '3 Hours',
-            note: 'Paper I & Paper II combined'
-        },
-        subjects: [
-            { name: 'PAPER 1', bgColor: '#EEF2FF', textColor: '#4F46E5' },
-            { name: 'COMPUTER SCIENCE', bgColor: '#F5F3FF', textColor: '#7C3AED' }
-        ]
-    },
-    {
-        id: 'osstet',
-        name: 'OSSTET',
-        icon: 'clipboard',
-        iconType: 'Feather',
-        bgColor: '#F3E8FF',
-        iconColor: '#7C3AED',
-        pattern: {
-            questions: 150,
-            marks: 150,
-            marksPerQuestion: '+1.0',
-            negativeMarking: '0.0',
-            duration: '2.5 Hours',
-            note: 'Category I & II'
-        },
-        subjects: [
-            { name: 'OSSTET ARTS', bgColor: '#EEF2FF', textColor: '#4F46E5' },
-            { name: 'OSSTET SCIENCE', bgColor: '#ECFDF5', textColor: '#059669' }
-        ]
-    },
-    {
-        id: 'otet',
-        name: 'OTET',
-        icon: 'check-circle',
-        iconType: 'Feather',
-        bgColor: '#D1FAE5',
-        iconColor: '#059669',
-        pattern: {
-            questions: 150,
-            marks: 150,
-            marksPerQuestion: '+1.0',
-            negativeMarking: '0.0',
-            duration: '2.5 Hours',
-            note: 'Paper I compulsory'
-        },
-        subjects: [
-            { name: 'OTET PAPER 1', bgColor: '#EEF2FF', textColor: '#4F46E5' }
-        ]
-    },
-    {
-        id: 'bed',
-        name: 'B.ED',
-        icon: 'bar-chart-2',
-        iconType: 'Feather',
-        bgColor: '#EEF2FF',
-        iconColor: '#4F46E5',
-        pattern: {
-            questions: 100,
-            marks: 100,
-            marksPerQuestion: '+1.0',
-            negativeMarking: '-0.25',
-            duration: '2 Hours',
-            note: 'Arts & Science streams'
-        },
-        subjects: [
-            { name: 'B.ED ARTS', bgColor: '#EEF2FF', textColor: '#4F46E5' },
-            { name: 'B.ED SCIENCE', bgColor: '#ECFDF5', textColor: '#059669' }
-        ]
-    },
-    {
-        id: 'shiksha-shastri',
-        name: 'Shiksha Shastri',
-        icon: 'heart',
-        iconType: 'Feather',
-        bgColor: '#FEE2E2',
-        iconColor: '#DC2626',
-        pattern: {
-            questions: 100,
-            marks: 100,
-            marksPerQuestion: '+1.0',
-            negativeMarking: '-0.25',
-            duration: '2 Hours',
-            note: 'Sanskrit teacher eligibility'
-        },
-        subjects: [
-            { name: 'SHIKSHA SHASTRI', bgColor: '#F5F3FF', textColor: '#7C3AED' }
-        ]
-    },
-    {
-        id: 'otet-paper-ii',
-        name: 'OTET Paper II',
-        icon: 'monitor',
-        iconType: 'Feather',
-        bgColor: '#FFEDD5',
-        iconColor: '#D97706',
-        pattern: {
-            questions: 150,
-            marks: 150,
-            marksPerQuestion: '+1.0',
-            negativeMarking: '0.0',
-            duration: '2.5 Hours',
-            note: 'Paper II optional subject'
-        },
-        subjects: [
-            { name: 'SOCIAL STUDIES', bgColor: '#EEF2FF', textColor: '#4F46E5' },
-            { name: 'MATHS & SCIENCE', bgColor: '#ECFDF5', textColor: '#059669' }
-        ]
-    }
-];
-
 const DEFAULT_EXAM_META = {
     icon: 'book-open',
     iconType: 'Feather',
@@ -235,6 +29,25 @@ const DEFAULT_EXAM_META = {
     subjects: []
 };
 
+const EXAM_ICON_THEMES = [
+    { bgColor: '#EEF2FF', iconColor: '#4F46E5' },
+    { bgColor: '#E0F2FE', iconColor: '#0284C7' },
+    { bgColor: '#FEF3C7', iconColor: '#D97706' },
+    { bgColor: '#D1FAE5', iconColor: '#059669' },
+    { bgColor: '#F3E8FF', iconColor: '#7C3AED' },
+    { bgColor: '#FEE2E2', iconColor: '#DC2626' },
+    { bgColor: '#FFEDD5', iconColor: '#EA580C' }
+];
+
+const SUBJECT_COLOR_THEMES = [
+    { bgColor: '#EEF2FF', textColor: '#4F46E5' },
+    { bgColor: '#FEF3C7', textColor: '#D97706' },
+    { bgColor: '#ECFDF5', textColor: '#059669' },
+    { bgColor: '#FDF2F8', textColor: '#DB2777' },
+    { bgColor: '#F5F3FF', textColor: '#7C3AED' },
+    { bgColor: '#FFF7ED', textColor: '#EA580C' }
+];
+
 const normalizeTitle = (value: string = '') =>
     value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
@@ -243,11 +56,60 @@ const getBundleItems = (bundleList: any) =>
         ? bundleList
         : bundleList?.data || bundleList?.bundles || bundleList?.quizzes || bundleList?.items || [];
 
+const getThemeByIndex = (index: number, themes: any[]) =>
+    themes[index % themes.length];
+
+const getThemeIndexFromText = (value: string = '') =>
+    value.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+
 const getExamMetaByTitle = (title: string = '') => {
     const normalizedBundleTitle = normalizeTitle(title);
-    return EXAM_CATEGORIES.find(exam => normalizeTitle(exam.name) === normalizedBundleTitle)
-        || EXAM_CATEGORIES.find(exam => normalizedBundleTitle.includes(normalizeTitle(exam.name)) || normalizeTitle(exam.name).includes(normalizedBundleTitle))
-        || DEFAULT_EXAM_META;
+    const theme = getThemeByIndex(getThemeIndexFromText(normalizedBundleTitle), EXAM_ICON_THEMES);
+
+    if (normalizedBundleTitle.includes('pgt') || normalizedBundleTitle.includes('graduate')) {
+        return { ...DEFAULT_EXAM_META, icon: 'graduation-cap', iconType: 'FontAwesome5', ...theme };
+    }
+    if (normalizedBundleTitle.includes('teacher') || normalizedBundleTitle.includes('tgt') || normalizedBundleTitle.includes('school')) {
+        return { ...DEFAULT_EXAM_META, icon: 'book', iconType: 'Feather', ...theme };
+    }
+    if (normalizedBundleTitle.includes('net') || normalizedBundleTitle.includes('jrf') || normalizedBundleTitle.includes('award')) {
+        return { ...DEFAULT_EXAM_META, icon: 'award', iconType: 'Feather', ...theme };
+    }
+    if (normalizedBundleTitle.includes('science') || normalizedBundleTitle.includes('pcm') || normalizedBundleTitle.includes('cbz')) {
+        return { ...DEFAULT_EXAM_META, icon: 'activity', iconType: 'Feather', ...theme };
+    }
+    if (normalizedBundleTitle.includes('bed') || normalizedBundleTitle.includes('education')) {
+        return { ...DEFAULT_EXAM_META, icon: 'bar-chart-2', iconType: 'Feather', ...theme };
+    }
+    if (normalizedBundleTitle.includes('test') || normalizedBundleTitle.includes('mock')) {
+        return { ...DEFAULT_EXAM_META, icon: 'clipboard', iconType: 'Feather', ...theme };
+    }
+
+    return { ...DEFAULT_EXAM_META, ...theme };
+};
+
+const buildSubjectsFromBundle = (bundle: any) => {
+    const tests = Array.isArray(bundle?.quizIds) ? bundle.quizIds : [];
+
+    return tests
+        .map((test: any, index: number) => {
+            if (!test || typeof test !== 'object') {
+                return null;
+            }
+
+            const name = test?.title || test?.name || test?.subject || test?.quizTitle;
+            if (!name) {
+                return null;
+            }
+
+            return {
+                id: test?.id || test?._id || test?.testId || `${index}`,
+                name,
+                testData: test,
+                ...getThemeByIndex(index, SUBJECT_COLOR_THEMES)
+            };
+        })
+        .filter(Boolean);
 };
 
 const parseBundleDescription = (description: string = '') => {
@@ -268,6 +130,7 @@ const parseBundleDescription = (description: string = '') => {
 
 const buildSelectedExam = (bundle: any) => {
     const examMeta = getExamMetaByTitle(bundle?.title || bundle?.name || '');
+    const subjects = buildSubjectsFromBundle(bundle);
     return {
         ...examMeta,
         id: bundle?.id || bundle?._id || bundle?.testId,
@@ -278,7 +141,7 @@ const buildSelectedExam = (bundle: any) => {
             ...examMeta.pattern,
             ...parseBundleDescription(bundle?.description || '')
         },
-        subjects: examMeta.subjects || [],
+        subjects,
         rawBundle: bundle
     };
 };
@@ -307,16 +170,22 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         // Match against bundle detail quizIds so the selected quiz _id reaches the existing start test flow.
         const tests = Array.isArray(selectedExam?.quizIds) ? selectedExam.quizIds : [];
 
+        let matchedTest = subject?.testData && Number(subject?.testData?.price ?? 0) <= 0
+            ? subject.testData
+            : null;
+
         // 1st: find a test matching the subject that has price zero
-        let matchedTest = tests.find((test: any) => {
-            if (!test || typeof test !== 'object') {
-                return false;
-            }
-            const testTitle = (test.title || test.name || '').toLowerCase();
-            const subjectName = subject.name.toLowerCase();
-            const testPrice = Number(test?.price ?? 0);
-            return (testTitle.includes(subjectName) || subjectName.includes(testTitle)) && testPrice <= 0;
-        });
+        if (!matchedTest) {
+            matchedTest = tests.find((test: any) => {
+                if (!test || typeof test !== 'object') {
+                    return false;
+                }
+                const testTitle = (test.title || test.name || '').toLowerCase();
+                const subjectName = subject.name.toLowerCase();
+                const testPrice = Number(test?.price ?? 0);
+                return (testTitle.includes(subjectName) || subjectName.includes(testTitle)) && testPrice <= 0;
+            });
+        }
 
         // 2nd: if no exact match, just get the first free test
         if (!matchedTest) {
@@ -379,7 +248,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                 <Text style={styles.headerMainTitle}>{selectedExam.name}</Text>
                             </View>
                             <View style={styles.headerRightIcon}>
-                                {renderIcon(selectedExam.icon, selectedExam.iconType, normalize(20), Colorpath.Primary)}
+                                {renderIcon(selectedExam.icon, selectedExam.iconType, normalize(20), selectedExam.iconColor)}
                             </View>
                         </View>
                     </SafeAreaView>
@@ -455,7 +324,9 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
 
                     <Text style={styles.sectionTitle}>Available Subjects</Text>
-                    <Text style={styles.subjectSubtitle}>Tap a subject to start practice</Text>
+                    <Text style={styles.subjectSubtitle}>
+                        {selectedExam.subjects.length > 0 ? 'Tap a subject to start practice' : 'No subject list returned from the bundle API'}
+                    </Text>
 
                     <View style={styles.subjectList}>
                         {selectedExam.subjects.map((subject: any, idx: number) => {

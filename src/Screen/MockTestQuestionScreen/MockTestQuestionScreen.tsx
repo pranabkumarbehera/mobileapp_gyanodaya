@@ -522,7 +522,19 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
     };
 
     const handleSelectOption = (index: number) => {
-        setAnswers(prev => ({ ...prev, [currentQuestionIndex]: index }));
+        if (isSubmittingExam) {
+            return;
+        }
+
+        setAnswers(prev => {
+            if (prev[currentQuestionIndex] === index) {
+                const next = { ...prev };
+                delete next[currentQuestionIndex];
+                return next;
+            }
+
+            return { ...prev, [currentQuestionIndex]: index };
+        });
         setVisited(prev => {
             const next = new Set(prev);
             next.add(currentQuestionIndex);

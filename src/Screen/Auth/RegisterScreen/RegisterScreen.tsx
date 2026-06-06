@@ -10,6 +10,7 @@ import {
     StatusBar,
     ScrollView,
     ActivityIndicator,
+    Modal,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { signupRequest } from '../../../Redux/Reducers/AuthReducer';
@@ -167,12 +168,13 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                                         placeholder="First name"
                                         placeholderTextColor="#9CA3AF"
                                         value={firstName}
-                                        onChangeText={(value) => {
-                                            updateTouched('firstName');
-                                            setFirstName(value);
-                                        }}
-                                        onFocus={() => updateTouched('firstName')}
-                                        onBlur={() => updateTouched('firstName')}
+                                    onChangeText={(value) => {
+                                        updateTouched('firstName');
+                                        setFirstName(value);
+                                    }}
+                                    onFocus={() => updateTouched('firstName')}
+                                    onBlur={() => updateTouched('firstName')}
+                                    editable={!isLoading}
                                     />
                                 </View>
                                 {touched.firstName && errors.firstName ? <Text style={styles.errorText}>{errors.firstName}</Text> : null}
@@ -185,12 +187,13 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                                         placeholder="Last name"
                                         placeholderTextColor="#9CA3AF"
                                         value={lastName}
-                                        onChangeText={(value) => {
-                                            updateTouched('lastName');
-                                            setLastName(value);
-                                        }}
-                                        onFocus={() => updateTouched('lastName')}
-                                        onBlur={() => updateTouched('lastName')}
+                                    onChangeText={(value) => {
+                                        updateTouched('lastName');
+                                        setLastName(value);
+                                    }}
+                                    onFocus={() => updateTouched('lastName')}
+                                    onBlur={() => updateTouched('lastName')}
+                                    editable={!isLoading}
                                     />
                                 </View>
                                 {touched.lastName && errors.lastName ? <Text style={styles.errorText}>{errors.lastName}</Text> : null}
@@ -213,6 +216,7 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                                     onBlur={() => updateTouched('email')}
                                     keyboardType="email-address"
                                     autoCapitalize="none"
+                                    editable={!isLoading}
                                 />
                             </View>
                             {touched.email && errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
@@ -234,6 +238,7 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                                     onBlur={() => updateTouched('phone')}
                                     keyboardType="phone-pad"
                                     maxLength={10}
+                                    editable={!isLoading}
                                 />
                             </View>
                             {touched.phone && errors.phone ? <Text style={styles.errorText}>{errors.phone}</Text> : null}
@@ -254,8 +259,9 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                                     }}
                                     onFocus={() => updateTouched('password')}
                                     onBlur={() => updateTouched('password')}
+                                    editable={!isLoading}
                                 />
-                                <Pressable onPress={() => setSecureText(!secureText)} style={styles.eyeIcon}>
+                                <Pressable onPress={() => setSecureText(!secureText)} style={styles.eyeIcon} disabled={isLoading}>
                                     <Icon name={secureText ? "eye-off" : "eye"} size={normalize(18)} color="#9CA3AF" />
                                 </Pressable>
                             </View>
@@ -270,6 +276,7 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                                     setGender('Female');
                                     updateTouched('gender');
                                 }}
+                                disabled={isLoading}
                             >
                                 <View style={styles.radioCircle}>
                                     {gender === 'Female' && <View style={styles.radioInnerCircle} />}
@@ -283,6 +290,7 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                                     setGender('Male');
                                     updateTouched('gender');
                                 }}
+                                disabled={isLoading}
                             >
                                 <View style={styles.radioCircle}>
                                     {gender === 'Male' && <View style={styles.radioInnerCircle} />}
@@ -298,6 +306,7 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                                 setAcceptedTerms((prev) => !prev);
                                 updateTouched('acceptedTerms');
                             }}
+                            disabled={isLoading}
                         >
                             <Icon
                                 name={acceptedTerms ? 'check-square' : 'square'}
@@ -307,11 +316,11 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                             />
                             <Text style={styles.checkboxText}>
                                 I agree with GYANODAYA{' '}
-                                <Text style={styles.termsLinkText} onPress={() => navigation.navigate('TermsConditions')}>
+                                <Text style={styles.termsLinkText} onPress={!isLoading ? () => navigation.navigate('TermsConditions') : undefined}>
                                     Terms & Condition
                                 </Text>
                                 {' '}and{' '}
-                                <Text style={styles.privacyLinkText} onPress={() => navigation.navigate('PrivacyPolicy')}>
+                                <Text style={styles.privacyLinkText} onPress={!isLoading ? () => navigation.navigate('PrivacyPolicy') : undefined}>
                                     Privacy & Policy
                                 </Text>
                             </Text>
@@ -319,16 +328,21 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                         {touched.acceptedTerms && errors.acceptedTerms ? <Text style={styles.errorText}>{errors.acceptedTerms}</Text> : null}
 
                         <Pressable style={styles.createButton} onPress={handleRegister} disabled={isLoading}>
-                            {isLoading ? (
-                                <ActivityIndicator color="#FFFFFF" />
-                            ) : (
-                                <Text style={styles.createButtonText}>Create Account</Text>
-                            )}
+                            <Text style={styles.createButtonText}>Create Account</Text>
                         </Pressable>
 
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
+
+            <Modal visible={isLoading} transparent animationType="fade" statusBarTranslucent onRequestClose={() => {}}>
+                <View style={styles.loadingOverlay} pointerEvents="auto">
+                    <View style={styles.loadingCard}>
+                        <ActivityIndicator size="large" color={Colorpath.Primary} />
+                        <Text style={styles.loadingText}>Creating your account...</Text>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 };
@@ -344,7 +358,7 @@ const styles = StyleSheet.create({
     scrollContent: {
         flexGrow: 1,
         paddingHorizontal: normalize(24),
-        paddingTop: verticalScale(20),
+        paddingTop: verticalScale(40),
         paddingBottom: verticalScale(20),
     },
     backButton: {
@@ -366,7 +380,6 @@ const styles = StyleSheet.create({
         color: '#6B7280',
     },
     formContainer: {
-        flex: 1,
     },
     row: {
         flexDirection: 'row',
@@ -498,6 +511,29 @@ const styles = StyleSheet.create({
     footerTextBold: {
         color: Colorpath.Primary,
         fontWeight: '700',
+    },
+    loadingOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(250, 251, 255, 0.82)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1000,
+    },
+    loadingCard: {
+        minWidth: normalize(210),
+        backgroundColor: '#FFFFFF',
+        borderRadius: normalize(16),
+        paddingHorizontal: normalize(24),
+        paddingVertical: verticalScale(22),
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+    },
+    loadingText: {
+        marginTop: verticalScale(12),
+        color: '#111827',
+        fontSize: normalize(14),
+        fontWeight: '600',
     },
 });
 
