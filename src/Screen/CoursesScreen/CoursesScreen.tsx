@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, TextInput, ActivityIndicator, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from 'react-native-vector-icons/Feather';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import Colorpath from '../../Themes/Colorpath';
 import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
 import { useDispatch, useSelector } from 'react-redux';
-import { bundleIDRequest, getBundleListRequest } from '../../Redux/Reducers/MockTestReducer';
+import { bundleIDRequest, enrollBundleRequest, getBundleListRequest } from '../../Redux/Reducers/MockTestReducer';
 import { RootState } from '../../Redux/Store';
 
 type CoursesScreenProps = {
@@ -51,10 +51,32 @@ const SUBJECT_COLOR_THEMES = [
 const normalizeTitle = (value: string = '') =>
     value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
+const getBundlePayload = (bundle: any) =>
+    bundle?.bundle ||
+    bundle?.data?.bundle ||
+    bundle?.data ||
+    bundle?.details ||
+    bundle?.item ||
+    bundle?.result ||
+    bundle;
+
+const ensureArray = (value: any) => (Array.isArray(value) ? value : []);
+
 const getBundleItems = (bundleList: any) =>
-    Array.isArray(bundleList)
-        ? bundleList
-        : bundleList?.data || bundleList?.bundles || bundleList?.quizzes || bundleList?.items || [];
+    ensureArray(
+        Array.isArray(bundleList)
+            ? bundleList
+            : (
+            bundleList?.data?.bundles ||
+            bundleList?.data?.items ||
+            bundleList?.data?.quizzes ||
+            bundleList?.bundles ||
+            bundleList?.quizzes ||
+            bundleList?.items ||
+            bundleList?.data ||
+            []
+        )
+    ).map(getBundlePayload);
 
 const getThemeByIndex = (index: number, themes: any[]) =>
     themes[index % themes.length];
@@ -88,8 +110,33 @@ const getExamMetaByTitle = (title: string = '') => {
     return { ...DEFAULT_EXAM_META, ...theme };
 };
 
+const getBundleQuizzes = (bundle: any) => {
+    const payload = getBundlePayload(bundle);
+
+    if (Array.isArray(payload?.subBundles) && payload.subBundles.length > 0) {
+        return payload.subBundles;
+    }
+    if (Array.isArray(payload?.quizIds)) {
+        return payload.quizIds;
+    }
+    if (Array.isArray(payload?.quizzes)) {
+        return payload.quizzes;
+    }
+    if (Array.isArray(payload?.bundleItems)) {
+        return payload.bundleItems;
+    }
+    if (Array.isArray(payload?.tests)) {
+        return payload.tests;
+    }
+    if (Array.isArray(payload?.data?.quizIds)) {
+        return payload.data.quizIds;
+    }
+
+    return [];
+};
+
 const buildSubjectsFromBundle = (bundle: any) => {
-    const tests = Array.isArray(bundle?.quizIds) ? bundle.quizIds : [];
+    const tests = getBundleQuizzes(bundle);
 
     return tests
         .map((test: any, index: number) => {
@@ -112,9 +159,95 @@ const buildSubjectsFromBundle = (bundle: any) => {
         .filter(Boolean);
 };
 
+const getQuizId = (quiz: any) => quiz?.id || quiz?._id || quiz?.testId || quiz?.quizId;
+
+const getQuizTopicName = (quiz: any) =>
+    quiz?.masterTopicId?.name ||
+    quiz?.masterTopic?.name ||
+    quiz?.topic?.name ||
+    quiz?.topicName ||
+    quiz?.category ||
+    'Miscellaneous';
+
+const getQuizQuestionCount = (quiz: any) =>
+    Number(quiz?.questionCount || quiz?.questionsCount || quiz?.questions?.length || 0);
+
+const getQuizDuration = (quiz: any) =>
+    Number(quiz?.durationMinutes || quiz?.duration || 0);
+
+const getQuizPrice = (quiz: any) =>
+    Number(quiz?.price || 0);
+
+const getQuizNegativeMarking = (quiz: any) => {
+    const negativeMarking = quiz?.negativeMarking;
+
+    if (typeof negativeMarking === 'object' && negativeMarking !== null) {
+        return negativeMarking?.value ?? '-';
+    }
+
+    return negativeMarking ?? '-';
+};
+
+const buildQuizCards = (bundle: any) =>
+    getBundleQuizzes(bundle)
+        .map((quiz: any, index: number) => {
+            if (!quiz || typeof quiz !== 'object') {
+                return null;
+            }
+
+            return {
+                id: getQuizId(quiz) || `${index}`,
+                title: quiz?.title || quiz?.name || `Mock ${index + 1}`,
+                topicName: getQuizTopicName(quiz),
+                questionCount: getQuizQuestionCount(quiz),
+                durationMinutes: getQuizDuration(quiz),
+                price: getQuizPrice(quiz),
+                totalMarks: Number(quiz?.totalMarks || quiz?.marks || 0),
+                negativeMarking: getQuizNegativeMarking(quiz),
+                rawQuiz: quiz,
+            };
+        })
+        .filter(Boolean);
+
+const buildQuizGroups = (bundle: any) => {
+    const groups = buildQuizCards(bundle).reduce((acc: any, quiz: any) => {
+        const key = quiz.topicName;
+        if (!acc[key]) {
+            acc[key] = [];
+        }
+        acc[key].push(quiz);
+        return acc;
+    }, {});
+
+    return Object.entries(groups).map(([title, quizzes]) => ({
+        title,
+        quizzes,
+    }));
+};
+
 const parseBundleDescription = (description: string = '') => {
+    const safeDescription = typeof description === 'string' ? description.trim() : '';
+    let descriptionObject: any = null;
+
+    if (safeDescription.startsWith('{') || safeDescription.startsWith('[')) {
+        try {
+            descriptionObject = JSON.parse(safeDescription);
+        } catch (error) {
+            descriptionObject = null;
+        }
+    }
+
     const getValue = (key: string) => {
-        const match = description.match(new RegExp(`${key}\\s*:\\s*['"]?([^,\\n'"]+)['"]?`, 'i'));
+        const jsonValue =
+            descriptionObject?.[key] ??
+            descriptionObject?.pattern?.[key] ??
+            descriptionObject?.examPattern?.[key];
+
+        if (jsonValue !== undefined && jsonValue !== null && `${jsonValue}`.trim()) {
+            return `${jsonValue}`.trim();
+        }
+
+        const match = safeDescription.match(new RegExp(`${key}\\s*:\\s*['"]?([^,\\n'"]+)['"]?`, 'i'));
         return match?.[1]?.trim() || DEFAULT_EXAM_META.pattern[key as keyof typeof DEFAULT_EXAM_META.pattern];
     };
 
@@ -128,31 +261,58 @@ const parseBundleDescription = (description: string = '') => {
     };
 };
 
+const buildPatternFromBundle = (bundle: any, examPattern: any) => {
+    const quizzes = getBundleQuizzes(bundle);
+    const parsedPattern = parseBundleDescription(bundle?.description || '');
+    const totalQuestions = quizzes.reduce((sum: number, quiz: any) => sum + getQuizQuestionCount(quiz), 0);
+    const totalMarks = quizzes.reduce((sum: number, quiz: any) => sum + Number(quiz?.totalMarks || quiz?.marks || 0), 0);
+    const durationMinutes = quizzes.reduce((max: number, quiz: any) => Math.max(max, getQuizDuration(quiz)), 0);
+    const firstQuiz = quizzes.find((quiz: any) => quiz && typeof quiz === 'object');
+    const marksPerQuestion =
+        firstQuiz?.questionCount && firstQuiz?.totalMarks
+            ? (Number(firstQuiz.totalMarks) / Number(firstQuiz.questionCount)).toFixed(2)
+            : examPattern.marksPerQuestion;
+
+    return {
+        questions: parsedPattern.questions !== '-' ? parsedPattern.questions : (totalQuestions ? `${totalQuestions}` : '-'),
+        marks: parsedPattern.marks !== '-' ? parsedPattern.marks : (totalMarks ? `${totalMarks}` : '-'),
+        marksPerQuestion: parsedPattern.marksPerQuestion !== '-' ? parsedPattern.marksPerQuestion : marksPerQuestion,
+        negativeMarking: parsedPattern.negativeMarking !== '-' ? parsedPattern.negativeMarking : `${getQuizNegativeMarking(firstQuiz)}`,
+        duration: parsedPattern.duration !== '-' ? parsedPattern.duration : (durationMinutes ? `${durationMinutes} min` : '-'),
+        note: parsedPattern.note !== '-' ? parsedPattern.note : (bundle?.description?.trim() || 'Tap a mock to continue.'),
+    };
+};
+
 const buildSelectedExam = (bundle: any) => {
-    const examMeta = getExamMetaByTitle(bundle?.title || bundle?.name || '');
-    const subjects = buildSubjectsFromBundle(bundle);
+    const normalizedBundle = getBundlePayload(bundle);
+    const examMeta = getExamMetaByTitle(normalizedBundle?.title || normalizedBundle?.name || '');
+    const quizGroups = buildQuizGroups(normalizedBundle);
     return {
         ...examMeta,
-        id: bundle?.id || bundle?._id || bundle?.testId,
-        name: bundle?.title || bundle?.name || '',
-        description: bundle?.description || '',
-        quizIds: Array.isArray(bundle?.quizIds) ? bundle?.quizIds : [],
+        id: normalizedBundle?.id || normalizedBundle?._id || normalizedBundle?.testId || normalizedBundle?.bundleId,
+        name: normalizedBundle?.title || normalizedBundle?.name || '',
+        description: normalizedBundle?.description || '',
+        quizIds: getBundleQuizzes(normalizedBundle),
         pattern: {
             ...examMeta.pattern,
-            ...parseBundleDescription(bundle?.description || '')
+            ...buildPatternFromBundle(normalizedBundle, examMeta.pattern)
         },
-        subjects,
-        rawBundle: bundle
+        subjects: buildSubjectsFromBundle(normalizedBundle),
+        quizGroups,
+        isEnrolled: Boolean(normalizedBundle?.isEnrolled),
+        rawBundle: normalizedBundle
     };
 };
 
 const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     const dispatch = useDispatch();
-    const { bundleList, bundleDetails } = useSelector((state: RootState) => state.MockTestReducer);
+    const { bundleList, bundleDetails, isLoading, status } = useSelector((state: RootState) => state.MockTestReducer);
 
     const [selectedExam, setSelectedExam] = useState<any>(null);
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedSubjectName, setSelectedSubjectName] = useState<string | null>(null);
+    const [selectedBundle, setSelectedBundle] = useState<any>(null);
+    const [showBundleActionModal, setShowBundleActionModal] = useState(false);
+    const [bundleAccessMode, setBundleAccessMode] = useState<'view' | 'enroll'>('view');
 
     useEffect(() => {
         dispatch(getBundleListRequest({ limit: 10, page: 1 }));
@@ -160,64 +320,55 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
     useEffect(() => {
         if (bundleDetails) {
-            setSelectedExam(buildSelectedExam(bundleDetails));
-        }
-    }, [bundleDetails]);
-
-    const handleSelectSubject = (subject: any) => {
-        setSelectedSubjectName(subject.name);
-
-        // Match against bundle detail quizIds so the selected quiz _id reaches the existing start test flow.
-        const tests = Array.isArray(selectedExam?.quizIds) ? selectedExam.quizIds : [];
-
-        let matchedTest = subject?.testData && Number(subject?.testData?.price ?? 0) <= 0
-            ? subject.testData
-            : null;
-
-        // 1st: find a test matching the subject that has price zero
-        if (!matchedTest) {
-            matchedTest = tests.find((test: any) => {
-                if (!test || typeof test !== 'object') {
-                    return false;
-                }
-                const testTitle = (test.title || test.name || '').toLowerCase();
-                const subjectName = subject.name.toLowerCase();
-                const testPrice = Number(test?.price ?? 0);
-                return (testTitle.includes(subjectName) || subjectName.includes(testTitle)) && testPrice <= 0;
+            const nextExam = buildSelectedExam(bundleDetails);
+            setSelectedExam({
+                ...nextExam,
+                isEnrolled: bundleAccessMode === 'enroll',
             });
         }
 
-        // 2nd: if no exact match, just get the first free test
-        if (!matchedTest) {
-            matchedTest = tests.find((test: any) => test && typeof test === 'object' && Number(test?.price ?? 0) <= 0);
+    }, [bundleAccessMode, bundleDetails]);
+
+    const handleQuizAction = (quiz: any) => {
+        if (!selectedExam?.isEnrolled) {
+            return;
         }
 
-        // 3rd: if quizIds only has raw ids, just use the first one
-        if (!matchedTest && tests.length > 0) {
-            matchedTest = tests[0];
+        if (!quiz?.id) {
+            return;
         }
 
-        if (matchedTest) {
-            const targetTestId =
-                typeof matchedTest === 'object'
-                    ? matchedTest.id || matchedTest._id || matchedTest.testId
-                    : matchedTest;
-            setTimeout(() => {
-                navigation.navigate('MockTestRules', { testId: targetTestId });
-                // Reset selection after navigating to ensure clean state if user returns
-                setSelectedSubjectName(null);
-            }, 200);
-        } else {
-            setSelectedSubjectName(null);
-        }
+        navigation.navigate('MockTestRules', {
+            testId: quiz.id,
+        });
     };
 
-    const handleBundlePress = (bundle: any) => {
-        const bundleId = bundle?.id || bundle?._id || bundle?.testId;
+    const openBundleDetails = (bundle: any, mode: 'view' | 'enroll') => {
+        const normalizedBundle = getBundlePayload(bundle);
+        const bundleId =
+            normalizedBundle?.id ||
+            normalizedBundle?._id ||
+            normalizedBundle?.testId ||
+            normalizedBundle?.bundleId;
+
         if (!bundleId) {
             return;
         }
+
+        setBundleAccessMode(mode);
+        setShowBundleActionModal(false);
+
+        if (mode === 'enroll') {
+            dispatch(enrollBundleRequest({ id: bundleId }));
+            return;
+        }
+
         dispatch(bundleIDRequest({ id: bundleId }));
+    };
+
+    const handleBundlePress = (bundle: any) => {
+        setSelectedBundle(getBundlePayload(bundle));
+        setShowBundleActionModal(true);
     };
 
     const renderIcon = (name: string, type: string, size: number, color: string) => {
@@ -231,6 +382,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     const filteredExams = bundleItems.filter((bundle: any) =>
         (bundle?.title || bundle?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
+    const isEnrollingBundle = isLoading && status === enrollBundleRequest.type;
 
     if (selectedExam) {
         return (
@@ -246,6 +398,9 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                             <View style={styles.headerTextColumn}>
                                 <Text style={styles.headerTagline}>EXAM CATEGORY</Text>
                                 <Text style={styles.headerMainTitle}>{selectedExam.name}</Text>
+                                <Text style={styles.detailSubtitle}>
+                                    {selectedExam.isEnrolled ? 'You are enrolled. Start any mock below.' : 'Enroll once to unlock every mock in this course.'}
+                                </Text>
                             </View>
                             <View style={styles.headerRightIcon}>
                                 {renderIcon(selectedExam.icon, selectedExam.iconType, normalize(20), selectedExam.iconColor)}
@@ -323,41 +478,68 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
 
 
-                    <Text style={styles.sectionTitle}>Available Subjects</Text>
+                    <Text style={styles.sectionTitle}>Mock Sets</Text>
                     <Text style={styles.subjectSubtitle}>
-                        {selectedExam.subjects.length > 0 ? 'Tap a subject to start practice' : 'No subject list returned from the bundle API'}
+                        {selectedExam.quizGroups?.length > 0
+                            ? `${selectedExam.quizIds?.length || 0} quizzes in this category`
+                            : 'No quizzes returned from the bundle API'}
                     </Text>
 
                     <View style={styles.subjectList}>
-                        {selectedExam.subjects.map((subject: any, idx: number) => {
-                            const isSelected = selectedSubjectName === subject.name;
-                            return (
-                                <Pressable
-                                    key={idx}
-                                    style={[
-                                        styles.subjectCard,
-                                        isSelected && styles.subjectCardSelected,
-                                        !isSelected && { backgroundColor: subject.bgColor + '25' } // subtle opacity
-                                    ]}
-                                    onPress={() => handleSelectSubject(subject)}
-                                >
-                                    <View style={[styles.subjectIconWrap, { backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.2)' : subject.bgColor }]}>
-                                        <Feather name="book-open" size={normalize(18)} color={isSelected ? '#FFFFFF' : subject.textColor} />
-                                    </View>
-                                    <Text style={[styles.subjectTitle, isSelected && styles.subjectTitleSelected]}>
-                                        {subject.name}
-                                    </Text>
-                                    {isSelected ? (
-                                        <View style={styles.subjectRightSelected}>
-                                            <Text style={styles.selectedLabel}>SELECTED</Text>
-                                            <Feather name="chevron-right" size={normalize(16)} color="#F0A335" />
+                        {selectedExam.quizGroups?.map((group: any, groupIndex: number) => (
+                            <View key={`${group.title}-${groupIndex}`} style={styles.quizSection}>
+                                <View style={styles.topicRow}>
+                                    <View style={styles.topicDot} />
+                                    <Text style={styles.topicTitle}>{String(group.title || 'Miscellaneous').toUpperCase()}</Text>
+                                </View>
+
+                                <View style={styles.quizCardsWrap}>
+                                    {group.quizzes.map((quiz: any, quizIndex: number) => (
+                                        <View key={quiz.id || quizIndex} style={styles.quizCard}>
+                                            <View style={styles.quizBadge}>
+                                                <Text style={styles.quizBadgeText}>MOCK</Text>
+                                            </View>
+
+                                            <Text style={styles.quizCardTitle}>{quiz.title}</Text>
+
+                                            <View style={styles.quizMetaRow}>
+                                                <View style={styles.quizMetaItem}>
+                                                    <Feather name="book-open" size={normalize(14)} color="#667085" />
+                                                    <Text style={styles.quizMetaText}>{quiz.questionCount || 0} Qs</Text>
+                                                </View>
+                                                <View style={styles.quizMetaItem}>
+                                                    <Feather name="clock" size={normalize(14)} color="#667085" />
+                                                    <Text style={styles.quizMetaText}>{quiz.durationMinutes || 0}m</Text>
+                                                </View>
+                                                <Text style={styles.quizPriceText}>₹{quiz.price || 0}</Text>
+                                            </View>
+
+                                            {selectedExam.isEnrolled ? (
+                                                <Pressable
+                                                    style={[styles.quizActionButton, isEnrollingBundle && styles.quizActionButtonDisabled]}
+                                                    disabled={isEnrollingBundle}
+                                                    onPress={() => handleQuizAction(quiz)}
+                                                >
+                                                    {isEnrollingBundle ? (
+                                                        <ActivityIndicator size="small" color="#FFFFFF" />
+                                                    ) : (
+                                                        <>
+                                                            <Text style={styles.quizActionText}>Attempt</Text>
+                                                            <Feather name="play" size={normalize(14)} color="#FFFFFF" />
+                                                        </>
+                                                    )}
+                                                </Pressable>
+                                            ) : (
+                                                <View style={styles.quizViewOnlyTag}>
+                                                    <Feather name="eye" size={normalize(14)} color="#667085" />
+                                                    <Text style={styles.quizViewOnlyText}>View only</Text>
+                                                </View>
+                                            )}
                                         </View>
-                                    ) : (
-                                        <Feather name="chevron-right" size={normalize(16)} color="#9CA3AF" />
-                                    )}
-                                </Pressable>
-                            );
-                        })}
+                                    ))}
+                                </View>
+                            </View>
+                        ))}
                     </View>
 
                     <View style={{ height: verticalScale(50) }} />
@@ -411,17 +593,18 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
                 <View style={styles.gridContainer}>
                     {filteredExams.map((bundle: any, index: number) => {
-                        const exam = getExamMetaByTitle(bundle?.title || bundle?.name || '');
+                        const normalizedBundle = getBundlePayload(bundle);
+                        const exam = getExamMetaByTitle(normalizedBundle?.title || normalizedBundle?.name || '');
                         return (
                         <Pressable
-                            key={bundle?.id || bundle?._id || bundle?.testId || index}
+                            key={normalizedBundle?.id || normalizedBundle?._id || normalizedBundle?.testId || normalizedBundle?.bundleId || index}
                             style={styles.gridItem}
                             onPress={() => handleBundlePress(bundle)}
                         >
                             <View style={[styles.circleContainer, { backgroundColor: exam.bgColor }]}>
                                 {renderIcon(exam.icon, exam.iconType, normalize(26), exam.iconColor)}
                             </View>
-                            <Text style={styles.examLabel}>{bundle?.title || bundle?.name}</Text>
+                            <Text style={styles.examLabel}>{normalizedBundle?.title || normalizedBundle?.name}</Text>
                         </Pressable>
                         );
                     })}
@@ -429,6 +612,40 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
                 <View style={{ height: verticalScale(100) }} />
             </ScrollView>
+
+            <Modal
+                visible={showBundleActionModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowBundleActionModal(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <Pressable style={styles.modalBackdrop} onPress={() => setShowBundleActionModal(false)} />
+                    <View style={styles.modalCard}>
+                        <Text style={styles.modalLabel}>BUNDLE</Text>
+                        <Text style={styles.modalTitle}>{selectedBundle?.title || selectedBundle?.name || 'Course'}</Text>
+                        <Text style={styles.modalDescription}>
+                            Choose `View` to open the mock list without attempt buttons, or `Enroll` to unlock attempts.
+                        </Text>
+
+                        <Pressable
+                            style={styles.modalSecondaryButton}
+                            onPress={() => openBundleDetails(selectedBundle, 'view')}
+                        >
+                            <Feather name="eye" size={normalize(16)} color="#0F172A" />
+                            <Text style={styles.modalSecondaryButtonText}>View</Text>
+                        </Pressable>
+
+                        <Pressable
+                            style={styles.modalPrimaryButton}
+                            onPress={() => openBundleDetails(selectedBundle, 'enroll')}
+                        >
+                            <Feather name="check-circle" size={normalize(16)} color="#FFFFFF" />
+                            <Text style={styles.modalPrimaryButtonText}>Enroll</Text>
+                        </Pressable>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 };
@@ -605,6 +822,11 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         marginTop: verticalScale(2)
     },
+    detailSubtitle: {
+        fontSize: normalize(11),
+        color: 'rgba(255, 255, 255, 0.85)',
+        marginTop: verticalScale(4)
+    },
     headerRightIcon: {
         width: normalize(36),
         height: normalize(36),
@@ -678,52 +900,188 @@ const styles = StyleSheet.create({
     subjectList: {
         marginBottom: verticalScale(20)
     },
-    subjectCard: {
+    quizSection: {
+        marginBottom: verticalScale(22)
+    },
+    topicRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        borderRadius: normalize(12),
-        paddingHorizontal: normalize(12),
-        paddingVertical: verticalScale(10),
-        marginBottom: verticalScale(10),
+        marginBottom: verticalScale(14)
+    },
+    topicDot: {
+        width: normalize(10),
+        height: normalize(10),
+        borderRadius: normalize(5),
+        backgroundColor: '#9AE6B4',
+        marginRight: normalize(10)
+    },
+    topicTitle: {
+        fontSize: normalize(14),
+        fontWeight: '800',
+        color: '#475467'
+    },
+    quizCardsWrap: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        gap: normalize(12)
+    },
+    quizCard: {
+        width: '48%',
+        minWidth: normalize(140),
+        backgroundColor: '#FFFFFF',
+        borderRadius: normalize(18),
+        padding: normalize(14),
         borderWidth: 1,
         borderColor: '#E5E7EB',
-        // shadowColor: '#000',
-        // shadowOffset: { width: 0, height: 1 },
-        // shadowOpacity: 0.01,
-        // shadowRadius: 1,
-        // elevation: 1
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.08,
+        shadowRadius: 18,
+        elevation: 4
     },
-    subjectCardSelected: {
-        backgroundColor: '#092948',
-        borderColor: '#092948'
+    quizBadge: {
+        alignSelf: 'flex-start',
+        paddingHorizontal: normalize(10),
+        paddingVertical: verticalScale(4),
+        borderRadius: normalize(999),
+        borderWidth: 1,
+        borderColor: '#CBD5E1',
+        marginBottom: verticalScale(12)
     },
-    subjectIconWrap: {
-        width: normalize(36),
-        height: normalize(36),
-        borderRadius: normalize(8),
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: normalize(12)
-    },
-    subjectTitle: {
-        flex: 1,
-        fontSize: normalize(13),
-        fontWeight: 'bold',
-        color: '#374151'
-    },
-    subjectTitleSelected: {
-        color: '#FFFFFF'
-    },
-    subjectRightSelected: {
-        flexDirection: 'row',
-        alignItems: 'center'
-    },
-    selectedLabel: {
+    quizBadgeText: {
         fontSize: normalize(10),
         fontWeight: '800',
-        color: '#F0A335',
-        marginRight: normalize(4),
-        letterSpacing: 0.5
+        color: '#667085'
+    },
+    quizCardTitle: {
+        fontSize: normalize(16),
+        fontWeight: '800',
+        color: '#1D2939',
+        marginBottom: verticalScale(14)
+    },
+    quizMetaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        marginBottom: verticalScale(16)
+    },
+    quizMetaItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginRight: normalize(14)
+    },
+    quizMetaText: {
+        fontSize: normalize(12),
+        color: '#667085',
+        marginLeft: normalize(6),
+        fontWeight: '600'
+    },
+    quizPriceText: {
+        fontSize: normalize(12),
+        fontWeight: '800',
+        color: '#344054'
+    },
+    quizActionButton: {
+        height: verticalScale(46),
+        borderRadius: normalize(12),
+        backgroundColor: '#0D9F6E',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: normalize(8)
+    },
+    quizActionButtonDisabled: {
+        opacity: 0.7
+    },
+    quizActionText: {
+        color: '#FFFFFF',
+        fontSize: normalize(14),
+        fontWeight: '800'
+    },
+    quizViewOnlyTag: {
+        height: verticalScale(46),
+        borderRadius: normalize(12),
+        backgroundColor: '#F8FAFC',
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: normalize(8)
+    },
+    quizViewOnlyText: {
+        color: '#667085',
+        fontSize: normalize(13),
+        fontWeight: '700'
+    },
+    modalOverlay: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: normalize(24)
+    },
+    modalBackdrop: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(15, 23, 42, 0.45)'
+    },
+    modalCard: {
+        width: '100%',
+        backgroundColor: '#FFFFFF',
+        borderRadius: normalize(20),
+        padding: normalize(22),
+        borderWidth: 1,
+        borderColor: '#E5E7EB'
+    },
+    modalLabel: {
+        fontSize: normalize(11),
+        fontWeight: '800',
+        color: '#64748B',
+        letterSpacing: 1,
+        marginBottom: verticalScale(8)
+    },
+    modalTitle: {
+        fontSize: normalize(20),
+        fontWeight: '800',
+        color: '#0F172A',
+        marginBottom: verticalScale(8)
+    },
+    modalDescription: {
+        fontSize: normalize(13),
+        color: '#475569',
+        lineHeight: normalize(20),
+        marginBottom: verticalScale(18)
+    },
+    modalSecondaryButton: {
+        height: verticalScale(48),
+        borderRadius: normalize(12),
+        backgroundColor: '#F8FAFC',
+        borderWidth: 1,
+        borderColor: '#CBD5E1',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: normalize(8),
+        marginBottom: verticalScale(12)
+    },
+    modalSecondaryButtonText: {
+        color: '#0F172A',
+        fontSize: normalize(14),
+        fontWeight: '800'
+    },
+    modalPrimaryButton: {
+        height: verticalScale(48),
+        borderRadius: normalize(12),
+        backgroundColor: '#0D9F6E',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: normalize(8)
+    },
+    modalPrimaryButtonText: {
+        color: '#FFFFFF',
+        fontSize: normalize(14),
+        fontWeight: '800'
     },
     descriptionText: {
         fontSize: normalize(13),

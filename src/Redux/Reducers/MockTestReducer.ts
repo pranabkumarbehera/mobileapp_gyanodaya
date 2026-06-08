@@ -6,6 +6,7 @@ const initialState = {
     mockTestList: null as any,
     bundleList: null as any,
     bundleDetails: null as any,
+    enrollBundleResponse: null as any,
     mockTestDetails: null as any,
     startTestResponse: null as any,
     submitTestResponse: null as any,
@@ -55,6 +56,21 @@ const MockTestSlice = createSlice({
             state.isLoading = false;
         },
         bundleIDFailure(state, action: any) {
+            state.status = action.type;
+            state.error = action.error || action.payload;
+            state.isLoading = false;
+        },
+        enrollBundleRequest(state, action) {
+            state.status = action.type;
+            state.isLoading = true;
+        },
+        enrollBundleSuccess(state, action) {
+            state.enrollBundleResponse = action.payload;
+            state.bundleDetails = action.payload?.bundleDetails || state.bundleDetails;
+            state.status = action.type;
+            state.isLoading = false;
+        },
+        enrollBundleFailure(state, action: any) {
             state.status = action.type;
             state.error = action.error || action.payload;
             state.isLoading = false;
@@ -136,6 +152,9 @@ export const {
     bundleIDRequest,
     bundleIDSuccess,
     bundleIDFailure,
+    enrollBundleRequest,
+    enrollBundleSuccess,
+    enrollBundleFailure,
     getMockTestDetailsRequest,
     getMockTestDetailsSuccess,
     getMockTestDetailsFailure,

@@ -9,6 +9,9 @@ import {
     bundleIDRequest,
     bundleIDSuccess,
     bundleIDFailure,
+    enrollBundleRequest,
+    enrollBundleSuccess,
+    enrollBundleFailure,
     getMockTestDetailsRequest,
     getMockTestDetailsSuccess,
     getMockTestDetailsFailure,
@@ -92,6 +95,35 @@ export function* getBundleDetailsSaga(action: any): Generator<any, void, any> {
         }
     } catch (error: any) {
         yield put(bundleIDFailure(error));
+        Toast.show({ type: 'error', text1: error?.response?.data?.message || '!Oops something went wrong' });
+    }
+}
+
+export function* enrollBundleSaga(action: any): Generator<any, void, any> {
+    const auth = yield select(getAuth);
+    const header = {
+        Accept: 'application/json',
+        contenttype: 'application/json',
+        authorization: auth.token,
+    };
+    try {
+        const enrollResponse = yield call(postApi, `student/quizzes/bundles/${action.payload.id}/enroll`, {}, header);
+
+        if (enrollResponse?.data?.success === true || enrollResponse?.status === 201 || enrollResponse?.status === 200) {
+            const bundleResponse = yield call(getApi, `quizzes/bundles/${action.payload.id}`, header);
+            const bundleDetails = bundleResponse?.data?.data || bundleResponse?.data;
+
+            yield put(enrollBundleSuccess({
+                ...(enrollResponse?.data?.data || enrollResponse?.data || {}),
+                bundleDetails,
+            }));
+            Toast.show({ type: 'success', text1: enrollResponse?.data?.message || 'Enrolled successfully' });
+        } else {
+            yield put(enrollBundleFailure(enrollResponse?.data));
+            Toast.show({ type: 'error', text1: enrollResponse?.data?.message || 'Failed to enroll in bundle' });
+        }
+    } catch (error: any) {
+        yield put(enrollBundleFailure(error));
         Toast.show({ type: 'error', text1: error?.response?.data?.message || '!Oops something went wrong' });
     }
 }
@@ -189,6 +221,7 @@ const MockTestSaga = [
     takeLatest(getMockTestListRequest.type, getMockTestListSaga),
     takeLatest(getBundleListRequest.type, getBundleListSaga),
     takeLatest(bundleIDRequest.type, getBundleDetailsSaga),
+    takeLatest(enrollBundleRequest.type, enrollBundleSaga),
     takeLatest(getMockTestDetailsRequest.type, getMockTestDetailsSaga),
     takeLatest(startTestRequest.type, startTestSaga),
     takeLatest(submitTestRequest.type, submitTestSaga),
