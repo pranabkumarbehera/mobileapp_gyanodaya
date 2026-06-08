@@ -146,7 +146,17 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
             return;
         }
 
-        dispatch(loginRequest({ email: email.trim(), password, deviceType: 'mobile' }));
+        const deviceName = Platform.OS === 'ios' ? 'iOS Device' : 'Android Device';
+        const deviceId = Platform.OS === 'ios' ? 'ios-device' : 'android-device';
+
+        dispatch(loginRequest({ 
+            email: email.trim(), 
+            password, 
+            rememberMe: rememberPassword,
+            deviceId,
+            deviceName,
+            deviceType: 'mobile' 
+        }));
     };
 
     return (
