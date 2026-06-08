@@ -188,6 +188,13 @@ const getQuizNegativeMarking = (quiz: any) => {
     return negativeMarking ?? '-';
 };
 
+const getBundleId = (bundle: any) =>
+    bundle?.id ||
+    bundle?._id ||
+    bundle?.testId ||
+    bundle?.bundleId ||
+    null;
+
 const buildQuizCards = (bundle: any) =>
     getBundleQuizzes(bundle)
         .map((quiz: any, index: number) => {
@@ -313,6 +320,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     const [selectedBundle, setSelectedBundle] = useState<any>(null);
     const [showBundleActionModal, setShowBundleActionModal] = useState(false);
     const [bundleAccessMode, setBundleAccessMode] = useState<'view' | 'enroll'>('view');
+    const [enrolledBundleIds, setEnrolledBundleIds] = useState<string[]>([]);
 
     useEffect(() => {
         dispatch(getBundleListRequest({ limit: 10, page: 1 }));
@@ -320,10 +328,17 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
     useEffect(() => {
         if (bundleDetails) {
+            const bundleId = getBundleId(bundleDetails);
+            if (bundleDetails?.isEnrolled && bundleId) {
+                setEnrolledBundleIds(prev =>
+                    prev.includes(String(bundleId)) ? prev : [...prev, String(bundleId)]
+                );
+            }
+
             const nextExam = buildSelectedExam(bundleDetails);
             setSelectedExam({
                 ...nextExam,
-                isEnrolled: bundleAccessMode === 'enroll',
+                isEnrolled: Boolean(nextExam?.isEnrolled) || bundleAccessMode === 'enroll',
             });
         }
 
@@ -367,7 +382,16 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     };
 
     const handleBundlePress = (bundle: any) => {
-        setSelectedBundle(getBundlePayload(bundle));
+        const normalizedBundle = getBundlePayload(bundle);
+        const bundleId = getBundleId(normalizedBundle);
+        const hasEnrolledAccess =
+            Boolean(normalizedBundle?.isEnrolled) ||
+            (bundleId ? enrolledBundleIds.includes(String(bundleId)) : false);
+
+        setSelectedBundle({
+            ...normalizedBundle,
+            isEnrolled: hasEnrolledAccess,
+        });
         setShowBundleActionModal(true);
     };
 
@@ -625,24 +649,38 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                         <Text style={styles.modalLabel}>BUNDLE</Text>
                         <Text style={styles.modalTitle}>{selectedBundle?.title || selectedBundle?.name || 'Course'}</Text>
                         <Text style={styles.modalDescription}>
-                            Choose `View` to open the mock list without attempt buttons, or `Enroll` to unlock attempts.
+                            {selectedBundle?.isEnrolled
+                                ? 'This bundle is already enrolled. Open the full bundle to continue with all mocks.'
+                                : 'Choose `View` to open the mock list without attempt buttons, or `Enroll` to unlock attempts.'}
                         </Text>
 
-                        <Pressable
-                            style={styles.modalSecondaryButton}
-                            onPress={() => openBundleDetails(selectedBundle, 'view')}
-                        >
-                            <Feather name="eye" size={normalize(16)} color="#0F172A" />
-                            <Text style={styles.modalSecondaryButtonText}>View</Text>
-                        </Pressable>
+                        {selectedBundle?.isEnrolled ? (
+                            <Pressable
+                                style={styles.modalPrimaryButton}
+                                onPress={() => openBundleDetails(selectedBundle, 'enroll')}
+                            >
+                                <Feather name="layers" size={normalize(16)} color="#FFFFFF" />
+                                <Text style={styles.modalPrimaryButtonText}>View Bundle All</Text>
+                            </Pressable>
+                        ) : (
+                            <>
+                                <Pressable
+                                    style={styles.modalSecondaryButton}
+                                    onPress={() => openBundleDetails(selectedBundle, 'view')}
+                                >
+                                    <Feather name="eye" size={normalize(16)} color="#0F172A" />
+                                    <Text style={styles.modalSecondaryButtonText}>View</Text>
+                                </Pressable>
 
-                        <Pressable
-                            style={styles.modalPrimaryButton}
-                            onPress={() => openBundleDetails(selectedBundle, 'enroll')}
-                        >
-                            <Feather name="check-circle" size={normalize(16)} color="#FFFFFF" />
-                            <Text style={styles.modalPrimaryButtonText}>Enroll</Text>
-                        </Pressable>
+                                <Pressable
+                                    style={styles.modalPrimaryButton}
+                                    onPress={() => openBundleDetails(selectedBundle, 'enroll')}
+                                >
+                                    <Feather name="check-circle" size={normalize(16)} color="#FFFFFF" />
+                                    <Text style={styles.modalPrimaryButtonText}>Enroll</Text>
+                                </Pressable>
+                            </>
+                        )}
                     </View>
                 </View>
             </Modal>
