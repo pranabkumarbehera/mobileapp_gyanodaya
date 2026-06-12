@@ -5,7 +5,10 @@ const initialState = {
     isLoading: false,
     mockTestList: null as any,
     bundleList: null as any,
+    studentModules: null as any,
     bundleDetails: null as any,
+    subBundleList: null as any,
+    subBundleDetails: null as any,
     enrollBundleResponse: null as any,
     mockTestDetails: null as any,
     startTestResponse: null as any,
@@ -46,6 +49,20 @@ const MockTestSlice = createSlice({
             state.error = action.error || action.payload;
             state.isLoading = false;
         },
+        getStudentModulesRequest(state, action) {
+            state.status = action.type;
+            state.isLoading = true;
+        },
+        getStudentModulesSuccess(state, action) {
+            state.studentModules = action.payload;
+            state.status = action.type;
+            state.isLoading = false;
+        },
+        getStudentModulesFailure(state, action: any) {
+            state.status = action.type;
+            state.error = action.error || action.payload;
+            state.isLoading = false;
+        },
         bundleIDRequest(state, action) {
             state.status = action.type;
             state.isLoading = true;
@@ -60,6 +77,34 @@ const MockTestSlice = createSlice({
             state.error = action.error || action.payload;
             state.isLoading = false;
         },
+        getSubBundleListRequest(state, action) {
+            state.status = action.type;
+            state.isLoading = true;
+        },
+        getSubBundleListSuccess(state, action) {
+            state.subBundleList = action.payload;
+            state.status = action.type;
+            state.isLoading = false;
+        },
+        getSubBundleListFailure(state, action: any) {
+            state.status = action.type;
+            state.error = action.error || action.payload;
+            state.isLoading = false;
+        },
+        getSubBundleDetailsRequest(state, action) {
+            state.status = action.type;
+            state.isLoading = true;
+        },
+        getSubBundleDetailsSuccess(state, action) {
+            state.subBundleDetails = action.payload;
+            state.status = action.type;
+            state.isLoading = false;
+        },
+        getSubBundleDetailsFailure(state, action: any) {
+            state.status = action.type;
+            state.error = action.error || action.payload;
+            state.isLoading = false;
+        },
         enrollBundleRequest(state, action) {
             state.status = action.type;
             state.isLoading = true;
@@ -67,6 +112,7 @@ const MockTestSlice = createSlice({
         enrollBundleSuccess(state, action) {
             state.enrollBundleResponse = action.payload;
             state.bundleDetails = action.payload?.bundleDetails || state.bundleDetails;
+            state.studentModules = action.payload?.studentModules || state.studentModules;
             state.status = action.type;
             state.isLoading = false;
         },
@@ -136,6 +182,20 @@ const MockTestSlice = createSlice({
             state.isLoading = false;
             state.error = null;
         },
+        clearStartTestState(state) {
+            state.startTestResponse = null;
+            state.status = '';
+            state.isLoading = false;
+            state.error = null;
+        },
+        clearBundleFlowState(state) {
+            state.bundleDetails = null;
+            state.subBundleList = null;
+            state.subBundleDetails = null;
+            state.enrollBundleResponse = null;
+            state.mockTestDetails = null;
+            state.error = null;
+        },
         clearMockTestData(state) {
             return initialState;
         },
@@ -149,9 +209,18 @@ export const {
     getBundleListRequest,
     getBundleListSuccess,
     getBundleListFailure,
+    getStudentModulesRequest,
+    getStudentModulesSuccess,
+    getStudentModulesFailure,
     bundleIDRequest,
     bundleIDSuccess,
     bundleIDFailure,
+    getSubBundleListRequest,
+    getSubBundleListSuccess,
+    getSubBundleListFailure,
+    getSubBundleDetailsRequest,
+    getSubBundleDetailsSuccess,
+    getSubBundleDetailsFailure,
     enrollBundleRequest,
     enrollBundleSuccess,
     enrollBundleFailure,
@@ -168,6 +237,8 @@ export const {
     getTestResultSuccess,
     getTestResultFailure,
     clearTestResult,
+    clearStartTestState,
+    clearBundleFlowState,
     clearMockTestData,
 } = MockTestSlice.actions;
 

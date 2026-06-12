@@ -1,10 +1,12 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/FontAwesome5';
+import Toast from 'react-native-toast-message';
 import { StackScreenProps } from '@react-navigation/stack';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { RootStackParamList } from '../../Navigator/StackNav';
+import { getMockTestDetailsRequest, startTestRequest, clearStartTestState } from '../../Redux/Reducers/MockTestReducer';
 import { RootState } from '../../Redux/Store';
 import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
 
@@ -12,30 +14,92 @@ type MockTestRulesScreenProps = StackScreenProps<RootStackParamList, 'MockTestRu
 
 const BUTTON_COLOR = '#092948';
 
+const getResolvedTestId = (value: any) =>
+    value?.id || value?._id || value?.testId || value?.quizId || null;
+
+const getQuizQuestionCount = (quiz: any) =>
+    Number(quiz?.questionCount || quiz?.questionsCount || quiz?.totalQuestions || quiz?.questions?.length || 0);
+
+const getQuizDuration = (quiz: any) =>
+    Number(quiz?.durationMinutes || quiz?.duration || quiz?.timeLimit || 0);
+
+const getQuizTotalMarks = (quiz: any) =>
+    Number(
+        quiz?.totalMarks ||
+        quiz?.maxMarks ||
+        quiz?.fullMarks ||
+        quiz?.marks ||
+        0
+    );
+
+const getQuizNegativeMarking = (quiz: any) => {
+    const negativeMarking = quiz?.negativeMarking ?? quiz?.negativeMarks ?? quiz?.penalty;
+
+    if (typeof negativeMarking === 'object' && negativeMarking !== null) {
+        return negativeMarking?.value ?? '-';
+    }
+
+    return negativeMarking ?? '-';
+};
+
 const MockTestRulesScreen = ({ navigation, route }: MockTestRulesScreenProps) => {
-    const { testId } = route.params || {};
-    const { mockTestList } = useSelector((state: RootState) => state.MockTestReducer);
+    const { testId, testData } = route.params || {};
+    const dispatch = useDispatch();
+    const { mockTestDetails, isLoading, status, startTestResponse } = useSelector((state: RootState) => state.MockTestReducer);
+    const [termsAccepted, setTermsAccepted] = useState(false);
+    const [isStarting, setIsStarting] = useState(false);
+
+    useEffect(() => {
+        dispatch(clearStartTestState());
+        if (testId) {
+            dispatch(getMockTestDetailsRequest({ id: testId }));
+        }
+    }, [dispatch, testId]);
+
+    useEffect(() => {
+        if (isStarting && startTestResponse && !isLoading) {
+            setIsStarting(false);
+            navigation.replace('MockTestQuestion', {
+                testId,
+                duration,
+                acceptedTerms: true,
+            });
+        }
+    }, [isStarting, startTestResponse, isLoading, navigation, testId, duration]);
 
     const resolvedTest = useMemo(() => {
-        const rawData = Array.isArray(mockTestList)
-            ? mockTestList
-            : mockTestList?.data || mockTestList?.quizzes || mockTestList?.items || [];
-
-        return rawData.find((mock: any) => String(mock?.id || mock?._id || mock?.testId) === String(testId)) || null;
-    }, [mockTestList, testId]);
+        const detailsId = getResolvedTestId(mockTestDetails);
+        if (detailsId && String(detailsId) === String(testId)) {
+            return mockTestDetails;
+        }
+        return testData || null;
+    }, [mockTestDetails, testData, testId]);
 
     const title = resolvedTest?.title || resolvedTest?.name || 'Mock Test';
     const price = Number(resolvedTest?.price || 0);
-    const duration = resolvedTest?.durationMinutes || resolvedTest?.duration || 120;
-    const fullMarks = resolvedTest?.totalMarks || resolvedTest?.maxMarks || resolvedTest?.fullMarks || resolvedTest?.marks || (resolvedTest?.questionsCount || resolvedTest?.questions?.length || 0) * (resolvedTest?.defaultMarks || 4);
-    const negativeMarking = resolvedTest?.negativeMarking?.value || resolvedTest?.negativeMarking || resolvedTest?.negativeMarks || 1;
+    const duration = getQuizDuration(resolvedTest) || 120;
+    const fullMarks = getQuizTotalMarks(resolvedTest) || (getQuizQuestionCount(resolvedTest) * 4) || '--';
+    const negativeMarking = getQuizNegativeMarking(resolvedTest);
 
     const rules = [
-        `The test will be auto-submitted when only 1 minute is left if you have not submitted manually.`,
+        'The test will be auto-submitted when only 1 minute is left if you have not submitted manually.',
         `Duration: ${duration} minutes | Full Marks: ${fullMarks || '--'} | Negative Marking: ${negativeMarking} per wrong answer.`,
-        `Screenshots and screen recording/video capture are not allowed during the test.`,
-        `Read each question carefully and review your answers before the final minute countdown.`,
+        'Screenshots and screen recording/video capture are not allowed during the test.',
+        'Read each question carefully and review your answers before the final minute countdown.',
     ];
+
+    const handleContinue = () => {
+        if (!termsAccepted) {
+            Toast.show({
+                type: 'error',
+                text1: 'Please accept the terms & condition',
+            });
+            return;
+        }
+
+        setIsStarting(true);
+        dispatch(startTestRequest({ id: testId, acceptedTerms: true }));
+    };
 
     return (
         <SafeAreaView style={styles.container}>
@@ -85,11 +149,30 @@ const MockTestRulesScreen = ({ navigation, route }: MockTestRulesScreenProps) =>
                     ))}
                 </View>
 
+                <View style={styles.rulesCard}>
+                    <Text style={styles.rulesTitle}>Terms & Conditions</Text>
+                    <Text style={styles.ruleText}>
+                        By starting this mock test, you agree to follow the exam rules, avoid unfair practices, and allow the app to submit your attempt automatically when the timer ends.
+                    </Text>
+
+                    <Pressable style={styles.checkboxRow} onPress={() => setTermsAccepted(prev => !prev)}>
+                        <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
+                            {termsAccepted ? <Icon name="check" size={12} color="#FFFFFF" /> : null}
+                        </View>
+                        <Text style={styles.checkboxText}>I accept the Terms & Conditions and want to continue.</Text>
+                    </Pressable>
+
+                    {!termsAccepted ? (
+                        <Text style={styles.validationText}>Please accept the terms & condition</Text>
+                    ) : null}
+                </View>
+
                 <Pressable
-                    style={styles.primaryButton}
-                    onPress={() => navigation.navigate('MockTestQuestion', { testId, duration })}
+                    style={[styles.primaryButton, (isLoading && (status === getMockTestDetailsRequest.type || isStarting)) ? styles.primaryButtonDisabled : null]}
+                    onPress={handleContinue}
+                    disabled={isLoading && (status === getMockTestDetailsRequest.type || isStarting)}
                 >
-                    <Text style={styles.primaryButtonText}>Start Test</Text>
+                    <Text style={styles.primaryButtonText}>{isStarting ? 'Starting...' : 'Start Test'}</Text>
                 </Pressable>
             </ScrollView>
         </SafeAreaView>
@@ -201,7 +284,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#E5E7EB',
         padding: normalize(20),
-        marginBottom: verticalScale(28),
+        marginBottom: verticalScale(18),
     },
     rulesTitle: {
         fontSize: normalize(18),
@@ -235,6 +318,40 @@ const styles = StyleSheet.create({
         fontSize: normalize(14),
         lineHeight: verticalScale(22),
     },
+    checkboxRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        marginTop: verticalScale(16),
+    },
+    checkbox: {
+        width: normalize(22),
+        height: normalize(22),
+        borderRadius: normalize(6),
+        borderWidth: 1,
+        borderColor: '#CBD5E1',
+        backgroundColor: '#FFFFFF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: normalize(12),
+        marginTop: verticalScale(2),
+    },
+    checkboxChecked: {
+        backgroundColor: BUTTON_COLOR,
+        borderColor: BUTTON_COLOR,
+    },
+    checkboxText: {
+        flex: 1,
+        color: '#111827',
+        fontSize: normalize(14),
+        lineHeight: verticalScale(22),
+        fontWeight: '600',
+    },
+    validationText: {
+        color: '#B91C1C',
+        fontSize: normalize(12),
+        fontWeight: '600',
+        marginTop: verticalScale(12),
+    },
     primaryButton: {
         backgroundColor: BUTTON_COLOR,
         borderRadius: normalize(12),
@@ -242,6 +359,9 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: 'auto',
+    },
+    primaryButtonDisabled: {
+        opacity: 0.7,
     },
     primaryButtonText: {
         color: '#FFFFFF',

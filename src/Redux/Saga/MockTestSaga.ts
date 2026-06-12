@@ -6,9 +6,18 @@ import {
     getBundleListRequest,
     getBundleListSuccess,
     getBundleListFailure,
+    getStudentModulesRequest,
+    getStudentModulesSuccess,
+    getStudentModulesFailure,
     bundleIDRequest,
     bundleIDSuccess,
     bundleIDFailure,
+    getSubBundleListRequest,
+    getSubBundleListSuccess,
+    getSubBundleListFailure,
+    getSubBundleDetailsRequest,
+    getSubBundleDetailsSuccess,
+    getSubBundleDetailsFailure,
     enrollBundleRequest,
     enrollBundleSuccess,
     enrollBundleFailure,
@@ -78,6 +87,27 @@ export function* getBundleListSaga(action: any): Generator<any, void, any> {
     }
 }
 
+export function* getStudentModulesSaga(): Generator<any, void, any> {
+    const auth = yield select(getAuth);
+    const header = {
+        Accept: 'application/json',
+        contenttype: 'application/json',
+        authorization: auth.token,
+    };
+    try {
+        const response = yield call(getApi, 'student/modules', header);
+        if (response?.data?.success === true || response?.status === 200) {
+            yield put(getStudentModulesSuccess(response?.data?.data || response?.data));
+        } else {
+            yield put(getStudentModulesFailure(response?.data));
+            Toast.show({ type: 'error', text1: response?.data?.message || 'Failed to fetch enrollment status' });
+        }
+    } catch (error: any) {
+        yield put(getStudentModulesFailure(error));
+        Toast.show({ type: 'error', text1: error?.response?.data?.message || '!Oops something went wrong' });
+    }
+}
+
 export function* getBundleDetailsSaga(action: any): Generator<any, void, any> {
     const auth = yield select(getAuth);
     const header = {
@@ -99,6 +129,52 @@ export function* getBundleDetailsSaga(action: any): Generator<any, void, any> {
     }
 }
 
+export function* getSubBundleListSaga(action: any): Generator<any, void, any> {
+    const auth = yield select(getAuth);
+    const header = {
+        Accept: 'application/json',
+        contenttype: 'application/json',
+        authorization: auth.token,
+    };
+    try {
+        const response = yield call(getApi, `quizzes/bundles/${action.payload.bundleId}/sub-bundles`, header);
+        if (response?.data?.success === true || response?.status === 200) {
+            yield put(getSubBundleListSuccess(response?.data?.data || response?.data));
+        } else {
+            yield put(getSubBundleListFailure(response?.data));
+            Toast.show({ type: 'error', text1: response?.data?.message || 'Failed to fetch sub-bundles' });
+        }
+    } catch (error: any) {
+        yield put(getSubBundleListFailure(error));
+        Toast.show({ type: 'error', text1: error?.response?.data?.message || '!Oops something went wrong' });
+    }
+}
+
+export function* getSubBundleDetailsSaga(action: any): Generator<any, void, any> {
+    const auth = yield select(getAuth);
+    const header = {
+        Accept: 'application/json',
+        contenttype: 'application/json',
+        authorization: auth.token,
+    };
+    try {
+        const response = yield call(
+            getApi,
+            `quizzes/bundles/${action.payload.bundleId}/sub-bundles/${action.payload.subBundleId}`,
+            header,
+        );
+        if (response?.data?.success === true || response?.status === 200) {
+            yield put(getSubBundleDetailsSuccess(response?.data?.data || response?.data));
+        } else {
+            yield put(getSubBundleDetailsFailure(response?.data));
+            Toast.show({ type: 'error', text1: response?.data?.message || 'Failed to fetch sub-bundle details' });
+        }
+    } catch (error: any) {
+        yield put(getSubBundleDetailsFailure(error));
+        Toast.show({ type: 'error', text1: error?.response?.data?.message || '!Oops something went wrong' });
+    }
+}
+
 export function* enrollBundleSaga(action: any): Generator<any, void, any> {
     const auth = yield select(getAuth);
     const header = {
@@ -112,10 +188,13 @@ export function* enrollBundleSaga(action: any): Generator<any, void, any> {
         if (enrollResponse?.data?.success === true || enrollResponse?.status === 201 || enrollResponse?.status === 200) {
             const bundleResponse = yield call(getApi, `quizzes/bundles/${action.payload.id}`, header);
             const bundleDetails = bundleResponse?.data?.data || bundleResponse?.data;
+            const studentModulesResponse = yield call(getApi, 'student/modules', header);
+            const studentModules = studentModulesResponse?.data?.data || studentModulesResponse?.data;
 
             yield put(enrollBundleSuccess({
                 ...(enrollResponse?.data?.data || enrollResponse?.data || {}),
                 bundleDetails,
+                studentModules,
             }));
             Toast.show({ type: 'success', text1: enrollResponse?.data?.message || 'Enrolled successfully' });
         } else {
@@ -157,7 +236,10 @@ export function* startTestSaga(action: any): Generator<any, void, any> {
         authorization: auth.token,
     };
     try {
-        const response = yield call(postApi, `student/quizzes/${action.payload.id}/start`, {}, header);
+        const payload = {
+            acceptedTerms: Boolean(action.payload?.acceptedTerms),
+        };
+        const response = yield call(postApi, `student/quizzes/${action.payload.id}/start`, payload, header);
         if (response?.data?.success === true || response?.status === 201 || response?.status === 200) {
             yield put(startTestSuccess(response?.data?.data || response?.data));
             Toast.show({ type: 'success', text1: 'Test started successfully' });
@@ -220,7 +302,10 @@ export function* getTestResultSaga(action: any): Generator<any, void, any> {
 const MockTestSaga = [
     takeLatest(getMockTestListRequest.type, getMockTestListSaga),
     takeLatest(getBundleListRequest.type, getBundleListSaga),
+    takeLatest(getStudentModulesRequest.type, getStudentModulesSaga),
     takeLatest(bundleIDRequest.type, getBundleDetailsSaga),
+    takeLatest(getSubBundleListRequest.type, getSubBundleListSaga),
+    takeLatest(getSubBundleDetailsRequest.type, getSubBundleDetailsSaga),
     takeLatest(enrollBundleRequest.type, enrollBundleSaga),
     takeLatest(getMockTestDetailsRequest.type, getMockTestDetailsSaga),
     takeLatest(startTestRequest.type, startTestSaga),

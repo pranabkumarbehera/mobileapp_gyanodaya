@@ -23,7 +23,7 @@ import { createShimmerPlaceholder } from 'react-native-shimmer-placeholder';
 import LinearGradient from 'react-native-linear-gradient';
 import Colorpath from '../../Themes/Colorpath';
 import { RootStackParamList } from '../../Navigator/StackNav';
-import { clearTestResult, getTestResultRequest, startTestRequest, submitTestRequest } from '../../Redux/Reducers/MockTestReducer';
+import { clearStartTestState, clearTestResult, getTestResultRequest, startTestRequest, submitTestRequest } from '../../Redux/Reducers/MockTestReducer';
 import { RootState } from '../../Redux/Store';
 import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
 
@@ -152,7 +152,7 @@ const mapQuestions = (rawQuestions: any[]) =>
     }));
 
 const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenProps) => {
-    const { testId, duration } = route.params || {};
+    const { testId, duration, acceptedTerms } = route.params || {};
     const dispatch = useDispatch();
     const { startTestResponse, submitTestResponse, testResult, isLoading, error, status } = useSelector((state: RootState) => state.MockTestReducer);
 
@@ -277,8 +277,9 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
                 // Ignore broken cache and start fresh.
             }
 
-            if (testId) {
-                dispatch(startTestRequest({ id: testId }));
+            if (testId && !startTestResponse) {
+                dispatch(clearStartTestState());
+                dispatch(startTestRequest({ id: testId, acceptedTerms: Boolean(acceptedTerms) }));
             }
             setSessionLoaded(true);
         };

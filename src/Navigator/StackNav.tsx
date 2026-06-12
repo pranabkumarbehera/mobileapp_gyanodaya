@@ -36,8 +36,8 @@ export type RootStackParamList = {
     ChangePassword: { token?: string } | undefined;
     Home: undefined; // We'll map Home to TabNav for drop-in replacement
     Teacher: undefined;
-    MockTestRules: { testId?: string | number };
-    MockTestQuestion: { testId?: string | number; duration?: string | number };
+    MockTestRules: { testId?: string | number; testData?: any };
+    MockTestQuestion: { testId?: string | number; duration?: string | number; acceptedTerms?: boolean };
     AboutUs: undefined;
     TeacherProfile: { teacher: { name: string, subject: string, rating: string, experience: string, designation: string } };
     MockResult: {
