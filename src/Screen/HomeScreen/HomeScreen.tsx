@@ -249,18 +249,20 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
                 <SafeAreaView edges={['top']}>
                     <View style={styles.topBar}>
                         <View style={styles.profileRow}>
-                            <View style={styles.avatarFrame}>
+                            <Pressable onPress={() => navigation.navigate('Profile')} style={styles.avatarFrame}>
                                 <Avatar imageUri={profileImage} name={profileName} size={normalize(52)} />
-                            </View>
+                            </Pressable>
                             <View style={styles.profileCopy}>
                                 <Text style={styles.welcomeText}>Ready to improve today?</Text>
-                                <Text style={styles.userName}>{profileName}</Text>
+                                <Pressable onPress={() => navigation.navigate('Profile')}>
+                                    <Text style={styles.userName}>{profileName}</Text>
+                                </Pressable>
                             </View>
                         </View>
-                        <View style={styles.liveBadge}>
+                        {/* <View style={styles.liveBadge}>
                             <View style={styles.liveDot} />
                             <Text style={styles.liveBadgeText}>Dashboard</Text>
-                        </View>
+                        </View> */}
                     </View>
 
                     <View style={styles.statsRow}>

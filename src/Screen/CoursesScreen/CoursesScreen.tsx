@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, TextInput, ActivityIndicator, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, TextInput, ActivityIndicator, Modal, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from 'react-native-vector-icons/Feather';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import Colorpath from '../../Themes/Colorpath';
 import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
+import { getApi } from '../../Utils/Helpers/ApiRequest';
 import { useDispatch, useSelector } from 'react-redux';
 import {
     bundleIDRequest,
@@ -156,6 +157,100 @@ const getBundleQuizzes = (bundle: any) => {
     return [];
 };
 
+const getDetailCollections = (bundle: any) => {
+    const payload = getBundlePayload(bundle);
+    const parsedData = parseMaybeJson(bundle?.data);
+    const sources = [bundle, payload, parsedData];
+    const getCollection = (...keys: string[]) => {
+        for (const source of sources) {
+            for (const key of keys) {
+                const value = source?.[key];
+                if (Array.isArray(value) && value.length > 0) {
+                    return value;
+                }
+            }
+        }
+
+        return [];
+    };
+
+    const quizzes = getCollection('quizzes', 'mockTests', 'tests');
+    const noteBanks = getCollection('note_banks', 'noteBanks', 'notes');
+    const questionBanks = getCollection('question_banks', 'questionBanks', 'questions');
+    const youtubeBanks = getCollection('youtube_banks', 'youtubeBanks', 'youtube');
+    const quizCount = Number(
+        firstDisplayValue(
+            payload?.quizCount,
+            parsedData?.quizCount,
+            quizzes.length,
+        ) || 0,
+    );
+
+    return {
+        quizzes,
+        noteBanks,
+        questionBanks,
+        youtubeBanks,
+        quizCount,
+    };
+};
+
+const getItemTitle = (item: any, fallback: string) =>
+    item?.title ||
+    item?.name ||
+    item?.label ||
+    item?.heading ||
+    item?.videoTitle ||
+    item?.noteTitle ||
+    fallback;
+
+const getItemLink = (item: any) =>
+    item?.url ||
+    item?.link ||
+    item?.fileUrl ||
+    item?.documentUrl ||
+    item?.videoUrl ||
+    item?.youtubeUrl ||
+    item?.youtubeLink ||
+    item?.contentUrl ||
+    item?.path ||
+    null;
+
+const getItemDescription = (item: any) =>
+    item?.description ||
+    item?.subtitle ||
+    item?.summary ||
+    item?.text ||
+    '';
+
+const getNoteBankId = (item: any) =>
+    item?.noteId ||
+    item?.note_id ||
+    item?.note?.noteId ||
+    item?.parentNoteId ||
+    item?.id ||
+    item?._id ||
+    null;
+
+const htmlToPlainText = (html: string = '') => {
+    if (!html) {
+        return '';
+    }
+
+    return html
+        .replace(/<\s*\/\s*(p|div|h[1-6]|li|tr|table|tbody|thead|pre|blockquote|ul|ol)\s*>/gi, '\n')
+        .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>')
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;/gi, "'")
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+};
+
 const getBundleMockCount = (bundle: any) => {
     const payload = getBundlePayload(bundle);
     const quizzes = getBundleQuizzes(payload);
@@ -192,6 +287,34 @@ const getBundleMockCount = (bundle: any) => {
     );
 
     return Number(directCount || 0);
+};
+
+const buildDetailTabs = (bundle: any) => {
+    const collections = getDetailCollections(bundle);
+    const tabs = [
+        {
+            key: 'mock',
+            label: `Mock Test (${collections.quizCount})`,
+            items: collections.quizzes,
+        },
+        {
+            key: 'note',
+            label: `Note Bank (${collections.noteBanks.length})`,
+            items: collections.noteBanks,
+        },
+        {
+            key: 'question',
+            label: `Question Bank (${collections.questionBanks.length})`,
+            items: collections.questionBanks,
+        },
+        {
+            key: 'youtube',
+            label: `YouTube (${collections.youtubeBanks.length})`,
+            items: collections.youtubeBanks,
+        },
+    ].filter(tab => Array.isArray(tab.items) && tab.items.length > 0);
+
+    return tabs;
 };
 
 const getQuizTopicName = (quiz: any) =>
@@ -535,6 +658,12 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     const [activeBundleId, setActiveBundleId] = useState<string | null>(null);
     const [_activeSubBundleId, setActiveSubBundleId] = useState<string | null>(null);
     const [pendingEnrollmentId, setPendingEnrollmentId] = useState<string | null>(null);
+    const [activeDetailTab, setActiveDetailTab] = useState<string>('');
+    const [showNoteViewerModal, setShowNoteViewerModal] = useState(false);
+    const [isLoadingNotePages, setIsLoadingNotePages] = useState(false);
+    const [selectedNoteBankTitle, setSelectedNoteBankTitle] = useState('');
+    const [selectedNotePages, setSelectedNotePages] = useState<any[]>([]);
+    const authToken = useSelector((state: RootState) => state.AuthReducer.token);
 
     const bundleItems = useMemo(() => getBundleItems(bundleList), [bundleList]);
     const subBundleItems = useMemo(() => getSubBundleItems(subBundleList), [subBundleList]);
@@ -600,6 +729,16 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     const showingSubBundle = Boolean(selectedSubBundleExam);
     const canAttemptMocks = Boolean(detailScreen?.isEnrolled);
     const showSubBundleList = Boolean(selectedExam) && !showingSubBundle && subBundleItems.length > 0;
+    const detailTabs = useMemo(() => buildDetailTabs(detailScreen?.rawBundle || detailScreen), [detailScreen]);
+
+    useEffect(() => {
+        if (!showingSubBundle || detailTabs.length === 0) {
+            setActiveDetailTab('');
+            return;
+        }
+
+        setActiveDetailTab(detailTabs[0].key);
+    }, [detailTabs, showingSubBundle]);
 
     const renderIcon = (name: string, type: string, size: number, color: string) => {
         if (type === 'FontAwesome5') {
@@ -609,11 +748,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     };
 
     const handleQuizAction = (quiz: any) => {
-        if (!detailScreen?.isEnrolled) {
-            return;
-        }
-
-        const quizId = quiz?.id || getQuizId(quiz?.rawQuiz);
+        const quizId = getQuizId(quiz?.rawQuiz || quiz);
         if (!quizId) {
             return;
         }
@@ -622,6 +757,141 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
             testId: quizId,
             testData: quiz?.rawQuiz || quiz,
         });
+    };
+
+    const handleOpenDetailItem = async (item: any) => {
+        if (activeDetailTab === 'note') {
+            const noteId = getNoteBankId(item);
+
+            if (!noteId) {
+                return;
+            }
+
+            try {
+                setIsLoadingNotePages(true);
+                const response = await getApi(`student/note-banks/${noteId}/pages`, {
+                    Accept: 'application/json',
+                    contenttype: 'application/json',
+                    authorization: authToken,
+                });
+
+                const pages = response?.data?.data || response?.data || [];
+                setSelectedNoteBankTitle(getItemTitle(item, 'Note Bank'));
+                setSelectedNotePages(Array.isArray(pages) ? pages : []);
+                setShowNoteViewerModal(true);
+            } catch {
+                setSelectedNoteBankTitle(getItemTitle(item, 'Note Bank'));
+                setSelectedNotePages([]);
+                setShowNoteViewerModal(true);
+            } finally {
+                setIsLoadingNotePages(false);
+            }
+
+            return;
+        }
+
+        const link = getItemLink(item);
+
+        if (!link || !/^https?:\/\//i.test(link)) {
+            return;
+        }
+
+        Linking.openURL(link).catch(() => {});
+    };
+
+    const renderDetailTabCards = () => {
+        if (!showingSubBundle || detailTabs.length === 0) {
+            return null;
+        }
+
+        const activeTabConfig = detailTabs.find(tab => tab.key === activeDetailTab) || detailTabs[0];
+        if (!activeTabConfig) {
+            return null;
+        }
+
+        return (
+            <View style={styles.subjectList}>
+                <View style={styles.quizCardsWrap}>
+                    {activeTabConfig.items.map((item: any, index: number) => {
+                        if (activeTabConfig.key === 'mock') {
+                            const quiz = item || {};
+                            const title = getItemTitle(quiz, `Mock ${index + 1}`);
+                            const durationMinutes = getQuizDuration(quiz);
+                            const questionCount = getQuizQuestionCount(quiz);
+
+                            return (
+                                <View key={getQuizId(quiz) || `${activeTabConfig.key}-${index}`} style={styles.quizCard}>
+                                    <View style={styles.quizBadge}>
+                                        <Text style={styles.quizBadgeText}>MOCK</Text>
+                                    </View>
+
+                                    <Text style={styles.quizCardTitle}>{title}</Text>
+
+                                    <View style={styles.quizMetaRow}>
+                                        <View style={styles.quizMetaItem}>
+                                            <Feather name="clock" size={normalize(14)} color="#667085" />
+                                            <Text style={styles.quizMetaText}>{durationMinutes || 0}m</Text>
+                                        </View>
+                                        <View style={styles.quizMetaItem}>
+                                            <Feather name="book-open" size={normalize(14)} color="#667085" />
+                                            <Text style={styles.quizMetaText}>{questionCount || 0} Qs</Text>
+                                        </View>
+                                    </View>
+
+                                    {canAttemptMocks ? (
+                                        <Pressable
+                                            style={[styles.quizActionButton, isEnrollingBundle && styles.quizActionButtonDisabled]}
+                                            disabled={isEnrollingBundle}
+                                            onPress={() => handleQuizAction(quiz)}
+                                        >
+                                            {isEnrollingBundle ? (
+                                                <ActivityIndicator size="small" color="#FFFFFF" />
+                                            ) : (
+                                                <>
+                                                    <Text style={styles.quizActionText}>Attempt Now</Text>
+                                                    <Feather name="play" size={normalize(14)} color="#FFFFFF" />
+                                                </>
+                                            )}
+                                        </Pressable>
+                                    ) : (
+                                        <View style={styles.quizViewOnlyTag}>
+                                            <Feather name="eye" size={normalize(14)} color="#667085" />
+                                            <Text style={styles.quizViewOnlyText}>View only</Text>
+                                        </View>
+                                    )}
+                                </View>
+                            );
+                        }
+
+                        const title = getItemTitle(item, `${activeTabConfig.label} ${index + 1}`);
+                        const subtitle = getItemDescription(item);
+
+                        return (
+                            <View key={item?.id || item?._id || `${activeTabConfig.key}-${index}`} style={styles.quizCard}>
+                                <View style={styles.quizBadge}>
+                                    <Text style={styles.quizBadgeText}>
+                                        {activeTabConfig.key === 'note' ? 'NOTE BANK' : activeTabConfig.key === 'question' ? 'QUESTION BANK' : 'YOUTUBE'}
+                                    </Text>
+                                </View>
+
+                                <Text style={styles.quizCardTitle}>{title}</Text>
+                                {subtitle ? <Text style={styles.resourceCardSubtitle}>{subtitle}</Text> : null}
+
+                                <Pressable
+                                    style={styles.quizActionButton}
+                                    onPress={() => handleOpenDetailItem(item)}
+                                >
+                                    <Text style={styles.quizActionText}>
+                                        {activeTabConfig.key === 'note' ? 'Open / View' : 'Open'}
+                                    </Text>
+                                    <Feather name="chevron-right" size={normalize(14)} color="#FFFFFF" />
+                                </Pressable>
+                            </View>
+                        );
+                    })}
+                </View>
+            </View>
+        );
     };
 
     const openBundleDetails = (bundle: any, mode: 'view' | 'enroll') => {
@@ -804,7 +1074,36 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                         </View>
                     </View>
 
-                    {showSubBundleList ? (
+                    {showingSubBundle && detailTabs.length > 0 ? (
+                        <>
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={styles.dynamicTabsScrollContent}
+                            >
+                                {detailTabs.map((tab: any) => (
+                                    <Pressable
+                                        key={tab.key}
+                                        onPress={() => setActiveDetailTab(tab.key)}
+                                        style={styles.dynamicTabItem}
+                                    >
+                                        <Text style={[
+                                            styles.dynamicTabText,
+                                            activeDetailTab === tab.key && styles.dynamicTabTextActive,
+                                        ]}>
+                                            {tab.label}
+                                        </Text>
+                                        <View style={[
+                                            styles.dynamicTabIndicator,
+                                            activeDetailTab === tab.key && styles.dynamicTabIndicatorActive,
+                                        ]} />
+                                    </Pressable>
+                                ))}
+                            </ScrollView>
+
+                            {renderDetailTabCards()}
+                        </>
+                    ) : showSubBundleList ? (
                         <>
                             <Text style={styles.sectionTitle}>Course Curriculum</Text>
                             <Text style={styles.subjectSubtitle}>
@@ -916,6 +1215,50 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
                     <View style={{ height: verticalScale(50) }} />
                 </ScrollView>
+
+                <Modal
+                    visible={showNoteViewerModal}
+                    transparent={false}
+                    animationType="slide"
+                    onRequestClose={() => setShowNoteViewerModal(false)}
+                >
+                    <View style={styles.noteViewerContainer}>
+                        <SafeAreaView edges={['top']} style={styles.noteViewerSafeArea}>
+                            <View style={styles.noteViewerHeader}>
+                                <Pressable onPress={() => setShowNoteViewerModal(false)} style={styles.noteViewerCloseBtn}>
+                                    <Feather name="arrow-left" size={normalize(20)} color="#0F172A" />
+                                </Pressable>
+                                <View style={styles.noteViewerHeaderText}>
+                                    <Text style={styles.noteViewerTitle}>{selectedNoteBankTitle || 'Note Bank'}</Text>
+                                    <Text style={styles.noteViewerSubtitle}>Fetched from the pages API</Text>
+                                </View>
+                            </View>
+                        </SafeAreaView>
+
+                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.noteViewerScrollContent}>
+                            {isLoadingNotePages ? (
+                                <View style={styles.noteViewerStateBox}>
+                                    <ActivityIndicator size="large" color={Colorpath.Primary} />
+                                    <Text style={styles.noteViewerStateText}>Loading pages...</Text>
+                                </View>
+                            ) : selectedNotePages.length > 0 ? (
+                                selectedNotePages.map((page: any, index: number) => (
+                                    <View key={page?._id || page?.id || `${index}`} style={styles.notePageCard}>
+                                        <Text style={styles.notePageTitle}>{page?.title || `Page ${index + 1}`}</Text>
+                                        <Text style={styles.notePageBody}>{htmlToPlainText(page?.htmlContent || '') || 'No content available.'}</Text>
+                                    </View>
+                                ))
+                            ) : (
+                                <View style={styles.noteViewerStateBox}>
+                                    <Feather name="file-text" size={normalize(24)} color="#94A3B8" />
+                                    <Text style={styles.noteViewerStateText}>No note pages found.</Text>
+                                </View>
+                            )}
+
+                            <View style={{ height: verticalScale(32) }} />
+                        </ScrollView>
+                    </View>
+                </Modal>
             </View>
         );
     }
@@ -1270,6 +1613,32 @@ const styles = StyleSheet.create({
         marginTop: -verticalScale(8),
         marginBottom: verticalScale(12),
     },
+    dynamicTabsScrollContent: {
+        paddingVertical: verticalScale(4),
+        marginBottom: verticalScale(8),
+    },
+    dynamicTabItem: {
+        marginRight: normalize(22),
+        paddingBottom: verticalScale(8),
+    },
+    dynamicTabText: {
+        fontSize: normalize(14),
+        fontWeight: '800',
+        color: '#667085',
+        letterSpacing: 0.2,
+    },
+    dynamicTabTextActive: {
+        color: Colorpath.Primary,
+    },
+    dynamicTabIndicator: {
+        height: verticalScale(4),
+        borderRadius: normalize(999),
+        backgroundColor: 'transparent',
+        marginTop: verticalScale(8),
+    },
+    dynamicTabIndicatorActive: {
+        backgroundColor: '#F0A335',
+    },
     subjectList: {
         marginBottom: verticalScale(20),
     },
@@ -1331,6 +1700,12 @@ const styles = StyleSheet.create({
         fontSize: normalize(16),
         fontWeight: '800',
         color: '#1D2939',
+        marginBottom: verticalScale(14),
+    },
+    resourceCardSubtitle: {
+        fontSize: normalize(12),
+        color: '#667085',
+        lineHeight: normalize(18),
         marginBottom: verticalScale(14),
     },
     quizMetaRow: {
@@ -1418,6 +1793,83 @@ const styles = StyleSheet.create({
         fontWeight: '800',
         color: '#0F172A',
         marginBottom: verticalScale(8),
+    },
+    noteViewerContainer: {
+        flex: 1,
+        backgroundColor: '#F8FAFC',
+    },
+    noteViewerSafeArea: {
+        backgroundColor: '#FFFFFF',
+    },
+    noteViewerHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: normalize(20),
+        paddingVertical: verticalScale(14),
+        borderBottomWidth: 1,
+        borderBottomColor: '#E2E8F0',
+        backgroundColor: '#FFFFFF',
+    },
+    noteViewerCloseBtn: {
+        width: normalize(40),
+        height: normalize(40),
+        borderRadius: normalize(20),
+        backgroundColor: '#F1F5F9',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: normalize(12),
+    },
+    noteViewerHeaderText: {
+        flex: 1,
+    },
+    noteViewerTitle: {
+        fontSize: normalize(20),
+        fontWeight: '800',
+        color: '#0F172A',
+        marginBottom: verticalScale(2),
+    },
+    noteViewerSubtitle: {
+        fontSize: normalize(12),
+        color: '#64748B',
+    },
+    noteViewerScrollContent: {
+        paddingHorizontal: normalize(20),
+        paddingTop: verticalScale(18),
+    },
+    noteViewerStateBox: {
+        minHeight: verticalScale(220),
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: normalize(18),
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        paddingHorizontal: normalize(16),
+    },
+    noteViewerStateText: {
+        marginTop: verticalScale(12),
+        fontSize: normalize(13),
+        color: '#64748B',
+        textAlign: 'center',
+    },
+    notePageCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: normalize(18),
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        padding: normalize(16),
+        marginBottom: verticalScale(14),
+    },
+    notePageTitle: {
+        fontSize: normalize(17),
+        fontWeight: '800',
+        color: '#0F172A',
+        marginBottom: verticalScale(10),
+    },
+    notePageBody: {
+        fontSize: normalize(13),
+        color: '#334155',
+        lineHeight: normalize(20),
     },
     modalDescription: {
         fontSize: normalize(13),

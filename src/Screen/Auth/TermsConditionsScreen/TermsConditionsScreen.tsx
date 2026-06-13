@@ -30,59 +30,58 @@ const TermsConditionsScreen = ({ navigation }: TermsConditionsScreenProps) => {
                 <Text style={styles.title}>Terms & Conditions</Text>
                 <Text style={styles.updatedText}>Last Updated: June 2026</Text>
                 <Text style={styles.paragraph}>
-                    By accessing or using Gyanodaya, you agree to comply with these Terms & Conditions.
+                    Welcome to GYANODAYA. By using this application, you agree to the following terms and conditions:
                 </Text>
 
-                <Text style={styles.sectionTitle}>Account Registration</Text>
-                <Text style={styles.paragraph}>Users must provide accurate information during registration.</Text>
-                <Text style={styles.paragraph}>You are responsible for maintaining the confidentiality of your account credentials.</Text>
-
-                <Text style={styles.sectionTitle}>Educational Content</Text>
+                <Text style={styles.sectionTitle}>01. Purpose of the Application</Text>
                 <Text style={styles.paragraph}>
-                    All study materials, videos, tests, notes, question banks, and content available on Gyanodaya are protected by intellectual property laws.
+                    GYANODAYA provides educational content including Mock Tests, Notes, Question Banks, YouTube Classes, and study materials for examinations such as SSB TGT, PGT, RHT, LTR, OTET, OSSTET, CTET, B.Ed., and other competitive examinations.
                 </Text>
-                <Text style={styles.paragraph}>Users may not:</Text>
-                <Text style={styles.bullet}>Copy content</Text>
-                <Text style={styles.bullet}>Distribute content</Text>
-                <Text style={styles.bullet}>Resell content</Text>
-                <Text style={styles.bullet}>Share login credentials</Text>
-                <Text style={styles.bullet}>Upload content without authorization</Text>
 
-                <Text style={styles.sectionTitle}>User Conduct</Text>
-                <Text style={styles.paragraph}>Users agree not to:</Text>
-                <Text style={styles.bullet}>Use the platform for unlawful activities</Text>
-                <Text style={styles.bullet}>Attempt unauthorized access</Text>
-                <Text style={styles.bullet}>Interfere with platform operations</Text>
-                <Text style={styles.bullet}>Share offensive or harmful content</Text>
+                <Text style={styles.sectionTitle}>02. User Responsibilities</Text>
+                <Text style={styles.bullet}>Users must use the application only for lawful educational purposes.</Text>
+                <Text style={styles.bullet}>Users shall not copy, reproduce, distribute, or sell any content available in the application without permission.</Text>
+                <Text style={styles.bullet}>Users are responsible for maintaining the confidentiality of their login credentials.</Text>
 
-                <Text style={styles.sectionTitle}>Course Access</Text>
-                <Text style={styles.paragraph}>Course access is granted according to the purchased plan.</Text>
-                <Text style={styles.paragraph}>Access periods may vary depending on the course or subscription.</Text>
-
-                <Text style={styles.sectionTitle}>Mock Tests and Results</Text>
+                <Text style={styles.sectionTitle}>03. Intellectual Property</Text>
                 <Text style={styles.paragraph}>
-                    Performance reports and test scores are provided for educational purposes only and do not guarantee examination success.
+                    All study materials, notes, mock tests, designs, logos, and content available in the application are the property of GYANODAYA unless otherwise stated.
                 </Text>
 
-                <Text style={styles.sectionTitle}>Account Suspension</Text>
+                <Text style={styles.sectionTitle}>04. Accuracy of Information</Text>
                 <Text style={styles.paragraph}>
-                    We reserve the right to suspend or terminate accounts that violate these Terms.
+                    We strive to provide accurate and updated educational content. However, GYANODAYA does not guarantee the completeness, accuracy, or suitability of any information.
                 </Text>
 
-                <Text style={styles.sectionTitle}>Limitation of Liability</Text>
-                <Text style={styles.paragraph}>Gyanodaya shall not be liable for:</Text>
-                <Text style={styles.bullet}>Examination outcomes</Text>
-                <Text style={styles.bullet}>Temporary service interruptions</Text>
-                <Text style={styles.bullet}>Technical issues beyond our control</Text>
-                <Text style={styles.bullet}>Loss of data due to user negligence</Text>
-
-                <Text style={styles.sectionTitle}>Modifications</Text>
+                <Text style={styles.sectionTitle}>05. External Links</Text>
                 <Text style={styles.paragraph}>
-                    We may modify these Terms at any time. Continued use of the platform constitutes acceptance of updated Terms.
+                    The application may contain links to YouTube or other third-party websites. We are not responsible for the content, privacy practices, or services provided by such third parties.
                 </Text>
 
-                <Text style={styles.sectionTitle}>Contact</Text>
-                <Text style={styles.contactLine}>Email: support@gyanodaya.cloud</Text>
+                <Text style={styles.sectionTitle}>06. Limitation of Liability</Text>
+                <Text style={styles.paragraph}>
+                    GYANODAYA shall not be liable for any direct, indirect, incidental, or consequential damages arising from the use of the application.
+                </Text>
+
+                <Text style={styles.sectionTitle}>07. Modification of Services</Text>
+                <Text style={styles.paragraph}>
+                    We reserve the right to modify, suspend, or discontinue any feature of the application at any time without prior notice.
+                </Text>
+
+                <Text style={styles.sectionTitle}>08. Termination</Text>
+                <Text style={styles.paragraph}>
+                    We may suspend or terminate access to users who violate these terms and conditions.
+                </Text>
+
+                <Text style={styles.sectionTitle}>09. Changes to Terms</Text>
+                <Text style={styles.paragraph}>
+                    These Terms & Conditions may be updated from time to time. Continued use of the application constitutes acceptance of the revised terms.
+                </Text>
+
+                <Text style={styles.sectionTitle}>10. Contact Us</Text>
+                <Text style={styles.paragraph}>
+                    For any questions regarding these Terms & Conditions, please contact us through the details provided in the application.
+                </Text>
             </ScrollView>
         </View>
     );

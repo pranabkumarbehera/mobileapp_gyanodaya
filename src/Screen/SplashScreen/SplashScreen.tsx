@@ -2,12 +2,12 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, StatusBar, Image, Animated, Easing, Dimensions } from 'react-native';
 import { StackScreenProps } from '@react-navigation/stack';
 import { useDispatch, useSelector } from 'react-redux';
-import { tokenRequest } from '../../Redux/Reducers/AuthReducer';
-import { RootState } from '../../Redux/Store';
 import Imagepath from '../../Themes/Imagepath';
 import { RootStackParamList } from '../../Navigator/StackNav';
 import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
 import Fonts from '../../Themes/Fonts';
+import { tokenRequest, tokenFailure, tokenSuccess } from '../../Redux/Reducers/AuthReducer';
+import { RootState } from '../../Redux/Store';
 
 const { width, height } = Dimensions.get('window');
 
@@ -15,11 +15,8 @@ type SplashScreenProps = StackScreenProps<RootStackParamList, 'Splash'>;
 
 const SplashScreen = ({ navigation }: SplashScreenProps) => {
     const dispatch = useDispatch();
-    const { isLoading, token } = useSelector((state: RootState) => state.AuthReducer);
+    const { token, status } = useSelector((state: RootState) => state.AuthReducer);
 
-    useEffect(() => {
-        dispatch(tokenRequest({}));
-    }, []);
     // Animation Values
     const logoScale = useRef(new Animated.Value(0.5)).current;
     const logoFade = useRef(new Animated.Value(0)).current;
@@ -28,6 +25,11 @@ const SplashScreen = ({ navigation }: SplashScreenProps) => {
     const ripple1Opacity = useRef(new Animated.Value(0.6)).current;
     const ripple2Scale = useRef(new Animated.Value(0.2)).current;
     const ripple2Opacity = useRef(new Animated.Value(0.6)).current;
+
+    const brandLettersFade = useRef([...Array(9)].map(() => new Animated.Value(0))).current;
+    const brandLettersTranslate = useRef([...Array(9)].map(() => new Animated.Value(15))).current;
+    const taglineFade = useRef(new Animated.Value(0)).current;
+    const taglineTranslate = useRef(new Animated.Value(15)).current;
 
     // Merging Background Bubbles
     const mergeBubbleLeftX = useRef(new Animated.Value(-width * 0.8)).current;
@@ -47,6 +49,8 @@ const SplashScreen = ({ navigation }: SplashScreenProps) => {
     }))).current;
 
     useEffect(() => {
+        dispatch(tokenRequest({}));
+
         // 1. Logo fades in and scales up to a LARGE size
         Animated.parallel([
             Animated.timing(logoFade, {
@@ -107,6 +111,44 @@ const SplashScreen = ({ navigation }: SplashScreenProps) => {
         createRipple(ripple1Scale, ripple1Opacity, 0);
         createRipple(ripple2Scale, ripple2Opacity, 1000);
 
+        // 4. Brand Text Fade In (Letter by letter in slow motion)
+        setTimeout(() => {
+            const letterAnimations = brandLettersFade.map((fadeAnim, index) => {
+                const translateAnim = brandLettersTranslate[index];
+                return Animated.parallel([
+                    Animated.timing(fadeAnim, {
+                        toValue: 1,
+                        duration: 800,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(translateAnim, {
+                        toValue: 0,
+                        duration: 800,
+                        easing: Easing.out(Easing.back(1.2)),
+                        useNativeDriver: true,
+                    })
+                ]);
+            });
+            Animated.stagger(150, letterAnimations).start();
+        }, 1200);
+
+        // 5. Tagline Fade In
+        setTimeout(() => {
+            Animated.parallel([
+                Animated.timing(taglineFade, {
+                    toValue: 1,
+                    duration: 600,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(taglineTranslate, {
+                    toValue: 0,
+                    duration: 600,
+                    easing: Easing.out(Easing.ease),
+                    useNativeDriver: true,
+                })
+            ]).start();
+        }, 2800);
+
         // 6. Fast Background Yellow Bubbles
         particles.forEach(p => {
             setTimeout(() => {
@@ -132,35 +174,36 @@ const SplashScreen = ({ navigation }: SplashScreenProps) => {
                 ).start();
             }, p.delay);
         });
+    }, [dispatch, logoFade, logoScale, mergeBubbleLeftX, mergeBubbleOpacity, mergeBubbleRightX, particles, ripple1Opacity, ripple1Scale, ripple2Opacity, ripple2Scale, taglineFade, taglineTranslate, brandLettersFade, brandLettersTranslate]);
 
-        // 6. Navigate to Onboarding ONLY if we've checked the token and it's null
-        // Since StackNav will automatically unmount Splash if token is found,
-        // we just need to wait a few seconds and go to Onboarding.
-        const timeoutId = setTimeout(() => {
-            if (!isLoading && !token) {
-                navigation.replace('Onboarding');
-            }
-        }, 3500);
+    useEffect(() => {
+        if (status === tokenSuccess.type && token) {
+            return;
+        }
 
-        return () => clearTimeout(timeoutId);
-    }, [navigation, isLoading, token]);
+        if (status === tokenFailure.type || (status === tokenSuccess.type && !token)) {
+          setTimeout(() => {
+            navigation.replace('Onboarding');
+          }, 3500); // Delay navigation to allow splash animations to complete
+        }
+    }, [navigation, status, token]);
 
     return (
         <View style={styles.container}>
-            <StatusBar backgroundColor="#F8FAFC" barStyle="dark-content" />
+            <StatusBar backgroundColor="#1D2B6B" barStyle="light-content" />
 
             {/* Glowing Ambient Center Light */}
             <View style={styles.ambientGlow} />
 
             {/* Two Large Merging Bubbles Background */}
-            {/* <Animated.View style={[
+            <Animated.View style={[
                 styles.largeMergeBubble,
                 { transform: [{ translateX: mergeBubbleLeftX }], opacity: mergeBubbleOpacity }
             ]} />
             <Animated.View style={[
                 styles.largeMergeBubble,
-                { transform: [{ translateX: mergeBubbleRightX }], opacity: mergeBubbleOpacity, backgroundColor: '#f0a335' }
-            ]} /> */}
+                { transform: [{ translateX: mergeBubbleRightX }], opacity: mergeBubbleOpacity, backgroundColor: '#3B82F6' }
+            ]} />
 
             {/* Fast Yellow Circular Bubbles */}
             {particles.map((p, index) => (
@@ -206,13 +249,27 @@ const SplashScreen = ({ navigation }: SplashScreenProps) => {
                 </View>
 
                 {/* Typography */}
-                {/* <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: verticalScale(8) }}>
-                    <Text style={styles.brandText}>GYANODAYA</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: verticalScale(8) }}>
+                    {['G', 'Y', 'A', 'N', 'O', 'D', 'A', 'Y', 'A'].map((letter, index) => (
+                        <Animated.Text
+                            key={index}
+                            style={[
+                                styles.brandText,
+                                {
+                                    opacity: brandLettersFade[index],
+                                    transform: [{ translateY: brandLettersTranslate[index] }],
+                                    marginBottom: 0,
+                                }
+                            ]}
+                        >
+                            {letter}
+                        </Animated.Text>
+                    ))}
                 </View>
 
-                <View style={{ alignItems: 'center' }}>
+                <Animated.View style={{ opacity: taglineFade, transform: [{ translateY: taglineTranslate }], alignItems: 'center' }}>
                     <Text style={styles.subText}>YOUR SUCCESS IS OUR MOTIVATION</Text>
-                </View> */}
+                </Animated.View>
 
             </View>
         </View>
@@ -222,7 +279,7 @@ const SplashScreen = ({ navigation }: SplashScreenProps) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F8FAFC',
+        backgroundColor: '#1D2B6B',
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -252,8 +309,8 @@ const styles = StyleSheet.create({
     bubble: {
         position: 'absolute',
         bottom: -30,
-        backgroundColor: '#f0a335', // Bright yellow bubbles
-        shadowColor: '#f0a335',
+        backgroundColor: '#FACC15', // Bright yellow bubbles
+        shadowColor: '#FACC15',
         shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 0.9,
         shadowRadius: 8,
@@ -272,28 +329,31 @@ const styles = StyleSheet.create({
     },
     ripple: {
         position: 'absolute',
-        width: normalize(200),
-        height: normalize(200),
-        borderRadius: normalize(100), // Perfect circle
-        backgroundColor: 'rgba(29, 43, 107, 0.05)',
+        width: normalize(140),
+        height: normalize(140),
+        borderRadius: normalize(70), // Perfect circle
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
         borderWidth: 2,
-        borderColor: 'rgba(240, 163, 53, 0.3)', // Yellow/Gold circular border
+        borderColor: 'rgba(250, 204, 21, 0.5)', // Yellow/Gold circular border
     },
     logo: {
         width: normalize(250),
-        height: normalize(250), // Increased logo dimensions significantly
+        height: normalize(230), // Increased logo dimensions significantly
     },
     brandText: {
-        fontSize: normalize(38), // Slightly larger font
+        fontSize: normalize(36), // Slightly larger font
         fontWeight: '900',
         fontFamily: Fonts.InterBold,
-        color: '#1D2B6B', // Dark blue text
+        color: '#FFFFFF',
         letterSpacing: 2,
         marginBottom: verticalScale(8),
+        textShadowColor: 'rgba(255,255,255,0.25)',
+        textShadowOffset: { width: 0, height: 4 },
+        textShadowRadius: 15,
     },
     subText: {
-        fontSize: normalize(13),
-        color: '#f0a335', // Yellow tagline
+        fontSize: normalize(12),
+        color: '#FACC15', // Yellow tagline
         fontWeight: '700',
         fontFamily: Fonts.InterBold,
         letterSpacing: 1.5,

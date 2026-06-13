@@ -20,7 +20,7 @@ export function* getProfileSaga(action: any): Generator<any, void, any> {
         authorization: auth.token,
     };
     try {
-        const response = yield call(getApi, 'users/me', header);
+        const response = yield call(getApi, 'auth/me', header);
         if (response?.data?.success === true || response?.status === 200) {
             yield put(getProfileSuccess(response?.data?.data || response?.data));
         } else {

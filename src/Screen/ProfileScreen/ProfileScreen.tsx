@@ -28,6 +28,7 @@ import {
     getInitials,
     getProfileImageUri,
     getProfileName,
+    normalizeProfileData,
 } from '../../Utils/Helpers/home';
 
 type ProfileScreenProps = StackScreenProps<RootStackParamList, 'Profile'>;
@@ -79,19 +80,7 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
         }
     }, [dispatch, profileData, profileState.isLoading]);
 
-    const mappedProfile = useMemo<EditableProfile>(() => ({
-        firstName: profileData?.firstName || profileData?.profile?.firstName || '',
-        lastName: profileData?.lastName || profileData?.profile?.lastName || '',
-        phone: profileData?.phone || profileData?.mobile || profileData?.profile?.phone || '',
-        bio: profileData?.bio || profileData?.about || profileData?.profile?.bio || '',
-        avatarUrl:
-            profileData?.avatarUrl ||
-            profileData?.profileImage ||
-            profileData?.profilePicture ||
-            profileData?.avatar ||
-            profileData?.profile?.avatarUrl ||
-            '',
-    }), [profileData]);
+    const mappedProfile = useMemo<EditableProfile>(() => normalizeProfileData(profileData), [profileData]);
 
     useEffect(() => {
         if (!isEditVisible) {
@@ -106,7 +95,7 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
     }, [isEditVisible, profileState.status]);
 
     const profileName = useMemo(
-        () => getProfileName({ ...profileData, firstName: mappedProfile.firstName, lastName: mappedProfile.lastName }),
+        () => getProfileName({ ...profileData, ...mappedProfile }),
         [mappedProfile.firstName, mappedProfile.lastName, profileData],
     );
     const displayedAvatar = useMemo(
@@ -125,7 +114,7 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
     }, [form.avatarUrl]);
 
     const handleLogout = () => {
-        dispatch(logoutRequest());
+        dispatch(logoutRequest({}));
     };
 
     const handleSupportPress = async () => {
@@ -140,7 +129,7 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
     const handleShareApp = async () => {
         try {
             await Share.share({
-                message: 'Prepare for your teaching career with Gyanodaya! Download the app now: https://play.google.com/store/apps/details?id=com.gyanodaya',
+                message: 'Prepare for your teaching career with Gyanodaya! Download the app now: https://play.google.com/store/apps/details?id=com.gyanodaya.newapp',
             });
         } catch (error) {
             console.log('Error sharing app:', error);
@@ -220,9 +209,7 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                                 <Icon name="arrow-left" size={normalize(24)} color="#FFFFFF" />
                             </Pressable>
                             <Text style={styles.headerTitle}>Profile</Text>
-                            <Pressable onPress={openEditModal} style={styles.iconButton}>
-                                <Icon name="edit-2" size={normalize(20)} color="#FFFFFF" />
-                            </Pressable>
+                            <View style={styles.headerRightSpacer} />
                         </View>
                     </SafeAreaView>
                 </View>
@@ -466,9 +453,10 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#FAFBFF' },
     scrollContent: { flexGrow: 1 },
     headerBackground: { backgroundColor: Colorpath.Primary, height: verticalScale(180), borderBottomLeftRadius: normalize(30), borderBottomRightRadius: normalize(30) },
-    topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: normalize(24), paddingTop: verticalScale(10) },
+    topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: normalize(24), paddingTop: verticalScale(10) },
     iconButton: { padding: normalize(8), marginHorizontal: -normalize(8) },
-    headerTitle: { fontSize: normalize(18), fontWeight: 'bold', color: '#FFFFFF' },
+    headerTitle: { flex: 1, fontSize: normalize(18), fontWeight: 'bold', color: '#FFFFFF', textAlign: 'center' },
+    headerRightSpacer: { width: normalize(40), height: normalize(40) },
     profileCardWrapper: { paddingHorizontal: normalize(24), marginTop: -verticalScale(80) },
     profileCard: { backgroundColor: '#FFFFFF', borderRadius: normalize(20), padding: normalize(24), alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 15, elevation: 5 },
     avatarContainer: { width: normalize(80), height: normalize(80), borderRadius: normalize(40), backgroundColor: '#E0E7FF', justifyContent: 'center', alignItems: 'center', marginBottom: verticalScale(12), borderWidth: 4, borderColor: '#FFFFFF', marginTop: -normalize(40), overflow: 'hidden' },

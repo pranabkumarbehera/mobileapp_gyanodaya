@@ -1,4 +1,4 @@
-package com.gyanodaya
+package com.gyanodaya.newapp
 
 import android.app.Application
 import com.facebook.react.PackageList

@@ -1,4 +1,4 @@
-package com.gyanodaya
+package com.gyanodaya.newapp
 
 import android.os.Bundle
 import android.view.WindowManager

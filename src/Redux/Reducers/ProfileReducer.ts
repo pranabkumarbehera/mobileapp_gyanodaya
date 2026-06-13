@@ -1,4 +1,5 @@
 import { createSlice } from '@reduxjs/toolkit';
+import { normalizeProfileData } from '../../Utils/Helpers/home';
 
 const initialState = {
     status: '',
@@ -17,7 +18,7 @@ const ProfileSlice = createSlice({
             state.isLoading = true;
         },
         getProfileSuccess(state, action) {
-            state.profileData = action.payload;
+            state.profileData = normalizeProfileData(action.payload);
             state.status = action.type;
             state.isLoading = false;
         },
@@ -32,7 +33,10 @@ const ProfileSlice = createSlice({
         },
         updateProfileSuccess(state, action) {
             state.updateProfileResponse = action.payload;
-            state.profileData = { ...state.profileData, ...action.payload?.data };
+            state.profileData = {
+                ...normalizeProfileData(state.profileData),
+                ...normalizeProfileData(action.payload?.data || action.payload),
+            };
             state.status = action.type;
             state.isLoading = false;
         },

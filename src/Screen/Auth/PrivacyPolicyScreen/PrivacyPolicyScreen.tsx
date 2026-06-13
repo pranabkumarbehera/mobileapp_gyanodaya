@@ -30,64 +30,67 @@ const PrivacyPolicyScreen = ({ navigation }: PrivacyPolicyScreenProps) => {
                 <Text style={styles.title}>Privacy Policy</Text>
                 <Text style={styles.updatedText}>Last Updated: June 2026</Text>
                 <Text style={styles.paragraph}>
-                    Welcome to Gyanodaya. We respect your privacy and are committed to protecting your personal information.
+                    GYANODAYA respects your privacy and is committed to protecting your personal information.
                 </Text>
 
-                <Text style={styles.sectionTitle}>Information We Collect</Text>
-                <Text style={styles.paragraph}>We may collect the following information:</Text>
+                <Text style={styles.sectionTitle}>01. Information We Collect</Text>
+                <Text style={styles.paragraph}>We may collect:</Text>
                 <Text style={styles.bullet}>Name</Text>
                 <Text style={styles.bullet}>Email Address</Text>
                 <Text style={styles.bullet}>Mobile Number</Text>
-                <Text style={styles.bullet}>Profile Information</Text>
-                <Text style={styles.bullet}>Course Progress and Test Results</Text>
-                <Text style={styles.bullet}>Payment Information (processed through secure payment gateways)</Text>
-                <Text style={styles.bullet}>Device Information and Usage Analytics</Text>
+                <Text style={styles.bullet}>Device Information</Text>
+                <Text style={styles.bullet}>App Usage Data</Text>
+                <Text style={styles.bullet}>Examination Preferences</Text>
 
-                <Text style={styles.sectionTitle}>How We Use Your Information</Text>
-                <Text style={styles.paragraph}>We use your information to:</Text>
-                <Text style={styles.bullet}>Create and manage your account</Text>
-                <Text style={styles.bullet}>Provide educational content and services</Text>
-                <Text style={styles.bullet}>Process payments</Text>
-                <Text style={styles.bullet}>Track course progress and test performance</Text>
+                <Text style={styles.sectionTitle}>02. How We Use Information</Text>
+                <Text style={styles.paragraph}>The collected information may be used to:</Text>
+                <Text style={styles.bullet}>Provide educational services and study materials</Text>
+                <Text style={styles.bullet}>Improve user experience</Text>
+                <Text style={styles.bullet}>Respond to user queries</Text>
                 <Text style={styles.bullet}>Send important notifications and updates</Text>
-                <Text style={styles.bullet}>Improve our platform and user experience</Text>
-                <Text style={styles.bullet}>Provide customer support</Text>
+                <Text style={styles.bullet}>Analyze application performance</Text>
 
-                <Text style={styles.sectionTitle}>Data Security</Text>
+                <Text style={styles.sectionTitle}>03. Data Protection</Text>
                 <Text style={styles.paragraph}>
-                    We implement reasonable security measures to protect your personal information from unauthorized access, alteration, disclosure, or destruction.
+                    We implement reasonable security measures to protect user information from unauthorized access, alteration, or disclosure.
                 </Text>
 
-                <Text style={styles.sectionTitle}>Third-Party Services</Text>
-                <Text style={styles.paragraph}>We may use third-party services such as:</Text>
-                <Text style={styles.bullet}>Payment Gateways</Text>
-                <Text style={styles.bullet}>Analytics Services</Text>
-                <Text style={styles.bullet}>Cloud Hosting Providers</Text>
-                <Text style={styles.bullet}>Email and Notification Services</Text>
+                <Text style={styles.sectionTitle}>04. Third-Party Services</Text>
+                <Text style={styles.paragraph}>The application may use third-party services such as:</Text>
+                <Text style={styles.bullet}>Firebase</Text>
                 <Text style={styles.paragraph}>
-                    These providers may process your information in accordance with their own privacy policies.
+                    These services may collect information according to their respective privacy policies.
                 </Text>
 
-                <Text style={styles.sectionTitle}>Cookies and Analytics</Text>
+                <Text style={styles.sectionTitle}>05. Cookies and Analytics</Text>
                 <Text style={styles.paragraph}>
-                    Our website and applications may use cookies and analytics tools to improve user experience and understand platform usage.
+                    We may use cookies or similar technologies to enhance user experience and analyze application usage.
                 </Text>
 
-                <Text style={styles.sectionTitle}>Children&apos;s Privacy</Text>
+                <Text style={styles.sectionTitle}>06. Children&apos;s Privacy</Text>
                 <Text style={styles.paragraph}>
-                    Our services are intended for students and learners. Users under the age of 18 should use our services under parental or guardian supervision.
+                    GYANODAYA does not knowingly collect personal information from children under 13 years of age without parental consent.
                 </Text>
 
-                <Text style={styles.sectionTitle}>Changes to this Policy</Text>
+                <Text style={styles.sectionTitle}>07. Data Sharing</Text>
                 <Text style={styles.paragraph}>
-                    We reserve the right to update this Privacy Policy at any time. Changes will be posted on this page.
+                    We do not sell, rent, or trade users&apos; personal information to third parties except where required by law.
                 </Text>
 
-                <Text style={styles.sectionTitle}>Contact Us</Text>
-                <Text style={styles.paragraph}>For privacy-related concerns, contact:</Text>
-                <Text style={styles.contactLine}>Gyanodaya Support</Text>
-                <Text style={styles.contactLine}>Email: support@gyanodaya.cloud</Text>
-                <Text style={styles.contactLine}>Website: gyanodaya.cloud</Text>
+                <Text style={styles.sectionTitle}>08. User Rights</Text>
+                <Text style={styles.paragraph}>
+                    Users may request correction, update, or deletion of their personal information by contacting us.
+                </Text>
+
+                <Text style={styles.sectionTitle}>09. Changes to Privacy Policy</Text>
+                <Text style={styles.paragraph}>
+                    We reserve the right to update this Privacy Policy at any time. Updated versions will be posted within the application.
+                </Text>
+
+                <Text style={styles.sectionTitle}>10. Contact Information</Text>
+                <Text style={styles.paragraph}>
+                    If you have any questions regarding this Privacy Policy, please contact us through the contact details provided in the application.
+                </Text>
             </ScrollView>
         </View>
     );

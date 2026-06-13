@@ -39,6 +39,7 @@ export type RootStackParamList = {
     MockTestRules: { testId?: string | number; testData?: any };
     MockTestQuestion: { testId?: string | number; duration?: string | number; acceptedTerms?: boolean };
     AboutUs: undefined;
+    Profile: undefined;
     TeacherProfile: { teacher: { name: string, subject: string, rating: string, experience: string, designation: string } };
     MockResult: {
         attemptId?: string | number;

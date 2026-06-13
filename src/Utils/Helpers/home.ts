@@ -35,6 +35,68 @@ export const getAvatarBackgroundColor = (seed?: string | null) => {
     return AVATAR_COLORS[hash % AVATAR_COLORS.length];
 };
 
+export const normalizeProfileData = (profile: any) => {
+    const source = profile?.data ?? profile ?? {};
+
+    return {
+        ...source,
+        firstName: firstDefined(
+            source?.firstName,
+            source?.firstname,
+            source?.first_name,
+            source?.fristname,
+            source?.fristName,
+            source?.profile?.firstName,
+            source?.profile?.firstname,
+            source?.profile?.first_name,
+            source?.profile?.fristname,
+            source?.profile?.fristName,
+        ) || '',
+        lastName: firstDefined(
+            source?.lastName,
+            source?.lastname,
+            source?.last_name,
+            source?.surName,
+            source?.profile?.lastName,
+            source?.profile?.lastname,
+            source?.profile?.last_name,
+            source?.profile?.surName,
+        ) || '',
+        phone: firstDefined(
+            source?.phone,
+            source?.mobile,
+            source?.mobileNumber,
+            source?.contactNumber,
+            source?.profile?.phone,
+            source?.profile?.mobile,
+            source?.profile?.mobileNumber,
+            source?.profile?.contactNumber,
+        ) || '',
+        bio: firstDefined(
+            source?.bio,
+            source?.about,
+            source?.description,
+            source?.profile?.bio,
+            source?.profile?.about,
+            source?.profile?.description,
+        ) || '',
+        avatarUrl: firstDefined(
+            source?.avatarUrl,
+            source?.profileImage,
+            source?.profilePicture,
+            source?.avatar,
+            source?.image,
+            source?.photo,
+            source?.profile?.avatarUrl,
+            source?.profile?.profileImage,
+            source?.profile?.profilePicture,
+            source?.profile?.avatar,
+            source?.profile?.image,
+            source?.profile?.photo,
+        ) || '',
+    };
+};
+
 export const formatPercent = (value: any) => {
     const num = asNumber(value);
     if (num === null) {
@@ -114,7 +176,14 @@ export const getProfileName = (profile: any) =>
         profile?.username,
         profile?.studentName,
         [profile?.firstName, profile?.lastName].filter(Boolean).join(' ').trim(),
+        [profile?.firstname, profile?.lastname].filter(Boolean).join(' ').trim(),
+        [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim(),
+        [profile?.fristname, profile?.lastname].filter(Boolean).join(' ').trim(),
+        [profile?.firstName, profile?.surname].filter(Boolean).join(' ').trim(),
         [profile?.profile?.firstName, profile?.profile?.lastName].filter(Boolean).join(' ').trim(),
+        [profile?.profile?.firstname, profile?.profile?.lastname].filter(Boolean).join(' ').trim(),
+        [profile?.profile?.first_name, profile?.profile?.last_name].filter(Boolean).join(' ').trim(),
+        [profile?.profile?.fristname, profile?.profile?.lastname].filter(Boolean).join(' ').trim(),
         profile?.profile?.name,
         profile?.profile?.fullName,
         profile?.user?.name,
