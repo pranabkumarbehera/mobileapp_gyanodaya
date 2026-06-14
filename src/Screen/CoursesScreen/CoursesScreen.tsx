@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, TextInput, ActivityIndicator, Modal, Linking } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, TextInput, ActivityIndicator, Modal, Linking, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from 'react-native-vector-icons/Feather';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
@@ -77,6 +77,15 @@ const getBundleId = (bundle: any) =>
     null;
 
 const getQuizId = (quiz: any) => quiz?.id || quiz?._id || quiz?.testId || quiz?.quizId;
+
+const getItemId = (item: any) =>
+    item?.id ||
+    item?._id ||
+    item?.noteId ||
+    item?.questionBankId ||
+    item?.videoBankId ||
+    item?.bankId ||
+    null;
 
 const getBundleItems = (bundleList: any) =>
     ensureArray(
@@ -177,6 +186,7 @@ const getDetailCollections = (bundle: any) => {
     const quizzes = getCollection('quizzes', 'mockTests', 'tests');
     const noteBanks = getCollection('note_banks', 'noteBanks', 'notes');
     const questionBanks = getCollection('question_banks', 'questionBanks', 'questions');
+    const videoBanks = getCollection('video_banks', 'videoBanks', 'videos', 'youtube_banks', 'youtubeBanks', 'youtube');
     const youtubeBanks = getCollection('youtube_banks', 'youtubeBanks', 'youtube');
     const quizCount = Number(
         firstDisplayValue(
@@ -190,6 +200,7 @@ const getDetailCollections = (bundle: any) => {
         quizzes,
         noteBanks,
         questionBanks,
+        videoBanks,
         youtubeBanks,
         quizCount,
     };
@@ -200,6 +211,7 @@ const getItemTitle = (item: any, fallback: string) =>
     item?.name ||
     item?.label ||
     item?.heading ||
+    item?.questionTitle ||
     item?.videoTitle ||
     item?.noteTitle ||
     fallback;
@@ -221,7 +233,286 @@ const getItemDescription = (item: any) =>
     item?.subtitle ||
     item?.summary ||
     item?.text ||
+    item?.question ||
+    item?.questionText ||
     '';
+
+const toDisplayText = (value: any, fallback = ''): string => {
+    if (typeof value === 'string') {
+        return htmlToPlainText(value);
+    }
+
+    if (typeof value === 'number' || typeof value === 'boolean') {
+        return String(value);
+    }
+
+    if (Array.isArray(value)) {
+        return value
+            .map(entry => toDisplayText(entry, ''))
+            .filter(Boolean)
+            .join(', ');
+    }
+
+    if (value && typeof value === 'object') {
+        return toDisplayText(
+            value?.htmlContent ||
+            value?.label ||
+            value?.title ||
+            value?.text ||
+            value?.name ||
+            value?.value ||
+            value?.question ||
+            value?.answer ||
+            value?.content ||
+            fallback,
+            fallback,
+        );
+    }
+
+    return fallback;
+};
+
+const getQuestionBankYear = (item: any) =>
+    item?.year ||
+    item?.examYear ||
+    item?.sessionYear ||
+    item?.academicYear ||
+    null;
+
+const getQuestionBankQuestions = (response: any) => {
+    const seen = new WeakSet<object>();
+    const arrayKeys = [
+        'questions',
+        'items',
+        'results',
+        'rows',
+        'docs',
+        'records',
+        'list',
+        'question_list',
+        'questionList',
+        'data',
+        'result',
+        'payload',
+        'questionBank',
+        'question_bank',
+        'bank',
+    ];
+
+    const walk = (value: any): any[] => {
+        if (!value) {
+            return [];
+        }
+
+        const parsedValue = parseMaybeJson(value);
+        if (Array.isArray(parsedValue)) {
+            return parsedValue;
+        }
+
+        if (!parsedValue || typeof parsedValue !== 'object') {
+            return [];
+        }
+
+        const looksLikeQuestion =
+            parsedValue?.question !== undefined ||
+            parsedValue?.questionText !== undefined ||
+            parsedValue?.text !== undefined ||
+            parsedValue?.answer !== undefined ||
+            parsedValue?.explanation !== undefined ||
+            parsedValue?.options !== undefined ||
+            parsedValue?.choices !== undefined;
+
+        if (looksLikeQuestion) {
+            return [parsedValue];
+        }
+
+        if (seen.has(parsedValue)) {
+            return [];
+        }
+        seen.add(parsedValue);
+
+        for (const key of arrayKeys) {
+            const candidate = parsedValue?.[key];
+            if (Array.isArray(candidate)) {
+                return candidate;
+            }
+
+            const nested = walk(candidate);
+            if (nested.length > 0) {
+                return nested;
+            }
+        }
+
+        for (const nestedValue of Object.values(parsedValue)) {
+            const nested = walk(nestedValue);
+            if (nested.length > 0) {
+                return nested;
+            }
+        }
+
+        return [];
+    };
+
+    const payloadCandidates = [
+        response?.data?.data,
+        response?.data,
+        response,
+    ];
+
+    for (const candidate of payloadCandidates) {
+        const questions = walk(candidate);
+        if (questions.length > 0) {
+            return questions;
+        }
+    }
+
+    return [];
+};
+
+const getQuestionPrompt = (item: any) =>
+    item?.question ||
+    item?.questionText ||
+    item?.text ||
+    item?.title ||
+    item?.prompt ||
+    '';
+
+const getQuestionAnswer = (item: any) =>
+    item?.answer ||
+    item?.correctAnswer ||
+    item?.correct_answer ||
+    item?.solution ||
+    item?.response ||
+    '';
+
+const getQuestionExplanation = (item: any) =>
+    item?.explanation ||
+    item?.answerExplanation ||
+    item?.answer_explanation ||
+    item?.solutionExplanation ||
+    item?.solution ||
+    '';
+
+const getQuestionOptions = (item: any) =>
+    ensureArray(
+        item?.options ||
+        item?.choices ||
+        item?.answers ||
+        item?.variants ||
+        item?.mcqOptions ||
+        item?.optionList ||
+        [],
+    );
+
+const getVideoBankUrl = (item: any) =>
+    item?.videoUrl ||
+    item?.youtubeUrl ||
+    item?.url ||
+    item?.link ||
+    item?.contentUrl ||
+    item?.path ||
+    null;
+
+const getYouTubeVideoId = (url: string) => {
+    if (!url) {
+        return '';
+    }
+
+    const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/))([A-Za-z0-9_-]+)/i);
+    return match?.[1] || '';
+};
+
+const getVideoBankItems = (response: any) => {
+    const payloadCandidates = [
+        response?.data?.data,
+        response?.data,
+        response,
+    ];
+
+    const arrayKeys = ['items', 'videos', 'results', 'data', 'list', 'records'];
+
+    const seen = new WeakSet<object>();
+    const walk = (value: any): any[] => {
+        if (!value) {
+            return [];
+        }
+
+        const parsedValue = parseMaybeJson(value);
+        if (Array.isArray(parsedValue)) {
+            return parsedValue;
+        }
+
+        if (!parsedValue || typeof parsedValue !== 'object') {
+            return [];
+        }
+
+        if (seen.has(parsedValue)) {
+            return [];
+        }
+        seen.add(parsedValue);
+
+        if (parsedValue?.videoUrl || parsedValue?.youtubeUrl || parsedValue?.url || parsedValue?.link) {
+            return [parsedValue];
+        }
+
+        for (const key of arrayKeys) {
+            const candidate = parsedValue?.[key];
+            if (Array.isArray(candidate)) {
+                return candidate;
+            }
+
+            const nested = walk(candidate);
+            if (nested.length > 0) {
+                return nested;
+            }
+        }
+
+        for (const nestedValue of Object.values(parsedValue)) {
+            const nested = walk(nestedValue);
+            if (nested.length > 0) {
+                return nested;
+            }
+        }
+
+        return [];
+    };
+
+    for (const candidate of payloadCandidates) {
+        const items = walk(candidate);
+        if (items.length > 0) {
+            return items;
+        }
+    }
+
+    return [];
+};
+
+const normalizeCourseSections = (bundle: any) => {
+    const collections = getDetailCollections(bundle);
+    return [
+        {
+            key: 'question',
+            label: 'Question bank',
+            badge: 'QUESTION BANK',
+            items: collections.questionBanks,
+            type: 'question' as const,
+        },
+        {
+            key: 'note',
+            label: 'Note bank',
+            badge: 'NOTE BANK',
+            items: collections.noteBanks,
+            type: 'note' as const,
+        },
+        {
+            key: 'video',
+            label: 'VideoLink Bank',
+            badge: 'VIDEO BANK',
+            items: collections.videoBanks,
+            type: 'video' as const,
+        },
+    ].filter(section => Array.isArray(section.items) && section.items.length > 0);
+};
 
 const getNoteBankId = (item: any) =>
     item?.noteId ||
@@ -658,11 +949,29 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     const [activeBundleId, setActiveBundleId] = useState<string | null>(null);
     const [_activeSubBundleId, setActiveSubBundleId] = useState<string | null>(null);
     const [pendingEnrollmentId, setPendingEnrollmentId] = useState<string | null>(null);
-    const [activeDetailTab, setActiveDetailTab] = useState<string>('');
+    const [enrolledBundleOverrides, setEnrolledBundleOverrides] = useState<Set<string>>(new Set());
+    const [activeDetailTab, setActiveDetailTab] = useState<'mock' | 'course'>('mock');
+    const [activeCourseSection, setActiveCourseSection] = useState<string>('');
     const [showNoteViewerModal, setShowNoteViewerModal] = useState(false);
     const [isLoadingNotePages, setIsLoadingNotePages] = useState(false);
     const [selectedNoteBankTitle, setSelectedNoteBankTitle] = useState('');
     const [selectedNotePages, setSelectedNotePages] = useState<any[]>([]);
+    const [selectedNotePageIndex, setSelectedNotePageIndex] = useState(0);
+    const [showNotePageModal, setShowNotePageModal] = useState(false);
+    const [selectedNotePageDetail, setSelectedNotePageDetail] = useState<any>(null);
+    const [showQuestionBankModal, setShowQuestionBankModal] = useState(false);
+    const [isLoadingQuestionBank, setIsLoadingQuestionBank] = useState(false);
+    const [selectedQuestionBankTitle, setSelectedQuestionBankTitle] = useState('');
+    const [selectedQuestionBankQuestions, setSelectedQuestionBankQuestions] = useState<any[]>([]);
+    const [selectedQuestionIndex, setSelectedQuestionIndex] = useState(0);
+    const [selectedQuestionBankMeta, setSelectedQuestionBankMeta] = useState<any>(null);
+    const [showQuestionAnswer, setShowQuestionAnswer] = useState(false);
+    const [showQuestionAnswerModal, setShowQuestionAnswerModal] = useState(false);
+    const [selectedQuestionAnswerDetail, setSelectedQuestionAnswerDetail] = useState<any>(null);
+    const [showVideoBankModal, setShowVideoBankModal] = useState(false);
+    const [isLoadingVideoBank, setIsLoadingVideoBank] = useState(false);
+    const [selectedVideoBankTitle, setSelectedVideoBankTitle] = useState('');
+    const [selectedVideoBankItems, setSelectedVideoBankItems] = useState<any[]>([]);
     const authToken = useSelector((state: RootState) => state.AuthReducer.token);
 
     const bundleItems = useMemo(() => getBundleItems(bundleList), [bundleList]);
@@ -689,14 +998,18 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         }
 
         const resolvedBundleId = String(getBundleId(bundleDetails) || activeBundleId || '');
-        const isEnrolled = Boolean(bundleDetails?.isEnrolled) || (resolvedBundleId ? enrolledBundleIds.includes(resolvedBundleId) : false) || Boolean(selectedBundle?.isEnrolled);
+        const isEnrolled =
+            Boolean(bundleDetails?.isEnrolled) ||
+            (resolvedBundleId ? enrolledBundleIds.includes(resolvedBundleId) : false) ||
+            enrolledBundleOverrides.has(resolvedBundleId) ||
+            Boolean(selectedBundle?.isEnrolled);
 
         setSelectedExam(buildSelectedExam(bundleDetails, isEnrolled));
         if (resolvedBundleId) {
             setActiveBundleId(resolvedBundleId);
             dispatch(getSubBundleListRequest({ bundleId: resolvedBundleId }));
         }
-    }, [activeBundleId, bundleDetails, dispatch, enrolledBundleIds, selectedBundle]);
+    }, [activeBundleId, bundleDetails, dispatch, enrolledBundleIds, enrolledBundleOverrides, selectedBundle]);
 
     useEffect(() => {
         if (!subBundleDetails) {
@@ -712,12 +1025,51 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
             setPendingEnrollmentId(null);
             
             if (status === enrollBundleSuccess.type && activeBundleId) {
+                setEnrolledBundleOverrides(prev => {
+                    const next = new Set(prev);
+                    next.add(String(activeBundleId));
+                    return next;
+                });
                 if (selectedBundle && String(getBundleId(selectedBundle)) === String(activeBundleId)) {
                     setSelectedBundle({ ...selectedBundle, isEnrolled: true });
                 }
             }
         }
     }, [status, activeBundleId, selectedBundle]);
+
+    const openExternalVideoUrl = useCallback(async (rawUrl: string) => {
+        if (!rawUrl) {
+            return false;
+        }
+
+        const normalizedUrl = rawUrl.trim();
+        const videoId = getYouTubeVideoId(normalizedUrl);
+        const attempts = videoId
+            ? [
+                `youtube://watch?v=${videoId}`,
+                `vnd.youtube://${videoId}`,
+                `https://www.youtube.com/watch?v=${videoId}`,
+            ]
+            : [
+                normalizedUrl,
+                normalizedUrl.replace('youtu.be/', 'www.youtube.com/watch?v='),
+            ];
+
+        for (const candidate of attempts) {
+            if (!candidate) {
+                continue;
+            }
+
+            try {
+                await Linking.openURL(candidate);
+                return true;
+            } catch {
+                // keep trying
+            }
+        }
+
+        return false;
+    }, []);
 
     const filteredExams = bundleItems.filter((bundle: any) => {
         const matchesSearch = (bundle?.title || bundle?.name || '').toLowerCase().includes(searchQuery.toLowerCase());
@@ -729,16 +1081,81 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     const showingSubBundle = Boolean(selectedSubBundleExam);
     const canAttemptMocks = Boolean(detailScreen?.isEnrolled);
     const showSubBundleList = Boolean(selectedExam) && !showingSubBundle && subBundleItems.length > 0;
-    const detailTabs = useMemo(() => buildDetailTabs(detailScreen?.rawBundle || detailScreen), [detailScreen]);
+    const courseSections = useMemo(
+        () => normalizeCourseSections(detailScreen?.rawBundle || detailScreen),
+        [detailScreen],
+    );
+    const examPatternItems = useMemo(() => [
+        { key: 'mock', label: 'Mock Bank', icon: 'layers', color: '#1D4ED8', bg: '#EFF6FF' },
+        { key: 'crack', label: 'Crack', icon: 'zap', color: '#D97706', bg: '#FEF3C7' },
+        { key: 'note', label: 'Note Bank Content', icon: 'book-open', color: '#059669', bg: '#ECFDF5' },
+        { key: 'question', label: 'Question Bank', icon: 'help-circle', color: '#7C3AED', bg: '#F5F3FF' },
+        { key: 'youtube', label: 'YouTube Video Bank URL', icon: 'youtube', color: '#FF0000', bg: '#FEF2F2' },
+        { key: 'security', label: 'No Screen Record & Screenshot Denied', icon: 'shield', color: '#DC2626', bg: '#FEE2E2' },
+    ], []);
+    const mockContentAvailable = Boolean(
+        detailScreen?.quizGroups?.length ||
+        showSubBundleList ||
+        getBundleQuizzes(detailScreen?.rawBundle || detailScreen).length,
+    );
+    const availableDetailTabs = useMemo(
+        () => [
+            mockContentAvailable ? { key: 'mock', label: 'Mock Bank' } : null,
+            courseSections.length > 0 ? { key: 'course', label: 'Course' } : null,
+        ].filter(Boolean) as Array<{ key: 'mock' | 'course'; label: string }>,
+        [courseSections.length, mockContentAvailable],
+    );
+    const detailTabs = availableDetailTabs;
 
     useEffect(() => {
-        if (!showingSubBundle || detailTabs.length === 0) {
-            setActiveDetailTab('');
+        if (availableDetailTabs.length === 0) {
+            setActiveDetailTab('mock');
             return;
         }
 
-        setActiveDetailTab(detailTabs[0].key);
-    }, [detailTabs, showingSubBundle]);
+        if (!availableDetailTabs.find(tab => tab.key === activeDetailTab)) {
+            setActiveDetailTab(availableDetailTabs[0].key);
+        }
+    }, [activeDetailTab, availableDetailTabs]);
+
+    useEffect(() => {
+        if (courseSections.length === 0) {
+            setActiveCourseSection('');
+            return;
+        }
+
+        if (!courseSections.find(section => section.key === activeCourseSection)) {
+            setActiveCourseSection(courseSections[0].key);
+        }
+    }, [activeCourseSection, courseSections]);
+
+    useEffect(() => {
+        if (selectedQuestionBankQuestions.length === 0) {
+            setSelectedQuestionIndex(0);
+            return;
+        }
+
+        if (selectedQuestionIndex >= selectedQuestionBankQuestions.length) {
+            setSelectedQuestionIndex(0);
+        }
+    }, [selectedQuestionBankQuestions.length, selectedQuestionIndex]);
+
+    useEffect(() => {
+        if (selectedNotePages.length === 0) {
+            setSelectedNotePageIndex(0);
+            return;
+        }
+
+        if (selectedNotePageIndex >= selectedNotePages.length) {
+            setSelectedNotePageIndex(0);
+        }
+    }, [selectedNotePageIndex, selectedNotePages.length]);
+
+    useEffect(() => {
+        if (!showNotePageModal) {
+            setSelectedNotePageDetail(null);
+        }
+    }, [showNotePageModal]);
 
     const renderIcon = (name: string, type: string, size: number, color: string) => {
         if (type === 'FontAwesome5') {
@@ -748,7 +1165,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     };
 
     const handleQuizAction = (quiz: any) => {
-        const quizId = getQuizId(quiz?.rawQuiz || quiz);
+        const quizId = getQuizId(quiz?.rawQuiz || quiz) || quiz?.id;
         if (!quizId) {
             return;
         }
@@ -759,140 +1176,362 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         });
     };
 
-    const handleOpenDetailItem = async (item: any) => {
-        if (activeDetailTab === 'note') {
-            const noteId = getNoteBankId(item);
+    const handleOpenNoteBank = useCallback(async (item: any) => {
+        const noteId = getNoteBankId(item);
 
-            if (!noteId) {
-                return;
-            }
-
-            try {
-                setIsLoadingNotePages(true);
-                const response = await getApi(`student/note-banks/${noteId}/pages`, {
-                    Accept: 'application/json',
-                    contenttype: 'application/json',
-                    authorization: authToken,
-                });
-
-                const pages = response?.data?.data || response?.data || [];
-                setSelectedNoteBankTitle(getItemTitle(item, 'Note Bank'));
-                setSelectedNotePages(Array.isArray(pages) ? pages : []);
-                setShowNoteViewerModal(true);
-            } catch {
-                setSelectedNoteBankTitle(getItemTitle(item, 'Note Bank'));
-                setSelectedNotePages([]);
-                setShowNoteViewerModal(true);
-            } finally {
-                setIsLoadingNotePages(false);
-            }
-
-            return;
-        }
-
-        const link = getItemLink(item);
-
-        if (!link || !/^https?:\/\//i.test(link)) {
-            return;
-        }
-
-        Linking.openURL(link).catch(() => {});
-    };
-
-    const renderDetailTabCards = () => {
-        if (!showingSubBundle || detailTabs.length === 0) {
+        if (!noteId) {
             return null;
         }
 
-        const activeTabConfig = detailTabs.find(tab => tab.key === activeDetailTab) || detailTabs[0];
-        if (!activeTabConfig) {
-            return null;
+        try {
+            setIsLoadingNotePages(true);
+            const response = await getApi(`student/note-banks/${noteId}/pages`, {
+                Accept: 'application/json',
+                contenttype: 'application/json',
+                authorization: authToken,
+            });
+
+            const pages = response?.data?.data || response?.data || [];
+            setSelectedNoteBankTitle(getItemTitle(item, 'Note Bank'));
+            setSelectedNotePages(Array.isArray(pages) ? pages : []);
+            setSelectedNotePageIndex(0);
+            setShowNoteViewerModal(true);
+        } catch {
+            setSelectedNoteBankTitle(getItemTitle(item, 'Note Bank'));
+            setSelectedNotePages([]);
+            setSelectedNotePageIndex(0);
+            setShowNoteViewerModal(true);
+        } finally {
+            setIsLoadingNotePages(false);
+        }
+    }, [authToken]);
+
+    const handleOpenQuestionBank = useCallback(async (item: any) => {
+        const questionBankId = getItemId(item);
+
+        if (!questionBankId) {
+            return;
         }
 
-        return (
-            <View style={styles.subjectList}>
-                <View style={styles.quizCardsWrap}>
-                    {activeTabConfig.items.map((item: any, index: number) => {
-                        if (activeTabConfig.key === 'mock') {
-                            const quiz = item || {};
-                            const title = getItemTitle(quiz, `Mock ${index + 1}`);
-                            const durationMinutes = getQuizDuration(quiz);
-                            const questionCount = getQuizQuestionCount(quiz);
+        setShowQuestionBankModal(true);
+        setIsLoadingQuestionBank(true);
+        setSelectedQuestionBankTitle(getItemTitle(item, 'Question Bank'));
+        setSelectedQuestionBankMeta(item);
+        setSelectedQuestionBankQuestions([]);
+        setSelectedQuestionIndex(0);
+        setShowQuestionAnswer(false);
+        setShowQuestionAnswerModal(false);
+        setSelectedQuestionAnswerDetail(null);
+
+        try {
+            const response = await getApi(`student/question-banks/${questionBankId}/questions`, {
+                Accept: 'application/json',
+                contenttype: 'application/json',
+                authorization: authToken,
+            });
+            const questions = getQuestionBankQuestions(response);
+            setSelectedQuestionBankQuestions(Array.isArray(questions) ? questions : []);
+        } catch {
+            setSelectedQuestionBankQuestions([]);
+        } finally {
+            setIsLoadingQuestionBank(false);
+        }
+    }, [authToken]);
+
+    const handleOpenVideoBank = useCallback(async (item: any) => {
+        const videoBankId = getItemId(item) || item?.videoBankId;
+        const directVideoUrl = getVideoBankUrl(item);
+
+        if (directVideoUrl) {
+            await openExternalVideoUrl(directVideoUrl);
+            return;
+        }
+
+        if (!videoBankId) {
+            return;
+        }
+
+        try {
+            setIsLoadingVideoBank(true);
+            setSelectedVideoBankTitle(getItemTitle(item, 'Video Bank'));
+            const response = await getApi(`student/video-banks/${videoBankId}/items`, {
+                Accept: 'application/json',
+                contenttype: 'application/json',
+                authorization: authToken,
+            });
+            const items = getVideoBankItems(response);
+            setSelectedVideoBankItems(items);
+
+            if (items.length === 1) {
+                const singleUrl = getVideoBankUrl(items[0]);
+                if (singleUrl) {
+                    await openExternalVideoUrl(singleUrl);
+                    return;
+                }
+            }
+
+            setShowVideoBankModal(true);
+        } catch {
+            setSelectedVideoBankItems([]);
+            setShowVideoBankModal(false);
+        } finally {
+            setIsLoadingVideoBank(false);
+        }
+    }, [authToken, openExternalVideoUrl]);
+
+    const handleOpenCourseItem = useCallback((sectionKey: string, item: any) => {
+        if (sectionKey === 'note') {
+            handleOpenNoteBank(item);
+            return;
+        }
+
+        if (sectionKey === 'question') {
+            handleOpenQuestionBank(item);
+            return;
+        }
+
+        if (sectionKey === 'video') {
+            handleOpenVideoBank(item);
+        }
+    }, [handleOpenNoteBank, handleOpenQuestionBank, handleOpenVideoBank]);
+
+    const renderMockSetCards = () => {
+        if (!showingSubBundle && subBundleItems.length > 0) {
+            return (
+                <View style={styles.subjectList}>
+                    <View style={styles.quizCardsWrap}>
+                        {subBundleItems.map((subBundle: any, index: number) => {
+                            const normalizedSubBundle = getBundlePayload(subBundle);
+                            const mockCount = getBundleMockCount(normalizedSubBundle);
 
                             return (
-                                <View key={getQuizId(quiz) || `${activeTabConfig.key}-${index}`} style={styles.quizCard}>
+                                <Pressable
+                                    key={normalizedSubBundle?.id || normalizedSubBundle?._id || normalizedSubBundle?.bundleId || index}
+                                    style={styles.quizCard}
+                                    onPress={() => handleSubBundlePress(normalizedSubBundle)}
+                                >
                                     <View style={styles.quizBadge}>
-                                        <Text style={styles.quizBadgeText}>MOCK</Text>
+                                        <Text style={styles.quizBadgeText}>SUB-BUNDLE</Text>
                                     </View>
 
-                                    <Text style={styles.quizCardTitle}>{title}</Text>
+                                    <Text style={styles.quizCardTitle}>{normalizedSubBundle?.title || normalizedSubBundle?.name || `Sub Bundle ${index + 1}`}</Text>
 
                                     <View style={styles.quizMetaRow}>
                                         <View style={styles.quizMetaItem}>
-                                            <Feather name="clock" size={normalize(14)} color="#667085" />
-                                            <Text style={styles.quizMetaText}>{durationMinutes || 0}m</Text>
-                                        </View>
-                                        <View style={styles.quizMetaItem}>
-                                            <Feather name="book-open" size={normalize(14)} color="#667085" />
-                                            <Text style={styles.quizMetaText}>{questionCount || 0} Qs</Text>
+                                            <Feather name="layers" size={normalize(14)} color="#667085" />
+                                            <Text style={styles.quizMetaText}>{mockCount} Mock Test{mockCount === 1 ? '' : 's'}</Text>
                                         </View>
                                     </View>
 
-                                    {canAttemptMocks ? (
-                                        <Pressable
-                                            style={[styles.quizActionButton, isEnrollingBundle && styles.quizActionButtonDisabled]}
-                                            disabled={isEnrollingBundle}
-                                            onPress={() => handleQuizAction(quiz)}
-                                        >
-                                            {isEnrollingBundle ? (
-                                                <ActivityIndicator size="small" color="#FFFFFF" />
-                                            ) : (
-                                                <>
-                                                    <Text style={styles.quizActionText}>Attempt Now</Text>
-                                                    <Feather name="play" size={normalize(14)} color="#FFFFFF" />
-                                                </>
-                                            )}
-                                        </Pressable>
-                                    ) : (
-                                        <View style={styles.quizViewOnlyTag}>
-                                            <Feather name="eye" size={normalize(14)} color="#667085" />
-                                            <Text style={styles.quizViewOnlyText}>View only</Text>
-                                        </View>
-                                    )}
-                                </View>
-                            );
-                        }
-
-                        const title = getItemTitle(item, `${activeTabConfig.label} ${index + 1}`);
-                        const subtitle = getItemDescription(item);
-
-                        return (
-                            <View key={item?.id || item?._id || `${activeTabConfig.key}-${index}`} style={styles.quizCard}>
-                                <View style={styles.quizBadge}>
-                                    <Text style={styles.quizBadgeText}>
-                                        {activeTabConfig.key === 'note' ? 'NOTE BANK' : activeTabConfig.key === 'question' ? 'QUESTION BANK' : 'YOUTUBE'}
-                                    </Text>
-                                </View>
-
-                                <Text style={styles.quizCardTitle}>{title}</Text>
-                                {subtitle ? <Text style={styles.resourceCardSubtitle}>{subtitle}</Text> : null}
-
-                                <Pressable
-                                    style={styles.quizActionButton}
-                                    onPress={() => handleOpenDetailItem(item)}
-                                >
-                                    <Text style={styles.quizActionText}>
-                                        {activeTabConfig.key === 'note' ? 'Open / View' : 'Open'}
-                                    </Text>
-                                    <Feather name="chevron-right" size={normalize(14)} color="#FFFFFF" />
+                                    <View style={styles.quizActionButton}>
+                                        <Text style={styles.quizActionText}>Explore Curriculum</Text>
+                                        <Feather name="chevron-right" size={normalize(14)} color="#FFFFFF" />
+                                    </View>
                                 </Pressable>
+                            );
+                        })}
+                    </View>
+                </View>
+            );
+        }
+
+        if (detailScreen?.quizGroups?.length > 0) {
+            return (
+                <>
+                    <Text style={styles.sectionTitle}>Mock Bank</Text>
+                    <Text style={styles.subjectSubtitle}>
+                        {detailScreen.quizGroups?.length > 0
+                             ? `${detailScreen.quizIds?.length || 0} quizzes in this ${showingSubBundle ? 'sub-bundle' : 'category'}`
+                             : 'No quizzes returned from the API'}
+                    </Text>
+
+                    <View style={styles.subjectList}>
+                        {detailScreen.quizGroups?.map((group: any, groupIndex: number) => (
+                            <View key={`${group.title}-${groupIndex}`} style={styles.quizSection}>
+                                <View style={styles.topicRow}>
+                                    <View style={styles.topicDot} />
+                                    <Text style={styles.topicTitle}>{group.title}</Text>
+                                </View>
+
+                                <View style={styles.quizCardsWrap}>
+                                    {group.quizzes.map((quiz: any) => (
+                                        <View key={quiz.id} style={styles.quizCard}>
+                                            <View style={styles.quizBadge}>
+                                                <Text style={styles.quizBadgeText}>MOCK</Text>
+                                            </View>
+
+                                            <Text style={styles.quizCardTitle}>{quiz.title}</Text>
+                                            <View style={styles.quizMetaRow}>
+                                                <View style={styles.quizMetaItem}>
+                                                    <Feather name="clock" size={normalize(14)} color="#667085" />
+                                                    <Text style={styles.quizMetaText}>{quiz.durationMinutes || 0}m</Text>
+                                                </View>
+                                                <View style={styles.quizMetaItem}>
+                                                    <Feather name="book-open" size={normalize(14)} color="#667085" />
+                                                    <Text style={styles.quizMetaText}>{quiz.questionCount || 0} Qs</Text>
+                                                </View>
+                                            </View>
+                                            <Text style={styles.quizPriceText}>Rs. {quiz.price || 0}</Text>
+
+                                            {canAttemptMocks ? (
+                                                <Pressable
+                                                    style={[styles.quizActionButton, isEnrollingBundle && styles.quizActionButtonDisabled]}
+                                                    disabled={isEnrollingBundle}
+                                                    onPress={() => handleQuizAction(quiz)}
+                                                >
+                                                    {isEnrollingBundle ? (
+                                                        <ActivityIndicator size="small" color="#FFFFFF" />
+                                                    ) : (
+                                                        <>
+                                                            <Text style={styles.quizActionText}>Attempt</Text>
+                                                            <Feather name="play" size={normalize(14)} color="#FFFFFF" />
+                                                        </>
+                                                    )}
+                                                </Pressable>
+                                            ) : (
+                                                <View style={styles.quizViewOnlyTag}>
+                                                    <Feather name="eye" size={normalize(14)} color="#667085" />
+                                                    <Text style={styles.quizViewOnlyText}>View only</Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                    ))}
+                                </View>
                             </View>
-                        );
-                    })}
+                        ))}
+                    </View>
+                </>
+            );
+        }
+
+        return null;
+    };
+
+    const renderCourseSectionItem = useCallback(({ item }: { item: any }) => {
+        if (!activeCourseSection) {
+            return null;
+        }
+
+        const section = courseSections.find(current => current.key === activeCourseSection);
+        if (!section) {
+            return null;
+        }
+
+        if (section.key === 'note') {
+            return (
+                <Pressable style={styles.courseCard} onPress={() => handleOpenCourseItem(section.key, item)}>
+                    <View style={styles.courseCardBadge}>
+                        <Text style={styles.courseCardBadgeText}>NOTES</Text>
+                    </View>
+                    <Text style={styles.courseCardTitle}>{getItemTitle(item, 'Note Bank')}</Text>
+                    {getItemDescription(item) ? <Text style={styles.courseCardSubtitle}>{getItemDescription(item)}</Text> : null}
+                    <View style={styles.courseCardFooter}>
+                        <Feather name="book-open" size={normalize(16)} color={Colorpath.Primary} />
+                        <Text style={styles.courseCardFooterText}>Open note pages</Text>
+                    </View>
+                </Pressable>
+            );
+        }
+
+        if (section.key === 'question') {
+            return (
+                <Pressable style={styles.courseCard} onPress={() => handleOpenCourseItem(section.key, item)}>
+                    <View style={styles.courseCardBadge}>
+                        <Text style={styles.courseCardBadgeText}>QUESTION BANK</Text>
+                    </View>
+                    <Text style={styles.courseCardTitle}>{getItemTitle(item, 'Question Bank')}</Text>
+                    {getQuestionBankYear(item) ? <Text style={styles.courseCardSubtitle}>Year: {getQuestionBankYear(item)}</Text> : null}
+                    <View style={styles.courseCardFooter}>
+                        <Feather name="help-circle" size={normalize(16)} color={Colorpath.Primary} />
+                        <Text style={styles.courseCardFooterText}>View questions & answers</Text>
+                    </View>
+                </Pressable>
+            );
+        }
+
+        return (
+            <Pressable style={styles.courseCard} onPress={() => handleOpenCourseItem(section.key, item)}>
+                <View style={styles.courseCardBadge}>
+                    <Text style={styles.courseCardBadgeText}>VIDEOLINK BANK</Text>
+                </View>
+                <View style={styles.videoCardTitleRow}>
+                    <Feather name="play-circle" size={normalize(18)} color={Colorpath.Primary} />
+                    <Text style={styles.courseCardTitle}>{getItemTitle(item, 'Video Bank')}</Text>
+                </View>
+                {getItemDescription(item) ? <Text style={styles.courseCardSubtitle}>{getItemDescription(item)}</Text> : <Text style={styles.courseCardSubtitle}>YouTube Video</Text>}
+                <View style={styles.courseCardFooter}>
+                    <Feather name="youtube" size={normalize(16)} color="#FF0000" />
+                    <Text style={[styles.courseCardFooterText, { color: '#FF0000', marginLeft: normalize(4) }]}>Open in YouTube</Text>
+                </View>
+            </Pressable>
+        );
+    }, [activeCourseSection, courseSections, handleOpenCourseItem]);
+
+    const renderCourseTabContent = () => {
+        if (courseSections.length === 0) {
+            return (
+                <View style={styles.emptyStateBox}>
+                    <Feather name="folder" size={normalize(24)} color="#94A3B8" />
+                    <Text style={styles.emptyStateText}>No Data Available</Text>
+                </View>
+            );
+        }
+
+        const activeSection = courseSections.find(section => section.key === activeCourseSection) || courseSections[0];
+
+        return (
+            <View style={styles.courseLayout}>
+                <View style={styles.courseLeftPanel}>
+                    <Text style={styles.coursePanelLabel}>Sections</Text>
+                    <FlatList
+                        data={courseSections}
+                        keyExtractor={(item) => item.key}
+                        scrollEnabled={false}
+                        ItemSeparatorComponent={() => <View style={{ height: verticalScale(10) }} />}
+                        renderItem={({ item }) => (
+                            <Pressable
+                                onPress={() => setActiveCourseSection(item.key)}
+                                style={[
+                                    styles.courseSectionItem,
+                                    activeSection?.key === item.key && styles.courseSectionItemActive,
+                                ]}
+                            >
+                                <Text
+                                    style={[
+                                        styles.courseSectionText,
+                                        activeSection?.key === item.key && styles.courseSectionTextActive,
+                                    ]}
+                                >
+                                    {item.label}
+                                </Text>
+                            </Pressable>
+                        )}
+                    />
+                </View>
+
+                <View style={styles.courseRightPanel}>
+                    <Text style={styles.coursePanelLabel}>{activeSection?.label}</Text>
+                    <FlatList
+                        data={activeSection?.items || []}
+                        keyExtractor={(item: any, index: number) => String(getItemId(item) || index)}
+                        renderItem={renderCourseSectionItem}
+                        ItemSeparatorComponent={() => <View style={{ height: verticalScale(12) }} />}
+                        ListEmptyComponent={(
+                            <View style={styles.emptyStateBox}>
+                                <Feather name="inbox" size={normalize(24)} color="#94A3B8" />
+                                <Text style={styles.emptyStateText}>No Data Available</Text>
+                            </View>
+                        )}
+                        scrollEnabled={false}
+                    />
                 </View>
             </View>
         );
     };
+
+    const renderDetailTabCards = () => (
+        activeDetailTab === 'course' ? renderCourseTabContent() : renderMockSetCards()
+    );
 
     const openBundleDetails = (bundle: any, mode: 'view' | 'enroll') => {
         const normalizedBundle = getBundlePayload(bundle);
@@ -905,7 +1544,8 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
         const alreadyEnrolled =
             Boolean(normalizedBundle?.isEnrolled) ||
-            enrolledBundleIds.includes(resolvedBundleId);
+            enrolledBundleIds.includes(resolvedBundleId) ||
+            enrolledBundleOverrides.has(resolvedBundleId);
 
         setShowBundleActionModal(false);
         setSelectedSubBundleExam(null);
@@ -934,7 +1574,8 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         const bundleId = getBundleId(normalizedBundle);
         const hasEnrolledAccess =
             Boolean(normalizedBundle?.isEnrolled) ||
-            (bundleId ? enrolledBundleIds.includes(String(bundleId)) : false);
+            (bundleId ? enrolledBundleIds.includes(String(bundleId)) : false) ||
+            (bundleId ? enrolledBundleOverrides.has(String(bundleId)) : false);
 
         setSelectedBundle({
             ...normalizedBundle,
@@ -1012,69 +1653,20 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
                     <View style={styles.patternCard}>
                         <View style={styles.patternGrid}>
-                            <View style={styles.patternItem}>
-                                <View style={[styles.patternIconWrap, { backgroundColor: '#EFF6FF' }]}>
-                                    <Feather name="help-circle" size={normalize(18)} color="#1D4ED8" />
+                            {examPatternItems.map((item) => (
+                                <View key={item.key} style={styles.patternItem}>
+                                    <View style={[styles.patternIconWrap, { backgroundColor: item.bg }]}>
+                                        <Feather name={item.icon as any} size={normalize(18)} color={item.color} />
+                                    </View>
+                                    <View style={styles.patternTextWrap}>
+                                        <Text style={styles.patternLabel}>{item.label}</Text>
+                                    </View>
                                 </View>
-                                <View>
-                                    <Text style={styles.patternLabel}>Total Questions</Text>
-                                    <Text style={styles.patternValue}>{detailScreen.pattern.questions}</Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.patternItem}>
-                                <View style={[styles.patternIconWrap, { backgroundColor: '#FEF3C7' }]}>
-                                    <Feather name="star" size={normalize(16)} color="#D97706" />
-                                </View>
-                                <View>
-                                    <Text style={styles.patternLabel}>Total Marks</Text>
-                                    <Text style={styles.patternValue}>{detailScreen.pattern.marks}</Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.patternItem}>
-                                <View style={[styles.patternIconWrap, { backgroundColor: '#ECFDF5' }]}>
-                                    <Feather name="check-circle" size={normalize(16)} color="#059669" />
-                                </View>
-                                <View>
-                                    <Text style={styles.patternLabel}>Marks / Question</Text>
-                                    <Text style={styles.patternValue}>{detailScreen.pattern.marksPerQuestion}</Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.patternItem}>
-                                <View style={[styles.patternIconWrap, { backgroundColor: '#FEE2E2' }]}>
-                                    <Feather name="minus-circle" size={normalize(16)} color="#DC2626" />
-                                </View>
-                                <View>
-                                    <Text style={styles.patternLabel}>Negative Marking</Text>
-                                    <Text style={styles.patternValue}>{detailScreen.pattern.negativeMarking}</Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.patternItem}>
-                                <View style={[styles.patternIconWrap, { backgroundColor: '#F5F3FF' }]}>
-                                    <Feather name="clock" size={normalize(16)} color="#7C3AED" />
-                                </View>
-                                <View>
-                                    <Text style={styles.patternLabel}>Duration</Text>
-                                    <Text style={styles.patternValue}>{detailScreen.pattern.duration}</Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.patternItem}>
-                                <View style={[styles.patternIconWrap, { backgroundColor: '#FFF7ED' }]}>
-                                    <Feather name="book-open" size={normalize(16)} color="#EA580C" />
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.patternLabel}>Note</Text>
-                                    <Text style={styles.patternValue} numberOfLines={2}>{detailScreen.pattern.note}</Text>
-                                </View>
-                            </View>
+                            ))}
                         </View>
                     </View>
 
-                    {showingSubBundle && detailTabs.length > 0 ? (
+                    {detailTabs.length > 0 ? (
                         <>
                             <ScrollView
                                 horizontal
@@ -1147,7 +1739,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                         </>
                     ) : (
                         <>
-                            <Text style={styles.sectionTitle}>Mock Sets</Text>
+                            <Text style={styles.sectionTitle}>Mock Bank</Text>
                             <Text style={styles.subjectSubtitle}>
                                 {detailScreen.quizGroups?.length > 0
                                     ? `${detailScreen.quizIds?.length || 0} quizzes in this ${showingSubBundle ? 'sub-bundle' : 'category'}`
@@ -1225,37 +1817,415 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                     <View style={styles.noteViewerContainer}>
                         <SafeAreaView edges={['top']} style={styles.noteViewerSafeArea}>
                             <View style={styles.noteViewerHeader}>
-                                <Pressable onPress={() => setShowNoteViewerModal(false)} style={styles.noteViewerCloseBtn}>
-                                    <Feather name="arrow-left" size={normalize(20)} color="#0F172A" />
-                                </Pressable>
                                 <View style={styles.noteViewerHeaderText}>
+                                    <Text style={styles.noteViewerLabel}>NOTE BANK</Text>
                                     <Text style={styles.noteViewerTitle}>{selectedNoteBankTitle || 'Note Bank'}</Text>
-                                    <Text style={styles.noteViewerSubtitle}>Fetched from the pages API</Text>
+                                    <Text style={styles.noteViewerSubtitle}>READ AND LEARN WITH CURATED NOTES</Text>
                                 </View>
+                                <Pressable onPress={() => setShowNoteViewerModal(false)} style={styles.noteViewerCloseBtn}>
+                                    <Feather name="x" size={normalize(22)} color="#0F172A" />
+                                </Pressable>
                             </View>
                         </SafeAreaView>
 
-                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.noteViewerScrollContent}>
-                            {isLoadingNotePages ? (
-                                <View style={styles.noteViewerStateBox}>
-                                    <ActivityIndicator size="large" color={Colorpath.Primary} />
-                                    <Text style={styles.noteViewerStateText}>Loading pages...</Text>
-                                </View>
-                            ) : selectedNotePages.length > 0 ? (
-                                selectedNotePages.map((page: any, index: number) => (
-                                    <View key={page?._id || page?.id || `${index}`} style={styles.notePageCard}>
-                                        <Text style={styles.notePageTitle}>{page?.title || `Page ${index + 1}`}</Text>
-                                        <Text style={styles.notePageBody}>{htmlToPlainText(page?.htmlContent || '') || 'No content available.'}</Text>
-                                    </View>
-                                ))
-                            ) : (
-                                <View style={styles.noteViewerStateBox}>
-                                    <Feather name="file-text" size={normalize(24)} color="#94A3B8" />
-                                    <Text style={styles.noteViewerStateText}>No note pages found.</Text>
-                                </View>
-                            )}
+                        {isLoadingNotePages ? (
+                            <View style={styles.noteViewerStateBox}>
+                                <ActivityIndicator size="large" color={Colorpath.Primary} />
+                                <Text style={styles.noteViewerStateText}>Loading pages...</Text>
+                            </View>
+                        ) : selectedNotePages.length === 0 ? (
+                            <View style={styles.noteViewerStateBox}>
+                                <Feather name="file-text" size={normalize(24)} color="#94A3B8" />
+                                <Text style={styles.noteViewerStateText}>No note pages found.</Text>
+                            </View>
+                        ) : (
+                            <View style={styles.noteViewerLayout}>
+                                <View style={styles.noteViewerLeftPanel}>
+                                    <Text style={styles.noteViewerPanelLabel}>PAGES</Text>
+                                    <FlatList
+                                        data={selectedNotePages}
+                                        keyExtractor={(page: any, index: number) => `${page?._id || page?.id || index}`}
+                                        showsVerticalScrollIndicator={false}
+                                        contentContainerStyle={styles.noteViewerListContent}
+                                        renderItem={({ item, index }) => {
+                                            const pageTitle = toDisplayText(item?.title, `Page ${index + 1}`);
 
-                            <View style={{ height: verticalScale(32) }} />
+                                            return (
+                                                <Pressable
+                                                    onPress={() => setSelectedNotePageIndex(index)}
+                                                    style={[
+                                                        styles.noteViewerListItem,
+                                                        selectedNotePageIndex === index && styles.noteViewerListItemActive,
+                                                    ]}
+                                                >
+                                                    <Text
+                                                        style={[
+                                                            styles.noteViewerListIndex,
+                                                            selectedNotePageIndex === index && styles.noteViewerListIndexActive,
+                                                        ]}
+                                                    >
+                                                        {index + 1}.
+                                                    </Text>
+                                                    <Text
+                                                        style={[
+                                                            styles.noteViewerListText,
+                                                            selectedNotePageIndex === index && styles.noteViewerListTextActive,
+                                                        ]}
+                                                        numberOfLines={2}
+                                                    >
+                                                        {pageTitle}
+                                                    </Text>
+                                                </Pressable>
+                                            );
+                                        }}
+                                        ItemSeparatorComponent={() => <View style={{ height: verticalScale(12) }} />}
+                                    />
+                                </View>
+
+                                <View style={styles.noteViewerRightPanel}>
+                                    {(() => {
+                                        const currentPage = selectedNotePages[selectedNotePageIndex];
+
+                                        if (!currentPage) {
+                                            return (
+                                                <View style={styles.noteViewerStateBox}>
+                                                    <Feather name="file-text" size={normalize(24)} color="#94A3B8" />
+                                                    <Text style={styles.noteViewerStateText}>No note pages found.</Text>
+                                                </View>
+                                            );
+                                        }
+
+                                        return (
+                                            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.noteViewerDetailScroll}>
+                                                <View style={styles.noteViewerDetailCard}>
+                                                    <View style={styles.noteViewerDetailTopRow}>
+                                                        <Text style={styles.noteViewerDetailTag}>PAGE {selectedNotePageIndex + 1}</Text>
+                                                        <Text style={styles.noteViewerDetailTitle}>{toDisplayText(currentPage?.title, `Page ${selectedNotePageIndex + 1}`)}</Text>
+                                                    </View>
+                                                    <Text style={styles.noteViewerDetailBody} numberOfLines={5} ellipsizeMode="tail">
+                                                        {htmlToPlainText(currentPage?.htmlContent || '') || 'No content available.'}
+                                                    </Text>
+                                                    <Text style={styles.noteViewerDetailHint}>Tap View to read the full page.</Text>
+                                                    <Pressable
+                                                        style={styles.noteViewerViewButton}
+                                                        onPress={() => {
+                                                            setSelectedNotePageDetail(currentPage);
+                                                            setShowNotePageModal(true);
+                                                        }}
+                                                    >
+                                                        <Text style={styles.noteViewerViewButtonText}>View</Text>
+                                                        <Feather name="chevron-right" size={normalize(16)} color="#FFFFFF" />
+                                                    </Pressable>
+                                                </View>
+                                            </ScrollView>
+                                        );
+                                    })()}
+                                </View>
+                            </View>
+                        )}
+                    </View>
+                </Modal>
+
+                <Modal
+                    visible={showQuestionBankModal}
+                    transparent={false}
+                    animationType="slide"
+                    onRequestClose={() => setShowQuestionBankModal(false)}
+                >
+                    <View style={styles.questionBankContainer}>
+                        <SafeAreaView edges={['top']} style={styles.questionBankSafeArea}>
+                            <View style={styles.questionBankHeader}>
+                                <View style={styles.questionBankHeaderText}>
+                                    <Text style={styles.questionBankLabel}>QUESTION BANK</Text>
+                                    <Text style={styles.questionBankTitle}>{selectedQuestionBankTitle || 'Previous Year Question'}</Text>
+                                    <Text style={styles.questionBankSubtitle}>PRACTICE WITH CURATED QUESTIONS AND EXPLANATIONS</Text>
+                                </View>
+                                <Pressable onPress={() => setShowQuestionBankModal(false)} style={styles.questionBankCloseBtn}>
+                                    <Feather name="x" size={normalize(22)} color="#0F172A" />
+                                </Pressable>
+                            </View>
+                        </SafeAreaView>
+
+                        {isLoadingQuestionBank ? (
+                            <View style={styles.questionBankLoadingState}>
+                                <ActivityIndicator size="large" color={Colorpath.Primary} />
+                                <Text style={styles.questionBankLoadingText}>Loading questions...</Text>
+                            </View>
+                        ) : selectedQuestionBankQuestions.length === 0 ? (
+                            <View style={styles.questionBankEmptyState}>
+                                <Feather name="inbox" size={normalize(26)} color="#94A3B8" />
+                                <Text style={styles.questionBankEmptyText}>No Data Available</Text>
+                            </View>
+                        ) : (
+                            <View style={styles.questionBankLayout}>
+                                <View style={styles.questionBankLeftPanel}>
+                                    <Text style={styles.questionBankPanelLabel}>QUESTIONS</Text>
+                                    <FlatList
+                                        data={selectedQuestionBankQuestions}
+                                        keyExtractor={(item: any, index: number) => `${item?._id || item?.id || index}`}
+                                        showsVerticalScrollIndicator={false}
+                                        contentContainerStyle={styles.questionBankListContent}
+                                        renderItem={({ item, index }) => {
+                                            const itemTitle = toDisplayText(getQuestionPrompt(item), `Question ${index + 1}`);
+                                            return (
+                                                <Pressable
+                                                    onPress={() => {
+                                                        setSelectedQuestionIndex(index);
+                                                    }}
+                                                    style={[
+                                                        styles.questionBankListItem,
+                                                        selectedQuestionIndex === index && styles.questionBankListItemActive,
+                                                    ]}
+                                                >
+                                                    <Text
+                                                        style={[
+                                                            styles.questionBankListIndex,
+                                                            selectedQuestionIndex === index && styles.questionBankListIndexActive,
+                                                        ]}
+                                                    >
+                                                        {index + 1}.
+                                                    </Text>
+                                                    <Text
+                                                        style={[
+                                                            styles.questionBankListText,
+                                                            selectedQuestionIndex === index && styles.questionBankListTextActive,
+                                                        ]}
+                                                        numberOfLines={2}
+                                                    >
+                                                        {itemTitle}
+                                                    </Text>
+                                                </Pressable>
+                                            );
+                                        }}
+                                        ItemSeparatorComponent={() => <View style={{ height: verticalScale(12) }} />}
+                                    />
+                                </View>
+
+                                <View style={styles.questionBankRightPanel}>
+                                    {(() => {
+                                        const currentQuestion = selectedQuestionBankQuestions[selectedQuestionIndex];
+
+                                        if (!currentQuestion) {
+                                            return (
+                                                <View style={styles.questionBankEmptyState}>
+                                                    <Feather name="file-text" size={normalize(26)} color="#94A3B8" />
+                                                    <Text style={styles.questionBankEmptyText}>No Data Available</Text>
+                                                </View>
+                                            );
+                                        }
+
+                                        const options = getQuestionOptions(currentQuestion);
+                                        const prompt = toDisplayText(getQuestionPrompt(currentQuestion), 'Question');
+                                        const answer = toDisplayText(getQuestionAnswer(currentQuestion), '');
+                                        const explanation = toDisplayText(getQuestionExplanation(currentQuestion), '');
+                                        const year = toDisplayText(getQuestionBankYear(selectedQuestionBankMeta || currentQuestion), '');
+
+                                        return (
+                                            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.questionBankDetailScroll}>
+                                                <View style={styles.questionBankDetailCard}>
+                                                    <View style={styles.questionBankDetailTopRow}>
+                                                        <Text style={styles.questionBankDetailTag}>QUESTION {selectedQuestionIndex + 1}</Text>
+                                                        <Text style={styles.questionBankDetailTitle}>{prompt}</Text>
+                                                    </View>
+
+                                                    {currentQuestion?.htmlContent ? (
+                                                        <Text style={{ fontSize: normalize(15), color: '#334155', marginTop: verticalScale(10), marginBottom: verticalScale(16), lineHeight: normalize(22) }}>
+                                                            {htmlToPlainText(currentQuestion.htmlContent)}
+                                                        </Text>
+                                                    ) : null}
+
+                                                    {year ? <Text style={styles.questionBankYearText}>Year: {year}</Text> : null}
+
+                                                    {options.length > 0 ? (
+                                                        <View style={styles.questionBankOptionsWrap}>
+                                                            {options.map((option: any, optionIndex: number) => {
+                                                                const optionText = toDisplayText(
+                                                                    option,
+                                                                    `Option ${optionIndex + 1}`,
+                                                                );
+
+                                                                return (
+                                                                    <View key={`${optionText}-${optionIndex}`} style={styles.questionBankOptionRow}>
+                                                                        <View style={styles.questionBankOptionDot} />
+                                                                        <Text style={styles.questionBankOptionText}>{optionText}</Text>
+                                                                    </View>
+                                                                );
+                                                            })}
+                                                        </View>
+                                                    ) : null}
+
+                                                    {(answer || explanation) ? (
+                                                        <Pressable
+                                                            onPress={() => {
+                                                                setSelectedQuestionAnswerDetail({
+                                                                    questionNumber: selectedQuestionIndex + 1,
+                                                                    title: prompt,
+                                                                    answer,
+                                                                    explanation,
+                                                                });
+                                                                setShowQuestionAnswerModal(true);
+                                                            }}
+                                                            style={styles.questionBankToggleBtn}
+                                                        >
+                                                            <Text style={styles.questionBankToggleText}>Show Answer</Text>
+                                                            <Feather
+                                                                name="chevron-right"
+                                                                size={normalize(18)}
+                                                                color={Colorpath.Primary}
+                                                            />
+                                                        </Pressable>
+                                                    ) : null}
+                                                </View>
+                                            </ScrollView>
+                                        );
+                                    })()}
+                                </View>
+                            </View>
+                        )}
+                    </View>
+                </Modal>
+
+                <Modal
+                    visible={showQuestionAnswerModal}
+                    transparent={false}
+                    animationType="slide"
+                    onRequestClose={() => setShowQuestionAnswerModal(false)}
+                >
+                    <View style={styles.questionAnswerContainer}>
+                        <SafeAreaView edges={['top']} style={styles.questionAnswerSafeArea}>
+                            <View style={styles.questionAnswerHeader}>
+                                <View style={styles.questionAnswerHeaderText}>
+                                    <Text style={styles.questionAnswerLabel}>ANSWER & EXPLANATION</Text>
+                                    <Text style={styles.questionAnswerTitle}>
+                                        {selectedQuestionAnswerDetail?.title || 'Question Answer'}
+                                    </Text>
+                                    <Text style={styles.questionAnswerSubtitle}>
+                                        QUESTION {selectedQuestionAnswerDetail?.questionNumber || ''}
+                                    </Text>
+                                </View>
+                                <Pressable
+                                    onPress={() => setShowQuestionAnswerModal(false)}
+                                    style={styles.questionAnswerCloseBtn}
+                                >
+                                    <Feather name="x" size={normalize(22)} color="#0F172A" />
+                                </Pressable>
+                            </View>
+                        </SafeAreaView>
+
+                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.questionAnswerScrollContent}>
+                            <View style={styles.questionAnswerCard}>
+                                {selectedQuestionAnswerDetail?.answer ? (
+                                    <Text style={styles.questionAnswerBody}>{selectedQuestionAnswerDetail.answer}</Text>
+                                ) : null}
+                                {selectedQuestionAnswerDetail?.explanation ? (
+                                    <Text style={styles.questionAnswerExplanation}>
+                                        {selectedQuestionAnswerDetail.explanation}
+                                    </Text>
+                                ) : null}
+                            </View>
+                        </ScrollView>
+                    </View>
+                </Modal>
+
+                <Modal
+                    visible={showVideoBankModal}
+                    transparent={false}
+                    animationType="slide"
+                    onRequestClose={() => setShowVideoBankModal(false)}
+                >
+                    <View style={styles.videoBankContainer}>
+                        <SafeAreaView edges={['top']} style={styles.videoBankSafeArea}>
+                            <View style={styles.videoBankHeader}>
+                                <View style={styles.videoBankHeaderText}>
+                                    <Text style={styles.videoBankLabel}>VIDEO BANK</Text>
+                                    <Text style={styles.videoBankTitle}>{selectedVideoBankTitle || 'Video Bank'}</Text>
+                                    <Text style={styles.videoBankSubtitle}>Select a video to open in YouTube</Text>
+                                </View>
+                                <Pressable onPress={() => setShowVideoBankModal(false)} style={styles.videoBankCloseBtn}>
+                                    <Feather name="x" size={normalize(22)} color="#0F172A" />
+                                </Pressable>
+                            </View>
+                        </SafeAreaView>
+
+                        {isLoadingVideoBank ? (
+                            <View style={styles.videoBankLoadingState}>
+                                <ActivityIndicator size="large" color={Colorpath.Primary} />
+                                <Text style={styles.videoBankLoadingText}>Loading videos...</Text>
+                            </View>
+                        ) : selectedVideoBankItems.length === 0 ? (
+                            <View style={styles.videoBankEmptyState}>
+                                <Feather name="youtube" size={normalize(28)} color="#94A3B8" />
+                                <Text style={styles.videoBankEmptyText}>No Data Available</Text>
+                            </View>
+                        ) : (
+                            <FlatList
+                                data={selectedVideoBankItems}
+                                keyExtractor={(videoItem: any, index: number) => `${videoItem?._id || videoItem?.id || index}`}
+                                contentContainerStyle={styles.videoBankListContent}
+                                ItemSeparatorComponent={() => <View style={{ height: verticalScale(12) }} />}
+                                renderItem={({ item, index }) => {
+                                    const title = toDisplayText(getItemTitle(item, `Video ${index + 1}`), `Video ${index + 1}`);
+                                    const subtitle = toDisplayText(getItemDescription(item), 'YouTube Video') || 'YouTube Video';
+                                    const videoUrl = getVideoBankUrl(item);
+
+                                    return (
+                                        <Pressable
+                                            style={styles.videoBankCard}
+                                            onPress={async () => {
+                                                if (!videoUrl) {
+                                                    return;
+                                                }
+                                                await openExternalVideoUrl(videoUrl);
+                                            }}
+                                        >
+                                            <View style={styles.videoBankCardTopRow}>
+                                                <View style={styles.videoBankPlayIconWrap}>
+                                                    <Feather name="play-circle" size={normalize(18)} color="#FF0000" />
+                                                </View>
+                                                <View style={styles.videoBankCardTextWrap}>
+                                                    <Text style={styles.videoBankCardTitle} numberOfLines={2}>{title}</Text>
+                                                    <Text style={styles.videoBankCardSubtitle} numberOfLines={1}>{subtitle}</Text>
+                                                </View>
+                                            </View>
+                                            <View style={styles.videoBankCardFooter}>
+                                                <Feather name="youtube" size={normalize(16)} color="#FF0000" />
+                                                <Text style={styles.videoBankCardFooterText}>Open in YouTube</Text>
+                                            </View>
+                                        </Pressable>
+                                    );
+                                }}
+                            />
+                        )}
+                    </View>
+                </Modal>
+
+                <Modal
+                    visible={showNotePageModal}
+                    transparent={false}
+                    animationType="slide"
+                    onRequestClose={() => setShowNotePageModal(false)}
+                >
+                    <View style={styles.notePageViewerContainer}>
+                        <SafeAreaView edges={['top']} style={styles.notePageViewerSafeArea}>
+                            <View style={styles.notePageViewerHeader}>
+                                <View style={styles.notePageViewerHeaderText}>
+                                    <Text style={styles.notePageViewerLabel}>NOTE PAGE</Text>
+                                    <Text style={styles.notePageViewerTitle}>
+                                        {toDisplayText(selectedNotePageDetail?.title, 'Note Page')}
+                                    </Text>
+                                </View>
+                                <Pressable onPress={() => setShowNotePageModal(false)} style={styles.notePageViewerCloseBtn}>
+                                    <Feather name="x" size={normalize(22)} color="#0F172A" />
+                                </Pressable>
+                            </View>
+                        </SafeAreaView>
+
+                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.notePageViewerScrollContent}>
+                            <View style={styles.notePageViewerCard}>
+                                <Text style={styles.notePageViewerBody}>
+                                    {htmlToPlainText(selectedNotePageDetail?.htmlContent || '') || 'No content available.'}
+                                </Text>
+                            </View>
                         </ScrollView>
                     </View>
                 </Modal>
@@ -1568,11 +2538,16 @@ const styles = StyleSheet.create({
     },
     patternCard: {
         backgroundColor: '#FFFFFF',
-        borderRadius: normalize(14),
+        borderRadius: normalize(18),
         borderWidth: 1,
         borderColor: '#E5E7EB',
         padding: normalize(16),
         marginBottom: verticalScale(20),
+        shadowColor: '#101828',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.05,
+        shadowRadius: 20,
+        elevation: 3,
     },
     patternGrid: {
         flexDirection: 'row',
@@ -1587,25 +2562,23 @@ const styles = StyleSheet.create({
         marginBottom: verticalScale(12),
     },
     patternIconWrap: {
-        width: normalize(34),
-        height: normalize(34),
-        borderRadius: normalize(8),
+        width: normalize(40),
+        height: normalize(40),
+        borderRadius: normalize(12),
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: normalize(8),
+        marginRight: normalize(10),
+    },
+    patternTextWrap: {
+        flex: 1,
+        minHeight: verticalScale(40),
+        justifyContent: 'center',
     },
     patternLabel: {
-        fontSize: normalize(9),
-        color: '#9CA3AF',
-        fontWeight: 'bold',
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-    },
-    patternValue: {
-        fontSize: normalize(12),
+        fontSize: normalize(11),
+        color: '#111827',
         fontWeight: '800',
-        color: '#1F2937',
-        marginTop: verticalScale(1),
+        lineHeight: normalize(16),
     },
     subjectSubtitle: {
         fontSize: normalize(12),
@@ -1814,13 +2787,25 @@ const styles = StyleSheet.create({
         width: normalize(40),
         height: normalize(40),
         borderRadius: normalize(20),
-        backgroundColor: '#F1F5F9',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: normalize(12),
     },
     noteViewerHeaderText: {
         flex: 1,
+    },
+    noteViewerLabel: {
+        alignSelf: 'flex-start',
+        borderRadius: normalize(999),
+        borderWidth: 1,
+        borderColor: '#99F6E4',
+        backgroundColor: '#F0FDFA',
+        color: Colorpath.Primary,
+        fontSize: normalize(10),
+        fontWeight: '800',
+        letterSpacing: 1,
+        paddingHorizontal: normalize(12),
+        paddingVertical: verticalScale(5),
+        marginBottom: verticalScale(10),
     },
     noteViewerTitle: {
         fontSize: normalize(20),
@@ -1852,6 +2837,198 @@ const styles = StyleSheet.create({
         color: '#64748B',
         textAlign: 'center',
     },
+    noteViewerLayout: {
+        flex: 1,
+        flexDirection: 'row',
+        flexWrap: 'nowrap',
+    },
+    noteViewerLeftPanel: {
+        width: '35%',
+        backgroundColor: '#FFFFFF',
+        borderRightWidth: 1,
+        borderRightColor: '#E5E7EB',
+        padding: normalize(18),
+    },
+    noteViewerRightPanel: {
+        width: '65%',
+        padding: normalize(18),
+        backgroundColor: '#F8FAFC',
+    },
+    noteViewerPanelLabel: {
+        fontSize: normalize(12),
+        fontWeight: '800',
+        color: '#667085',
+        letterSpacing: 2,
+        marginBottom: verticalScale(14),
+    },
+    noteViewerListContent: {
+        paddingBottom: verticalScale(12),
+    },
+    noteViewerListItem: {
+        minHeight: verticalScale(60),
+        borderRadius: normalize(18),
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        backgroundColor: '#FFFFFF',
+        paddingHorizontal: normalize(14),
+        paddingVertical: verticalScale(14),
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: normalize(10),
+    },
+    noteViewerListItemActive: {
+        backgroundColor: Colorpath.Primary,
+        borderColor: Colorpath.Primary,
+    },
+    noteViewerListIndex: {
+        fontSize: normalize(14),
+        fontWeight: '800',
+        color: '#98A2B3',
+        width: normalize(22),
+    },
+    noteViewerListIndexActive: {
+        color: '#FFFFFF',
+    },
+    noteViewerListText: {
+        flex: 1,
+        fontSize: normalize(14),
+        fontWeight: '700',
+        color: '#344054',
+    },
+    noteViewerListTextActive: {
+        color: '#FFFFFF',
+    },
+    noteViewerDetailScroll: {
+        paddingBottom: verticalScale(24),
+    },
+    noteViewerDetailCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: normalize(22),
+        borderWidth: 1,
+        borderColor: '#D0D5DD',
+        padding: normalize(20),
+        shadowColor: '#101828',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.06,
+        shadowRadius: 20,
+        elevation: 3,
+    },
+    noteViewerDetailTopRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: normalize(12),
+        marginBottom: verticalScale(12),
+    },
+    noteViewerDetailTag: {
+        paddingHorizontal: normalize(12),
+        paddingVertical: verticalScale(5),
+        borderRadius: normalize(999),
+        backgroundColor: '#F0FDFA',
+        color: Colorpath.Primary,
+        fontSize: normalize(10),
+        fontWeight: '800',
+        letterSpacing: 0.6,
+    },
+    noteViewerDetailTitle: {
+        flex: 1,
+        fontSize: normalize(20),
+        fontWeight: '800',
+        color: '#101828',
+    },
+    noteViewerDetailBody: {
+        fontSize: normalize(14),
+        color: '#334155',
+        lineHeight: normalize(22),
+    },
+    noteViewerDetailHint: {
+        marginTop: verticalScale(12),
+        fontSize: normalize(12),
+        color: '#64748B',
+        fontWeight: '600',
+    },
+    noteViewerViewButton: {
+        alignSelf: 'flex-start',
+        marginTop: verticalScale(18),
+        backgroundColor: Colorpath.Primary,
+        borderRadius: normalize(12),
+        paddingHorizontal: normalize(16),
+        height: verticalScale(44),
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: normalize(8),
+    },
+    noteViewerViewButtonText: {
+        color: '#FFFFFF',
+        fontSize: normalize(14),
+        fontWeight: '800',
+    },
+    notePageViewerContainer: {
+        flex: 1,
+        backgroundColor: '#F8FAFC',
+    },
+    notePageViewerSafeArea: {
+        backgroundColor: '#FFFFFF',
+    },
+    notePageViewerHeader: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        paddingHorizontal: normalize(20),
+        paddingVertical: verticalScale(16),
+        borderBottomWidth: 1,
+        borderBottomColor: '#E2E8F0',
+    },
+    notePageViewerHeaderText: {
+        flex: 1,
+    },
+    notePageViewerLabel: {
+        alignSelf: 'flex-start',
+        borderRadius: normalize(999),
+        borderWidth: 1,
+        borderColor: '#99F6E4',
+        backgroundColor: '#F0FDFA',
+        color: Colorpath.Primary,
+        fontSize: normalize(10),
+        fontWeight: '800',
+        letterSpacing: 1,
+        paddingHorizontal: normalize(12),
+        paddingVertical: verticalScale(5),
+        marginBottom: verticalScale(10),
+    },
+    notePageViewerTitle: {
+        fontSize: normalize(22),
+        fontWeight: '800',
+        color: '#0F172A',
+    },
+    notePageViewerCloseBtn: {
+        width: normalize(40),
+        height: normalize(40),
+        borderRadius: normalize(20),
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#F1F5F9',
+    },
+    notePageViewerScrollContent: {
+        padding: normalize(18),
+    },
+    notePageViewerCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: normalize(22),
+        borderWidth: 1,
+        borderColor: '#D0D5DD',
+        padding: normalize(20),
+        shadowColor: '#101828',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.06,
+        shadowRadius: 20,
+        elevation: 3,
+    },
+    notePageViewerBody: {
+        fontSize: normalize(14),
+        color: '#334155',
+        lineHeight: normalize(22),
+    },
     notePageCard: {
         backgroundColor: '#FFFFFF',
         borderRadius: normalize(18),
@@ -1876,6 +3053,606 @@ const styles = StyleSheet.create({
         color: '#475569',
         lineHeight: normalize(20),
         marginBottom: verticalScale(18),
+    },
+    courseLayout: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: normalize(16),
+        marginTop: verticalScale(8),
+    },
+    courseLeftPanel: {
+        width: '30%',
+        minWidth: normalize(180),
+        backgroundColor: '#FFFFFF',
+        borderRadius: normalize(18),
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        padding: normalize(14),
+    },
+    courseRightPanel: {
+        flex: 1,
+        backgroundColor: '#FFFFFF',
+        borderRadius: normalize(18),
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        padding: normalize(14),
+    },
+    coursePanelLabel: {
+        fontSize: normalize(11),
+        fontWeight: '800',
+        color: '#667085',
+        letterSpacing: 1.2,
+        textTransform: 'uppercase',
+        marginBottom: verticalScale(12),
+    },
+    courseSectionItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderRadius: normalize(16),
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        backgroundColor: '#F8FAFC',
+        paddingHorizontal: normalize(14),
+        paddingVertical: verticalScale(14),
+        minHeight: verticalScale(58),
+    },
+    courseSectionItemActive: {
+        backgroundColor: Colorpath.Primary,
+        borderColor: Colorpath.Primary,
+    },
+    courseSectionText: {
+        flex: 1,
+        fontSize: normalize(14),
+        fontWeight: '700',
+        color: '#344054',
+    },
+    courseSectionTextActive: {
+        color: '#FFFFFF',
+    },
+    courseCard: {
+        width: '100%',
+        minHeight: verticalScale(150),
+        backgroundColor: '#FFFFFF',
+        borderRadius: normalize(18),
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        padding: normalize(16),
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.06,
+        shadowRadius: 18,
+        elevation: 3,
+        justifyContent: 'space-between',
+    },
+    courseCardBadge: {
+        alignSelf: 'flex-start',
+        paddingHorizontal: normalize(10),
+        paddingVertical: verticalScale(4),
+        borderRadius: normalize(999),
+        backgroundColor: '#F0FDFA',
+        borderWidth: 1,
+        borderColor: '#99F6E4',
+        marginBottom: verticalScale(10),
+    },
+    courseCardBadgeText: {
+        fontSize: normalize(10),
+        fontWeight: '800',
+        color: Colorpath.Primary,
+        letterSpacing: 0.6,
+    },
+    courseCardTitle: {
+        fontSize: normalize(16),
+        fontWeight: '800',
+        color: '#101828',
+        marginBottom: verticalScale(6),
+    },
+    courseCardSubtitle: {
+        fontSize: normalize(12),
+        color: '#667085',
+        lineHeight: normalize(18),
+        marginBottom: verticalScale(12),
+    },
+    courseCardFooter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: normalize(10),
+    },
+    courseCardFooterText: {
+        flex: 1,
+        fontSize: normalize(12),
+        fontWeight: '700',
+        color: '#475467',
+    },
+    videoCardTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: normalize(8),
+        marginBottom: verticalScale(10),
+    },
+    emptyStateBox: {
+        minHeight: verticalScale(220),
+        borderRadius: normalize(18),
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        backgroundColor: '#F8FAFC',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: normalize(16),
+    },
+    emptyStateText: {
+        marginTop: verticalScale(10),
+        fontSize: normalize(13),
+        color: '#667085',
+        fontWeight: '600',
+        textAlign: 'center',
+    },
+    questionBankContainer: {
+        flex: 1,
+        backgroundColor: '#F8FAFC',
+    },
+    questionBankSafeArea: {
+        backgroundColor: '#FFFFFF',
+    },
+    questionBankHeader: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        paddingHorizontal: normalize(20),
+        paddingVertical: verticalScale(16),
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E7EB',
+        gap: normalize(14),
+    },
+    questionBankCloseBtn: {
+        width: normalize(40),
+        height: normalize(40),
+        borderRadius: normalize(20),
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    questionBankHeaderText: {
+        flex: 1,
+    },
+    questionBankLabel: {
+        alignSelf: 'flex-start',
+        borderRadius: normalize(999),
+        borderWidth: 1,
+        borderColor: '#99F6E4',
+        backgroundColor: '#F0FDFA',
+        color: Colorpath.Primary,
+        fontSize: normalize(10),
+        fontWeight: '800',
+        letterSpacing: 1,
+        paddingHorizontal: normalize(12),
+        paddingVertical: verticalScale(5),
+        marginBottom: verticalScale(10),
+    },
+    questionBankTitle: {
+        fontSize: normalize(22),
+        fontWeight: '800',
+        color: '#101828',
+        marginBottom: verticalScale(4),
+    },
+    questionBankSubtitle: {
+        fontSize: normalize(12),
+        color: '#667085',
+        fontWeight: '600',
+        textTransform: 'uppercase',
+    },
+    questionBankLoadingState: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: normalize(10),
+    },
+    questionBankLoadingText: {
+        fontSize: normalize(13),
+        color: '#667085',
+        fontWeight: '600',
+    },
+    questionBankEmptyState: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: normalize(20),
+    },
+    questionBankEmptyText: {
+        marginTop: verticalScale(10),
+        fontSize: normalize(13),
+        color: '#667085',
+        fontWeight: '600',
+        textAlign: 'center',
+    },
+    questionBankLayout: {
+        flex: 1,
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+    },
+    questionBankLeftPanel: {
+        width: '30%',
+        minWidth: normalize(180),
+        backgroundColor: '#FFFFFF',
+        borderRightWidth: 1,
+        borderRightColor: '#E5E7EB',
+        padding: normalize(18),
+    },
+    questionBankRightPanel: {
+        flex: 1,
+        padding: normalize(18),
+        backgroundColor: '#F8FAFC',
+    },
+    questionBankPanelLabel: {
+        fontSize: normalize(12),
+        fontWeight: '800',
+        color: '#667085',
+        letterSpacing: 2,
+        marginBottom: verticalScale(14),
+    },
+    questionBankListContent: {
+        paddingBottom: verticalScale(12),
+    },
+    questionBankListItem: {
+        minHeight: verticalScale(60),
+        borderRadius: normalize(18),
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        backgroundColor: '#FFFFFF',
+        paddingHorizontal: normalize(14),
+        paddingVertical: verticalScale(14),
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: normalize(10),
+    },
+    questionBankListItemActive: {
+        backgroundColor: Colorpath.Primary,
+        borderColor: Colorpath.Primary,
+    },
+    questionBankListItemInactive: {
+        backgroundColor: 'transparent',
+        borderColor: 'transparent',
+        borderWidth: 0,
+        elevation: 0,
+        shadowOpacity: 0,
+    },
+    questionBankListIndex: {
+        fontSize: normalize(14),
+        fontWeight: '800',
+        color: '#98A2B3',
+        width: normalize(22),
+    },
+    questionBankListIndexActive: {
+        color: '#FFFFFF',
+    },
+    questionBankListText: {
+        flex: 1,
+        fontSize: normalize(14),
+        fontWeight: '700',
+        color: '#344054',
+    },
+    questionBankListTextActive: {
+        color: '#FFFFFF',
+    },
+    questionBankDetailScroll: {
+        paddingBottom: verticalScale(24),
+    },
+    questionBankDetailCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: normalize(22),
+        borderWidth: 1,
+        borderColor: '#D0D5DD',
+        padding: normalize(20),
+        shadowColor: '#101828',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.06,
+        shadowRadius: 20,
+        elevation: 3,
+    },
+    questionBankDetailTopRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: normalize(12),
+        marginBottom: verticalScale(12),
+    },
+    questionBankDetailTag: {
+        paddingHorizontal: normalize(12),
+        paddingVertical: verticalScale(5),
+        borderRadius: normalize(999),
+        backgroundColor: '#F0FDFA',
+        color: Colorpath.Primary,
+        fontSize: normalize(10),
+        fontWeight: '800',
+        letterSpacing: 0.6,
+    },
+    questionBankDetailTitle: {
+        flex: 1,
+        fontSize: normalize(20),
+        fontWeight: '800',
+        color: '#101828',
+    },
+    questionBankYearText: {
+        fontSize: normalize(12),
+        color: '#667085',
+        fontWeight: '600',
+        marginBottom: verticalScale(16),
+    },
+    questionBankOptionsWrap: {
+        marginTop: verticalScale(6),
+        marginBottom: verticalScale(18),
+        gap: verticalScale(10),
+    },
+    questionBankOptionRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: normalize(10),
+    },
+    questionBankOptionDot: {
+        width: normalize(10),
+        height: normalize(10),
+        borderRadius: normalize(5),
+        backgroundColor: Colorpath.Primary,
+        marginTop: verticalScale(5),
+    },
+    questionBankOptionText: {
+        flex: 1,
+        fontSize: normalize(14),
+        color: '#344054',
+        lineHeight: normalize(22),
+    },
+    questionBankToggleBtn: {
+        alignSelf: 'flex-start',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: normalize(8),
+        borderRadius: normalize(999),
+        borderWidth: 1,
+        borderColor: '#99F6E4',
+        paddingHorizontal: normalize(16),
+        paddingVertical: verticalScale(10),
+        marginBottom: verticalScale(18),
+    },
+    questionBankToggleText: {
+        fontSize: normalize(13),
+        fontWeight: '800',
+        color: Colorpath.Primary,
+    },
+    questionBankAnswerCard: {
+        borderRadius: normalize(20),
+        borderWidth: 1,
+        borderColor: '#99F6E4',
+        backgroundColor: '#F0FDFA',
+        padding: normalize(18),
+    },
+    questionBankAnswerLabel: {
+        fontSize: normalize(11),
+        fontWeight: '800',
+        color: Colorpath.Primary,
+        letterSpacing: 1,
+        marginBottom: verticalScale(12),
+    },
+    questionBankAnswerText: {
+        fontSize: normalize(14),
+        fontWeight: '700',
+        color: '#0F172A',
+        lineHeight: normalize(22),
+        marginBottom: verticalScale(10),
+    },
+    questionBankExplanationText: {
+        fontSize: normalize(14),
+        color: '#334155',
+        lineHeight: normalize(22),
+    },
+    questionAnswerContainer: {
+        flex: 1,
+        backgroundColor: '#F8FAFC',
+    },
+    questionAnswerSafeArea: {
+        backgroundColor: '#FFFFFF',
+    },
+    questionAnswerHeader: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        paddingHorizontal: normalize(20),
+        paddingVertical: verticalScale(16),
+        borderBottomWidth: 1,
+        borderBottomColor: '#E2E8F0',
+    },
+    questionAnswerHeaderText: {
+        flex: 1,
+    },
+    questionAnswerLabel: {
+        alignSelf: 'flex-start',
+        borderRadius: normalize(999),
+        borderWidth: 1,
+        borderColor: '#99F6E4',
+        backgroundColor: '#F0FDFA',
+        color: Colorpath.Primary,
+        fontSize: normalize(10),
+        fontWeight: '800',
+        letterSpacing: 1,
+        paddingHorizontal: normalize(12),
+        paddingVertical: verticalScale(5),
+        marginBottom: verticalScale(10),
+    },
+    questionAnswerTitle: {
+        fontSize: normalize(22),
+        fontWeight: '800',
+        color: '#0F172A',
+        marginBottom: verticalScale(4),
+    },
+    questionAnswerSubtitle: {
+        fontSize: normalize(12),
+        color: '#64748B',
+        fontWeight: '600',
+        textTransform: 'uppercase',
+    },
+    questionAnswerCloseBtn: {
+        width: normalize(40),
+        height: normalize(40),
+        borderRadius: normalize(20),
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#F1F5F9',
+    },
+    questionAnswerScrollContent: {
+        padding: normalize(18),
+    },
+    questionAnswerCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: normalize(22),
+        borderWidth: 1,
+        borderColor: '#D0D5DD',
+        padding: normalize(20),
+        shadowColor: '#101828',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.06,
+        shadowRadius: 20,
+        elevation: 3,
+    },
+    questionAnswerBody: {
+        fontSize: normalize(14),
+        color: '#334155',
+        lineHeight: normalize(22),
+        marginBottom: verticalScale(14),
+    },
+    questionAnswerExplanation: {
+        fontSize: normalize(14),
+        color: '#334155',
+        lineHeight: normalize(22),
+    },
+    videoBankContainer: {
+        flex: 1,
+        backgroundColor: '#F8FAFC',
+    },
+    videoBankSafeArea: {
+        backgroundColor: '#FFFFFF',
+    },
+    videoBankHeader: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        paddingHorizontal: normalize(20),
+        paddingVertical: verticalScale(16),
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E7EB',
+        gap: normalize(14),
+    },
+    videoBankHeaderText: {
+        flex: 1,
+    },
+    videoBankLabel: {
+        alignSelf: 'flex-start',
+        borderRadius: normalize(999),
+        borderWidth: 1,
+        borderColor: '#BFDBFE',
+        backgroundColor: '#EFF6FF',
+        color: '#1D4ED8',
+        fontSize: normalize(10),
+        fontWeight: '800',
+        letterSpacing: 1,
+        paddingHorizontal: normalize(12),
+        paddingVertical: verticalScale(5),
+        marginBottom: verticalScale(10),
+    },
+    videoBankTitle: {
+        fontSize: normalize(22),
+        fontWeight: '800',
+        color: '#101828',
+        marginBottom: verticalScale(4),
+    },
+    videoBankSubtitle: {
+        fontSize: normalize(12),
+        color: '#667085',
+        fontWeight: '600',
+        textTransform: 'uppercase',
+    },
+    videoBankCloseBtn: {
+        width: normalize(40),
+        height: normalize(40),
+        borderRadius: normalize(20),
+        backgroundColor: '#F1F5F9',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    videoBankLoadingState: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: normalize(10),
+    },
+    videoBankLoadingText: {
+        fontSize: normalize(13),
+        color: '#667085',
+        fontWeight: '600',
+    },
+    videoBankEmptyState: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: normalize(20),
+    },
+    videoBankEmptyText: {
+        marginTop: verticalScale(10),
+        fontSize: normalize(13),
+        color: '#667085',
+        fontWeight: '600',
+        textAlign: 'center',
+    },
+    videoBankListContent: {
+        padding: normalize(18),
+    },
+    videoBankCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: normalize(18),
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        padding: normalize(16),
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.06,
+        shadowRadius: 18,
+        elevation: 3,
+        minHeight: verticalScale(120),
+        justifyContent: 'space-between',
+    },
+    videoBankCardTopRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: normalize(12),
+    },
+    videoBankPlayIconWrap: {
+        width: normalize(36),
+        height: normalize(36),
+        borderRadius: normalize(18),
+        backgroundColor: '#FEF2F2',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    videoBankCardTextWrap: {
+        flex: 1,
+    },
+    videoBankCardTitle: {
+        fontSize: normalize(16),
+        fontWeight: '800',
+        color: '#101828',
+        marginBottom: verticalScale(4),
+    },
+    videoBankCardSubtitle: {
+        fontSize: normalize(12),
+        color: '#667085',
+        lineHeight: normalize(18),
+    },
+    videoBankCardFooter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: normalize(8),
+        marginTop: verticalScale(12),
+    },
+    videoBankCardFooterText: {
+        fontSize: normalize(12),
+        fontWeight: '800',
+        color: '#FF0000',
     },
     modalSecondaryButton: {
         height: verticalScale(48),
