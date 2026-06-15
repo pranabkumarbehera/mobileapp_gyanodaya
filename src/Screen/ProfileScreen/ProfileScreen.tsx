@@ -129,7 +129,7 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
     const handleShareApp = async () => {
         try {
             await Share.share({
-                message: 'Prepare for your teaching career with Gyanodaya! Download the app now: https://play.google.com/store/apps/details?id=com.gyanodaya.newapp',
+                message: 'Prepare for your learning career with Gyanodaya! Download the app now: https://play.google.com/store/apps/details?id=com.gyanodaya.newapp',
             });
         } catch (error) {
             console.log('Error sharing app:', error);
@@ -218,10 +218,10 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                     <View style={styles.profileCard}>
                         <View style={[styles.avatarContainer, (!displayedAvatar || imageError) ? { backgroundColor: avatarBackground } : null]}>
                             {(displayedAvatar && !imageError) ? (
-                                <Image 
-                                    source={{ uri: displayedAvatar }} 
-                                    style={styles.avatarImage} 
-                                    onError={() => setImageError(true)} 
+                                <Image
+                                    source={{ uri: displayedAvatar }}
+                                    style={styles.avatarImage}
+                                    onError={() => setImageError(true)}
                                 />
                             ) : (
                                 <Text style={styles.avatarFallbackText}>{initials}</Text>
@@ -362,10 +362,10 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                         <Pressable onPress={handlePickImage} style={styles.imagePickerButton}>
                             <View style={[styles.editAvatarPreview, (!form.avatarUrl || editImageError) ? { backgroundColor: avatarBackground } : null]}>
                                 {(form.avatarUrl && !editImageError) ? (
-                                    <Image 
-                                        source={{ uri: form.avatarUrl }} 
-                                        style={styles.avatarImage} 
-                                        onError={() => setEditImageError(true)} 
+                                    <Image
+                                        source={{ uri: form.avatarUrl }}
+                                        style={styles.avatarImage}
+                                        onError={() => setEditImageError(true)}
                                     />
                                 ) : (
                                     <Text style={styles.avatarFallbackText}>

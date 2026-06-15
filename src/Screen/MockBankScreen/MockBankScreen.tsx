@@ -11,13 +11,15 @@ import { useDispatch, useSelector } from 'react-redux';
 import { getMockTestListRequest } from '../../Redux/Reducers/MockTestReducer';
 import { RootState } from '../../Redux/Store';
 
-type MockBankScreenProps = StackScreenProps<RootStackParamList, 'MockBank'>;
+type MockBankScreenProps = {
+    navigation: any;
+};
 
 const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
     const dispatch = useDispatch();
     const { mockTestList, isLoading } = useSelector((state: RootState) => state.MockTestReducer);
 
-    const [activeTab, setActiveTab] = useState('Mock Bank');
+    const [activeTab, setActiveTab] = useState('Free Mock');
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [selectedMock, setSelectedMock] = useState<any>(null);
 
@@ -63,7 +65,7 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
             price: price,
             originalData: mock
         };
-    }).filter((mock: any) => activeTab === 'Mock Bank');
+    }).filter((mock: any) => activeTab === 'Free Mock' ? mock.type === 'free' : mock.type === 'premium');
 
     const handleStartTest = (mock: any) => {
         if (mock.type === 'premium') {
@@ -90,22 +92,16 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
 
                 <View style={styles.tabsContainer}>
                     <Pressable
-                        style={[styles.tab, activeTab === 'Mock Bank' && styles.activeTab]}
-                        onPress={() => setActiveTab('Mock Bank')}
+                        style={[styles.tab, activeTab === 'Free Mock' && styles.activeTab]}
+                        onPress={() => setActiveTab('Free Mock')}
                     >
-                        <Text style={[styles.tabText, activeTab === 'Mock Bank' && styles.activeTabText]}>Mock Bank</Text>
+                        <Text style={[styles.tabText, activeTab === 'Free Mock' && styles.activeTabText]}>Free Mock</Text>
                     </Pressable>
                     <Pressable
-                        style={[styles.tab, activeTab === 'Notes Bank' && styles.activeTab]}
-                        onPress={() => setActiveTab('Notes Bank')}
+                        style={[styles.tab, activeTab === 'Premium Mock' && styles.activeTab]}
+                        onPress={() => setActiveTab('Premium Mock')}
                     >
-                        <Text style={[styles.tabText, activeTab === 'Notes Bank' && styles.activeTabText]}>Notes Bank</Text>
-                    </Pressable>
-                    <Pressable
-                        style={[styles.tab, activeTab === 'Question Bank' && styles.activeTab]}
-                        onPress={() => setActiveTab('Question Bank')}
-                    >
-                        <Text style={[styles.tabText, activeTab === 'Question Bank' && styles.activeTabText]}>Question Bank</Text>
+                        <Text style={[styles.tabText, activeTab === 'Premium Mock' && styles.activeTabText]}>Premium Mock</Text>
                     </Pressable>
                 </View>
 
@@ -216,7 +212,7 @@ const styles = StyleSheet.create({
     startButtonText: { color: '#FFFFFF', fontSize: normalize(15), fontWeight: 'bold' },
     premiumBadge: { backgroundColor: '#FEF3C7', padding: normalize(4), borderRadius: normalize(8), borderWidth: 1, borderColor: '#FDE68A' },
     modalOverlay: { flex: 1, justifyContent: 'flex-end' },
-    modalBg: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
+    modalBg: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)' },
     bottomSheetContent: { backgroundColor: '#FFFFFF', borderTopLeftRadius: normalize(24), borderTopRightRadius: normalize(24), padding: normalize(24), paddingBottom: verticalScale(40), alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
     modalIconContainer: { width: normalize(60), height: normalize(60), borderRadius: normalize(30), backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center', marginBottom: verticalScale(16) },
     modalTitle: { fontSize: normalize(20), fontWeight: 'bold', color: '#111827', marginBottom: verticalScale(8) },

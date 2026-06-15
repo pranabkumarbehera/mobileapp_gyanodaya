@@ -614,7 +614,7 @@ const getQuizTopicName = (quiz: any) =>
     quiz?.topic?.name ||
     quiz?.topicName ||
     quiz?.category ||
-    'Miscellaneous';
+    'General';
 
 const getQuizQuestionCount = (quiz: any) =>
     Number(quiz?.questionCount || quiz?.questionsCount || quiz?.totalQuestions || quiz?.questions?.length || 0);
@@ -1101,7 +1101,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     const availableDetailTabs = useMemo(
         () => [
             mockContentAvailable ? { key: 'mock', label: 'Mock Bank' } : null,
-            courseSections.length > 0 ? { key: 'course', label: 'Course' } : null,
+            courseSections.length > 0 ? { key: 'course', label: 'Study Materials' } : null,
         ].filter(Boolean) as Array<{ key: 'mock' | 'course'; label: string }>,
         [courseSections.length, mockContentAvailable],
     );
@@ -1310,9 +1310,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                     style={styles.quizCard}
                                     onPress={() => handleSubBundlePress(normalizedSubBundle)}
                                 >
-                                    <View style={styles.quizBadge}>
-                                        <Text style={styles.quizBadgeText}>SUB-BUNDLE</Text>
-                                    </View>
+                                    {/* No SUB-BUNDLE badge displayed */}
 
                                     <Text style={styles.quizCardTitle}>{normalizedSubBundle?.title || normalizedSubBundle?.name || `Sub Bundle ${index + 1}`}</Text>
 
@@ -1341,7 +1339,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                     <Text style={styles.sectionTitle}>Mock Bank</Text>
                     <Text style={styles.subjectSubtitle}>
                         {detailScreen.quizGroups?.length > 0
-                             ? `${detailScreen.quizIds?.length || 0} quizzes in this ${showingSubBundle ? 'sub-bundle' : 'category'}`
+                             ? `${detailScreen.quizIds?.length || 0} quizzes in this ${showingSubBundle ? 'course' : 'category'}`
                              : 'No quizzes returned from the API'}
                     </Text>
 
@@ -1633,7 +1631,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                 <Feather name="arrow-left" size={normalize(20)} color="#FFFFFF" />
                             </Pressable>
                             <View style={styles.headerTextColumn}>
-                                <Text style={styles.headerTagline}>{showingSubBundle ? 'SUB-BUNDLE' : 'EXAM CATEGORY'}</Text>
+                                <Text style={styles.headerTagline}>{showingSubBundle ? 'COURSE' : 'EXAM CATEGORY'}</Text>
                                 <Text style={styles.headerMainTitle}>{detailScreen.name}</Text>
                                 <Text style={styles.detailSubtitle}>
                                     {showingSubBundle
@@ -1699,7 +1697,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                         <>
                             <Text style={styles.sectionTitle}>Course Curriculum</Text>
                             <Text style={styles.subjectSubtitle}>
-                                {`${subBundleItems.length} sub-bundle${subBundleItems.length === 1 ? '' : 's'} available in this bundle`}
+                                {`${subBundleItems.length} course${subBundleItems.length === 1 ? '' : 's'} available in this course`}
                             </Text>
 
                             <View style={styles.subjectList}>
@@ -1714,9 +1712,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                                 style={styles.quizCard}
                                                 onPress={() => handleSubBundlePress(normalizedSubBundle)}
                                             >
-                                                <View style={styles.quizBadge}>
-                                                    <Text style={styles.quizBadgeText}>SUB-BUNDLE</Text>
-                                                </View>
+                                                {/* No SUB-BUNDLE badge displayed */}
 
                                                 <Text style={styles.quizCardTitle}>{normalizedSubBundle?.title || normalizedSubBundle?.name || `Sub Bundle ${index + 1}`}</Text>
 
@@ -1742,7 +1738,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                             <Text style={styles.sectionTitle}>Mock Bank</Text>
                             <Text style={styles.subjectSubtitle}>
                                 {detailScreen.quizGroups?.length > 0
-                                    ? `${detailScreen.quizIds?.length || 0} quizzes in this ${showingSubBundle ? 'sub-bundle' : 'category'}`
+                                    ? `${detailScreen.quizIds?.length || 0} quizzes in this ${showingSubBundle ? 'course' : 'category'}`
                                     : 'No quizzes returned from the API'}
                             </Text>
 
@@ -1751,7 +1747,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                     <View key={`${group.title}-${groupIndex}`} style={styles.quizSection}>
                                         <View style={styles.topicRow}>
                                             <View style={styles.topicDot} />
-                                            <Text style={styles.topicTitle}>{String(group.title || 'Miscellaneous').toUpperCase()}</Text>
+                                            <Text style={styles.topicTitle}>{String(group.title || 'General').toUpperCase()}</Text>
                                         </View>
 
                                         <View style={styles.quizCardsWrap}>
@@ -2281,7 +2277,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                 </View>
 
                 <>
-                    <Text style={styles.allExamsTitle}>All Bundles</Text>
+                    <Text style={styles.allExamsTitle}>All Courses</Text>
 
                     <View style={styles.gridContainer}>
                         {filteredExams.map((bundle: any, index: number) => {
@@ -2315,12 +2311,12 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                 <View style={styles.modalOverlay}>
                     <Pressable style={styles.modalBackdrop} onPress={() => setShowBundleActionModal(false)} />
                     <View style={styles.modalCard}>
-                        <Text style={styles.modalLabel}>BUNDLE</Text>
+                        <Text style={styles.modalLabel}>COURSE</Text>
                         <Text style={styles.modalTitle}>{selectedBundle?.title || selectedBundle?.name || 'Course'}</Text>
                         <Text style={styles.modalDescription}>
                             {selectedBundle?.isEnrolled
-                                ? 'This bundle is already enrolled. Open the bundle to continue with its sub-bundles and mocks.'
-                                : 'Choose `View` to open the bundle details, or `Enroll Now` to unlock attempts.'}
+                                ? 'This course is already enrolled. Open the course to continue with its study materials.'
+                                : 'Choose `View` to open the course details, or `Enroll Now` to unlock attempts.'}
                         </Text>
 
                         {selectedBundle?.isEnrolled ? (
@@ -2329,7 +2325,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                 onPress={() => openBundleDetails(selectedBundle, 'view')}
                             >
                                 <Feather name="layers" size={normalize(16)} color="#FFFFFF" />
-                                <Text style={styles.modalPrimaryButtonText}>View Bundle</Text>
+                                <Text style={styles.modalPrimaryButtonText}>View Course</Text>
                             </Pressable>
                         ) : (
                             <>
