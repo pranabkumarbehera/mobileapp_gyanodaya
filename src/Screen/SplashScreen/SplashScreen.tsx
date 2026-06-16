@@ -241,9 +241,9 @@ const SplashScreen = ({ navigation }: SplashScreenProps) => {
                     ]} />
 
                     {/* Logo Image */}
-                    <Image
+                    <Animated.Image
                         source={Imagepath.Logo}
-                        style={styles.logo}
+                        style={[styles.logo, { opacity: logoFade, transform: [{ scale: logoScale }] }]}
                         resizeMode="contain"
                     />
                 </View>

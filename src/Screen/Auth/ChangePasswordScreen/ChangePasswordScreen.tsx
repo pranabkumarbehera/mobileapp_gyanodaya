@@ -12,7 +12,7 @@ import {
     ActivityIndicator,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { changePasswordRequest } from '../../../Redux/Reducers/AuthReducer';
+import { changePasswordRequest, changePasswordSuccess, resetPasswordRequest, resetPasswordSuccess } from '../../../Redux/Reducers/AuthReducer';
 import { RootState } from '../../../Redux/Store';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
@@ -30,7 +30,10 @@ type ChangePasswordErrors = {
 
 const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{7,}$/;
 
-const ChangePasswordScreen = ({ navigation }: ChangePasswordScreenProps) => {
+const ChangePasswordScreen = ({ route, navigation }: ChangePasswordScreenProps) => {
+    const resetToken = route.params?.token;
+    const isResetMode = !!resetToken;
+
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -44,25 +47,39 @@ const ChangePasswordScreen = ({ navigation }: ChangePasswordScreenProps) => {
     });
 
     const dispatch = useDispatch();
-    const { isLoading, changePasswordResponse, token } = useSelector((state: RootState) => state.AuthReducer);
+    const { isLoading, changePasswordResponse, resetPasswordResponse, token } = useSelector((state: RootState) => state.AuthReducer);
+
+    // Reset Redux state on mount
+    useEffect(() => {
+        dispatch(changePasswordSuccess(null));
+        dispatch(resetPasswordSuccess(null));
+    }, [dispatch]);
 
     useEffect(() => {
         if (changePasswordResponse?.success || changePasswordResponse?.message) {
             if (token) {
-                navigation.navigate('Home' as never, { screen: 'Profile' } as never);
+                (navigation as any).navigate('Home', { screen: 'Profile' });
             } else {
                 navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
             }
         }
     }, [changePasswordResponse, navigation, token]);
 
+    useEffect(() => {
+        if (resetPasswordResponse?.success || resetPasswordResponse?.message) {
+            navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        }
+    }, [resetPasswordResponse, navigation]);
+
     const getErrors = (): ChangePasswordErrors => {
         const errors: ChangePasswordErrors = {};
 
-        if (!currentPassword) {
-            errors.currentPassword = 'Current password is required';
-        } else if (currentPassword.length < 7) {
-            errors.currentPassword = 'Current password must be at least 7 characters';
+        if (!isResetMode) {
+            if (!currentPassword) {
+                errors.currentPassword = 'Current password is required';
+            } else if (currentPassword.length < 7) {
+                errors.currentPassword = 'Current password must be at least 7 characters';
+            }
         }
 
         if (!newPassword) {
@@ -71,7 +88,7 @@ const ChangePasswordScreen = ({ navigation }: ChangePasswordScreenProps) => {
             errors.newPassword = 'New password must be at least 7 characters';
         } else if (!passwordRegex.test(newPassword)) {
             errors.newPassword = 'Password must include uppercase, lowercase, and number';
-        } else if (newPassword === currentPassword) {
+        } else if (!isResetMode && newPassword === currentPassword) {
             errors.newPassword = 'New password must be different from current password';
         }
 
@@ -101,12 +118,17 @@ const ChangePasswordScreen = ({ navigation }: ChangePasswordScreenProps) => {
             return;
         }
 
-        // const token = await AsyncStorage.getItem(constants.TOKEN);
-
-        dispatch(changePasswordRequest({
-            oldPassword: currentPassword,
-            newPassword,
-        }));
+        if (isResetMode) {
+            dispatch(resetPasswordRequest({
+                token: resetToken,
+                newPassword,
+            }));
+        } else {
+            dispatch(changePasswordRequest({
+                oldPassword: currentPassword,
+                newPassword,
+            }));
+        }
     };
 
     return (
@@ -123,36 +145,40 @@ const ChangePasswordScreen = ({ navigation }: ChangePasswordScreenProps) => {
                     </Pressable>
 
                     <View style={styles.headerContainer}>
-                        <Text style={styles.brandTitle}>Change Password</Text>
+                        <Text style={styles.brandTitle}>{isResetMode ? 'Reset Password' : 'Change Password'}</Text>
                         <Text style={styles.subtitle}>
-                            Create a new password that is secure and easy to remember.
+                            {isResetMode
+                                ? 'Create a secure new password for your account.'
+                                : 'Create a new password that is secure and easy to remember.'}
                         </Text>
                     </View>
 
                     <View style={styles.formContainer}>
-                        <View style={styles.fieldWrapper}>
-                            <Text style={styles.inputLabel}>Current Password</Text>
-                            <View style={[styles.inputContainer, touched.currentPassword && errors.currentPassword ? styles.inputContainerError : null]}>
-                                <Icon name="lock" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="Enter current password"
-                                    placeholderTextColor="#9CA3AF"
-                                    secureTextEntry={secureCurrent}
-                                    value={currentPassword}
-                                    onChangeText={(value) => {
-                                        updateTouched('currentPassword');
-                                        setCurrentPassword(value);
-                                    }}
-                                    onFocus={() => updateTouched('currentPassword')}
-                                    onBlur={() => updateTouched('currentPassword')}
-                                />
-                                <Pressable onPress={() => setSecureCurrent(!secureCurrent)} style={styles.eyeIcon}>
-                                    <Icon name={secureCurrent ? 'eye-off' : 'eye'} size={normalize(18)} color="#9CA3AF" />
-                                </Pressable>
+                        {!isResetMode && (
+                            <View style={styles.fieldWrapper}>
+                                <Text style={styles.inputLabel}>Current Password</Text>
+                                <View style={[styles.inputContainer, touched.currentPassword && errors.currentPassword ? styles.inputContainerError : null]}>
+                                    <Icon name="lock" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="Enter current password"
+                                        placeholderTextColor="#9CA3AF"
+                                        secureTextEntry={secureCurrent}
+                                        value={currentPassword}
+                                        onChangeText={(value) => {
+                                            updateTouched('currentPassword');
+                                            setCurrentPassword(value);
+                                        }}
+                                        onFocus={() => updateTouched('currentPassword')}
+                                        onBlur={() => updateTouched('currentPassword')}
+                                    />
+                                    <Pressable onPress={() => setSecureCurrent(!secureCurrent)} style={styles.eyeIcon}>
+                                        <Icon name={secureCurrent ? 'eye-off' : 'eye'} size={normalize(18)} color="#9CA3AF" />
+                                    </Pressable>
+                                </View>
+                                {touched.currentPassword && errors.currentPassword ? <Text style={styles.errorText}>{errors.currentPassword}</Text> : null}
                             </View>
-                            {touched.currentPassword && errors.currentPassword ? <Text style={styles.errorText}>{errors.currentPassword}</Text> : null}
-                        </View>
+                        )}
 
                         <View style={styles.fieldWrapper}>
                             <Text style={styles.inputLabel}>New Password</Text>
@@ -210,7 +236,7 @@ const ChangePasswordScreen = ({ navigation }: ChangePasswordScreenProps) => {
                             {isLoading ? (
                                 <ActivityIndicator color="#FFFFFF" />
                             ) : (
-                                <Text style={styles.submitButtonText}>Update Password</Text>
+                                <Text style={styles.submitButtonText}>{isResetMode ? 'Reset Password' : 'Update Password'}</Text>
                             )}
                         </Pressable>
                     </View>

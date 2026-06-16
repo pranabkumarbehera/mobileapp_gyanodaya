@@ -29,19 +29,23 @@ const TabNav = () => {
       screenOptions={({ route }) => ({
         headerShown: false,
 
-        tabBarButton: props => (
-          <Pressable
-            {...props}
-            android_ripple={{ color: 'transparent', borderless: false }}
-            style={({ pressed }) => [
-              props.style,
-              {
-                opacity: 1,
-                backgroundColor: '#FFFFFF',
-              },
-            ]}
-          />
-        ),
+        tabBarButton: (props: any) => {
+          const { ref, ...rest } = props;
+          return (
+            <Pressable
+              ref={ref}
+              {...rest}
+              android_ripple={{ color: 'transparent', borderless: false }}
+              style={({ pressed }) => [
+                rest.style,
+                {
+                  opacity: 1,
+                  backgroundColor: '#FFFFFF',
+                },
+              ]}
+            />
+          );
+        },
 
         tabBarIcon: ({ color }) => {
           let iconName = 'home';

@@ -49,6 +49,20 @@ const MockTestRulesScreen = ({ navigation, route }: MockTestRulesScreenProps) =>
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [isStarting, setIsStarting] = useState(false);
 
+    const resolvedTest = useMemo(() => {
+        const detailsId = getResolvedTestId(mockTestDetails);
+        if (detailsId && String(detailsId) === String(testId)) {
+            return mockTestDetails;
+        }
+        return testData || null;
+    }, [mockTestDetails, testData, testId]);
+
+    const title = resolvedTest?.title || resolvedTest?.name || 'Mock Test';
+    const price = Number(resolvedTest?.price || 0);
+    const duration = getQuizDuration(resolvedTest) || 120;
+    const fullMarks = getQuizTotalMarks(resolvedTest) || (getQuizQuestionCount(resolvedTest) * 4) || '--';
+    const negativeMarking = getQuizNegativeMarking(resolvedTest);
+
     useEffect(() => {
         dispatch(clearStartTestState());
         if (testId) {
@@ -66,20 +80,6 @@ const MockTestRulesScreen = ({ navigation, route }: MockTestRulesScreenProps) =>
             });
         }
     }, [isStarting, startTestResponse, isLoading, navigation, testId, duration]);
-
-    const resolvedTest = useMemo(() => {
-        const detailsId = getResolvedTestId(mockTestDetails);
-        if (detailsId && String(detailsId) === String(testId)) {
-            return mockTestDetails;
-        }
-        return testData || null;
-    }, [mockTestDetails, testData, testId]);
-
-    const title = resolvedTest?.title || resolvedTest?.name || 'Mock Test';
-    const price = Number(resolvedTest?.price || 0);
-    const duration = getQuizDuration(resolvedTest) || 120;
-    const fullMarks = getQuizTotalMarks(resolvedTest) || (getQuizQuestionCount(resolvedTest) * 4) || '--';
-    const negativeMarking = getQuizNegativeMarking(resolvedTest);
 
     const rules = [
         'The test will be auto-submitted when only 1 minute is left if you have not submitted manually.',

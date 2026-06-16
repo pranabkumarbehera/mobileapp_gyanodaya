@@ -9,6 +9,7 @@ import OnboardingScreen from '../Screen/Auth/OnboardingScreen/OnboardingScreen';
 import LoginScreen from '../Screen/Auth/LoginScreen/LoginScreen';
 import RegisterScreen from '../Screen/Auth/RegisterScreen/RegisterScreen';
 import ForgotPasswordScreen from '../Screen/Auth/ForgotPasswordScreen/ForgotPasswordScreen';
+import OtpScreen from '../Screen/Auth/OtpScreen/OtpScreen';
 import ChangePasswordScreen from '../Screen/Auth/ChangePasswordScreen/ChangePasswordScreen';
 import PrivacyPolicyScreen from '../Screen/Auth/PrivacyPolicyScreen/PrivacyPolicyScreen';
 import TermsConditionsScreen from '../Screen/Auth/TermsConditionsScreen/TermsConditionsScreen';
@@ -33,6 +34,7 @@ export type RootStackParamList = {
     PrivacyPolicy: undefined;
     TermsConditions: undefined;
     ForgotPassword: undefined;
+    Otp: { email: string };
     ChangePassword: { token?: string } | undefined;
     Home: undefined; // We'll map Home to TabNav for drop-in replacement
     Teacher: undefined;
@@ -62,6 +64,7 @@ const AuthStack = () => (
         <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
         <Stack.Screen name="TermsConditions" component={TermsConditionsScreen} />
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+        <Stack.Screen name="Otp" component={OtpScreen} />
         <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
     </Stack.Navigator>
 );

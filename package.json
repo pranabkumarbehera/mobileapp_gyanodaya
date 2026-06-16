@@ -3,11 +3,14 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "android": "react-native run-android",
+    "android": "adb uninstall com.gyanodaya.newapp && react-native run-android",
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
-    "test": "jest"
+    "test": "jest",
+    "debug-build": "react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res && cd android && ./gradlew assembleDebug && cd..",
+    "release-build": "cd android && ./gradlew clean  && ./gradlew assembleRelease && cd ..",
+    "adb-build": "adb uninstall com.gyanodaya.newapp && cd android && ./gradlew clean  && ./gradlew assembleRelease && cd .."
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",

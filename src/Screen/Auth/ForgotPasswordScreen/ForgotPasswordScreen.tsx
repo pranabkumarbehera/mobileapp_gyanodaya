@@ -11,7 +11,7 @@ import {
     ActivityIndicator,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { forgotPasswordRequest } from '../../../Redux/Reducers/AuthReducer';
+import { forgotPasswordRequest, forgotPasswordSuccess } from '../../../Redux/Reducers/AuthReducer';
 import { RootState } from '../../../Redux/Store';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
@@ -32,8 +32,13 @@ const ForgotPasswordScreen = ({ navigation }: ForgotPasswordScreenProps) => {
     const { isLoading, forgotPasswordResponse } = useSelector((state: RootState) => state.AuthReducer);
 
     useEffect(() => {
+        // Clear previous state on mount
+        dispatch(forgotPasswordSuccess(null));
+    }, [dispatch]);
+
+    useEffect(() => {
         if (forgotPasswordResponse?.success || forgotPasswordResponse?.message) {
-            navigation.navigate('ChangePassword');
+            navigation.navigate('Otp', { email: email.trim() });
         }
     }, [forgotPasswordResponse, navigation]);
 

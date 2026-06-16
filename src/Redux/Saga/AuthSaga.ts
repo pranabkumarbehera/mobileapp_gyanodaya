@@ -19,6 +19,12 @@ import {
     changePasswordRequest,
     changePasswordSuccess,
     changePasswordFailure,
+    verifyOtpRequest,
+    verifyOtpSuccess,
+    verifyOtpFailure,
+    resetPasswordRequest,
+    resetPasswordSuccess,
+    resetPasswordFailure,
 } from '../Reducers/AuthReducer';
 import { getProfileRequest, getProfileSuccess } from '../Reducers/ProfileReducer';
 import { postApi } from '../../Utils/Helpers/ApiRequest';
@@ -192,6 +198,46 @@ export function* logoutSaga(): Generator<any, void, any> {
     }
 }
 
+export function* verifyOtpSaga(action: any): Generator<any, void, any> {
+    const header = {
+        Accept: 'application/json',
+        contenttype: 'application/json',
+    };
+    try {
+        const response = yield call(postApi, 'auth/verify-otp', action.payload, header);
+        if (response?.data?.success === true || response?.status === 200 || response?.status === 201) {
+            yield put(verifyOtpSuccess(response?.data));
+            Toast.show({ type: 'success', text1: response?.data?.message || 'OTP verified successfully' });
+        } else {
+            yield put(verifyOtpFailure(response?.data));
+            Toast.show({ type: 'error', text1: response?.data?.message || 'OTP verification failed' });
+        }
+    } catch (error: any) {
+        yield put(verifyOtpFailure(error));
+        Toast.show({ type: 'error', text1: error?.response?.data?.message || '!Oops something went wrong' });
+    }
+}
+
+export function* resetPasswordSaga(action: any): Generator<any, void, any> {
+    const header = {
+        Accept: 'application/json',
+        contenttype: 'application/json',
+    };
+    try {
+        const response = yield call(postApi, 'auth/reset-password', action.payload, header);
+        if (response?.data?.success === true || response?.status === 200 || response?.status === 201) {
+            yield put(resetPasswordSuccess(response?.data));
+            Toast.show({ type: 'success', text1: response?.data?.message || 'Password reset successfully' });
+        } else {
+            yield put(resetPasswordFailure(response?.data));
+            Toast.show({ type: 'error', text1: response?.data?.message || 'Failed to reset password' });
+        }
+    } catch (error: any) {
+        yield put(resetPasswordFailure(error));
+        Toast.show({ type: 'error', text1: error?.response?.data?.message || '!Oops something went wrong' });
+    }
+}
+
 const AuthSaga = [
     takeLatest(tokenRequest.type, gettokenSaga),
     takeLatest(signupRequest.type, signupSaga),
@@ -199,6 +245,8 @@ const AuthSaga = [
     takeLatest(logoutRequest.type, logoutSaga),
     takeLatest(forgotPasswordRequest.type, forgotPasswordSaga),
     takeLatest(changePasswordRequest.type, changePasswordSaga),
+    takeLatest(verifyOtpRequest.type, verifyOtpSaga),
+    takeLatest(resetPasswordRequest.type, resetPasswordSaga),
 ];
 
 export default AuthSaga;

@@ -9,6 +9,8 @@ const initialState = {
     logoutResponse: null as any,
     forgotPasswordResponse: null as any,
     changePasswordResponse: null as any,
+    verifyOtpResponse: null as any,
+    resetPasswordResponse: null as any,
     error: null as any,
 };
 
@@ -100,6 +102,34 @@ const AuthSlice = createSlice({
             state.error = action.error || action.payload;
             state.isLoading = false;
         },
+        verifyOtpRequest(state, action) {
+            state.status = action.type;
+            state.isLoading = true;
+        },
+        verifyOtpSuccess(state, action) {
+            state.verifyOtpResponse = action.payload;
+            state.status = action.type;
+            state.isLoading = false;
+        },
+        verifyOtpFailure(state, action: any) {
+            state.status = action.type;
+            state.error = action.error || action.payload;
+            state.isLoading = false;
+        },
+        resetPasswordRequest(state, action) {
+            state.status = action.type;
+            state.isLoading = true;
+        },
+        resetPasswordSuccess(state, action) {
+            state.resetPasswordResponse = action.payload;
+            state.status = action.type;
+            state.isLoading = false;
+        },
+        resetPasswordFailure(state, action: any) {
+            state.status = action.type;
+            state.error = action.error || action.payload;
+            state.isLoading = false;
+        },
     }
 });
 
@@ -122,6 +152,12 @@ export const {
     changePasswordRequest,
     changePasswordSuccess,
     changePasswordFailure,
+    verifyOtpRequest,
+    verifyOtpSuccess,
+    verifyOtpFailure,
+    resetPasswordRequest,
+    resetPasswordSuccess,
+    resetPasswordFailure,
 } = AuthSlice.actions;
 
 export default AuthSlice.reducer;
