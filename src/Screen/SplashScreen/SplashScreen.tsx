@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
     logoWrapper: {
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: verticalScale(20),
+        marginBottom: verticalScale(70),
         width: normalize(180),
         height: normalize(180),
     },
