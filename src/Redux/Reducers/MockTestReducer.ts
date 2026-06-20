@@ -121,6 +121,19 @@ const MockTestSlice = createSlice({
             state.error = action.error || action.payload;
             state.isLoading = false;
         },
+        paymentRequest(state, action) {
+            state.status = action.type;
+            state.isLoading = true;
+        },
+        paymentSuccess(state, action) {
+            state.status = action.type;
+            state.isLoading = false;
+        },
+        paymentFailure(state, action: any) {
+            state.status = action.type;
+            state.error = action.error || action.payload;
+            state.isLoading = false;
+        },
         getMockTestDetailsRequest(state, action) {
             state.status = action.type;
             state.isLoading = true;
@@ -224,6 +237,9 @@ export const {
     enrollBundleRequest,
     enrollBundleSuccess,
     enrollBundleFailure,
+    paymentRequest,
+    paymentSuccess,
+    paymentFailure,
     getMockTestDetailsRequest,
     getMockTestDetailsSuccess,
     getMockTestDetailsFailure,

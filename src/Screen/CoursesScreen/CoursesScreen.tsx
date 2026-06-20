@@ -17,6 +17,9 @@ import {
     getStudentModulesRequest,
     getSubBundleDetailsRequest,
     getSubBundleListRequest,
+    paymentRequest,
+    paymentSuccess,
+    paymentFailure,
 } from '../../Redux/Reducers/MockTestReducer';
 import { RootState } from '../../Redux/Store';
 
@@ -1021,10 +1024,15 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     }, [activeBundleId, enrolledBundleIds, subBundleDetails, selectedExam]);
 
     useEffect(() => {
-        if (status === enrollBundleSuccess.type || status === enrollBundleFailure.type) {
+        if (
+            status === enrollBundleSuccess.type ||
+            status === enrollBundleFailure.type ||
+            status === paymentSuccess.type ||
+            status === paymentFailure.type
+        ) {
             setPendingEnrollmentId(null);
             
-            if (status === enrollBundleSuccess.type && activeBundleId) {
+            if ((status === enrollBundleSuccess.type || status === paymentSuccess.type) && activeBundleId) {
                 setEnrolledBundleOverrides(prev => {
                     const next = new Set(prev);
                     next.add(String(activeBundleId));
@@ -1076,7 +1084,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         const matchesModule = selectedModule ? ((bundle?.module && bundle.module === selectedModule) || (bundle?.title || bundle?.name || '').toLowerCase().includes(selectedModule.toLowerCase())) : true;
         return matchesSearch && matchesModule;
     });
-    const isEnrollingBundle = isLoading && status === enrollBundleRequest.type;
+    const isEnrollingBundle = isLoading && (status === enrollBundleRequest.type || status === paymentRequest.type);
     const detailScreen = selectedSubBundleExam || selectedExam;
     const showingSubBundle = Boolean(selectedSubBundleExam);
     const canAttemptMocks = Boolean(detailScreen?.isEnrolled);
@@ -1560,7 +1568,23 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                 return;
             }
             setPendingEnrollmentId(resolvedBundleId);
-            dispatch(enrollBundleRequest({ id: resolvedBundleId }));
+            const originalPrice = Number(normalizedBundle?.price || normalizedBundle?.amount || 0);
+            const discountPrice = Number(normalizedBundle?.discountPrice || 0);
+            const discountPercentage = Number(normalizedBundle?.discountPercentage || 0);
+
+            let finalPrice = originalPrice;
+            if (discountPrice > 0) {
+                finalPrice = discountPrice;
+            } else if (discountPercentage > 0) {
+                finalPrice = originalPrice - (originalPrice * discountPercentage) / 100;
+            }
+            finalPrice = Math.round(finalPrice);
+
+            if (finalPrice > 0) {
+                dispatch(paymentRequest({ id: resolvedBundleId, price: finalPrice }));
+            } else {
+                dispatch(enrollBundleRequest({ id: resolvedBundleId }));
+            }
             return;
         }
 
@@ -2319,6 +2343,35 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                 : 'Choose `View` to open the course details, or `Enroll Now` to unlock attempts.'}
                         </Text>
 
+                        {(() => {
+                            const originalPrice = Number(selectedBundle?.price || 0);
+                            const discountPrice = Number(selectedBundle?.discountPrice || 0);
+                            const discountPercentage = Number(selectedBundle?.discountPercentage || 0);
+
+                            let finalPrice = originalPrice;
+                            if (discountPrice > 0) {
+                                finalPrice = discountPrice;
+                            } else if (discountPercentage > 0) {
+                                finalPrice = originalPrice - (originalPrice * discountPercentage) / 100;
+                            }
+                            finalPrice = Math.round(finalPrice);
+
+                            if (selectedBundle?.isEnrolled || originalPrice === 0) {
+                                return null;
+                            }
+
+                            return (
+                                <View style={styles.modalPriceRow}>
+                                    <Text style={styles.modalPriceText}>
+                                        Price: <Text style={{ textDecorationLine: 'line-through', color: '#9CA3AF' }}>₹{originalPrice}</Text>
+                                        {discountPercentage > 0 ? ` | Discount: ${discountPercentage}%` : ''}
+                                        {` | Final: `}
+                                        <Text style={{ color: '#16A34A', fontWeight: 'bold' }}>₹{finalPrice}</Text>
+                                    </Text>
+                                </View>
+                            );
+                        })()}
+
                         {selectedBundle?.isEnrolled ? (
                             <Pressable
                                 style={styles.modalPrimaryButton}
@@ -2344,7 +2397,23 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                 >
                                     <Feather name="check-circle" size={normalize(16)} color="#FFFFFF" />
                                     <Text style={styles.modalPrimaryButtonText}>
-                                        {pendingEnrollmentId === String(getBundleId(selectedBundle)) ? 'Enrolling...' : 'Enroll Now'}
+                                        {(() => {
+                                            const originalPrice = Number(selectedBundle?.price || 0);
+                                            const discountPrice = Number(selectedBundle?.discountPrice || 0);
+                                            const discountPercentage = Number(selectedBundle?.discountPercentage || 0);
+
+                                            let finalPrice = originalPrice;
+                                            if (discountPrice > 0) {
+                                                finalPrice = discountPrice;
+                                            } else if (discountPercentage > 0) {
+                                                finalPrice = originalPrice - (originalPrice * discountPercentage) / 100;
+                                            }
+                                            finalPrice = Math.round(finalPrice);
+
+                                            return pendingEnrollmentId === String(getBundleId(selectedBundle)) 
+                                                ? (finalPrice > 0 ? 'Processing...' : 'Enrolling...') 
+                                                : (finalPrice > 0 ? `Buy & Enroll (₹${finalPrice})` : 'Enroll');
+                                        })()}
                                     </Text>
                                 </Pressable>
                             </>
@@ -3680,6 +3749,21 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: normalize(14),
         fontWeight: '800',
+    },
+    modalPriceRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginVertical: verticalScale(10),
+        backgroundColor: '#F1F5F9',
+        paddingVertical: verticalScale(6),
+        paddingHorizontal: normalize(12),
+        borderRadius: normalize(8),
+    },
+    modalPriceText: {
+        fontSize: normalize(14),
+        color: '#4B5563',
+        fontWeight: '600',
     },
 });
 

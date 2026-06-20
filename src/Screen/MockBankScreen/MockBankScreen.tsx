@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
@@ -8,7 +8,7 @@ import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../Navigator/StackNav';
 import { useDispatch, useSelector } from 'react-redux';
-import { getMockTestListRequest } from '../../Redux/Reducers/MockTestReducer';
+import { getMockTestListRequest, getStudentModulesRequest } from '../../Redux/Reducers/MockTestReducer';
 import { RootState } from '../../Redux/Store';
 
 type MockBankScreenProps = {
@@ -17,15 +17,39 @@ type MockBankScreenProps = {
 
 const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
     const dispatch = useDispatch();
-    const { mockTestList, isLoading } = useSelector((state: RootState) => state.MockTestReducer);
+    const { mockTestList, studentModules, isLoading } = useSelector((state: RootState) => state.MockTestReducer);
 
     const [activeTab, setActiveTab] = useState('Free Mock');
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [selectedMock, setSelectedMock] = useState<any>(null);
 
+    const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
+    const [selectedSubModuleId, setSelectedSubModuleId] = useState<string | null>(null);
+    const [searchInput, setSearchInput] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+
     useEffect(() => {
-        dispatch(getMockTestListRequest({}));
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchInput);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchInput]);
+
+    useEffect(() => {
+        dispatch(getStudentModulesRequest({}));
     }, [dispatch]);
+
+    useEffect(() => {
+        dispatch(getMockTestListRequest({
+            moduleId: selectedModuleId || '',
+            subModuleId: selectedSubModuleId || '',
+            search: debouncedSearch,
+        }));
+    }, [dispatch, selectedModuleId, selectedSubModuleId, debouncedSearch]);
+
+    const modules = studentModules?.data?.modules || studentModules?.modules || studentModules?.data || (Array.isArray(studentModules) ? studentModules : []);
+    const activeModuleObj = modules.find((m: any) => String(m?.id || m?._id) === String(selectedModuleId));
+    const subModules = activeModuleObj?.subModules || activeModuleObj?.sub_modules || activeModuleObj?.submodules || activeModuleObj?.childModules || activeModuleObj?.children || [];
 
     const fallbackData = [
         { id: 1, title: 'JEE Full Mock 1', subjects: 'Physics, Chemistry, Maths', questions: 90, duration: 180, marking: '+4/-1', type: 'free' },
@@ -89,6 +113,135 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 <Text style={styles.headerTitle}>Test Series</Text>
                 <Text style={styles.sectionSubtitle}>Practice with real exam scenarios.</Text>
+
+                {/* Search Bar */}
+                <View style={styles.searchBarContainer}>
+                    <Icon name="search" size={normalize(18)} color="#9CA3AF" style={styles.searchIcon} />
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder="Search tests..."
+                        placeholderTextColor="#9CA3AF"
+                        value={searchInput}
+                        onChangeText={setSearchInput}
+                    />
+                    {searchInput.length > 0 && (
+                        <Pressable onPress={() => setSearchInput('')}>
+                            <Icon name="x" size={normalize(18)} color="#9CA3AF" />
+                        </Pressable>
+                    )}
+                </View>
+
+                {/* Modules Filter */}
+                {modules.length > 0 && (
+                    <View style={styles.filterSection}>
+                        <Text style={styles.filterLabel}>Modules</Text>
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.horizontalScrollStyle}
+                        >
+                            <Pressable
+                                style={[
+                                    styles.filterPill,
+                                    selectedModuleId === null && styles.filterPillActive,
+                                ]}
+                                onPress={() => {
+                                    setSelectedModuleId(null);
+                                    setSelectedSubModuleId(null);
+                                }}
+                            >
+                                <Text
+                                    style={[
+                                        styles.filterPillText,
+                                        selectedModuleId === null && styles.filterPillTextActive,
+                                    ]}
+                                >
+                                    All Modules
+                                </Text>
+                            </Pressable>
+                            {modules.map((m: any, idx: number) => {
+                                const moduleId = m?.id || m?._id || String(idx);
+                                const moduleName = m?.name || m?.title || `Module ${idx + 1}`;
+                                const isSelected = String(selectedModuleId) === String(moduleId);
+                                return (
+                                    <Pressable
+                                        key={moduleId}
+                                        style={[
+                                            styles.filterPill,
+                                            isSelected && styles.filterPillActive,
+                                        ]}
+                                        onPress={() => {
+                                            setSelectedModuleId(String(moduleId));
+                                            setSelectedSubModuleId(null);
+                                        }}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.filterPillText,
+                                                isSelected && styles.filterPillTextActive,
+                                            ]}
+                                        >
+                                            {moduleName}
+                                        </Text>
+                                    </Pressable>
+                                );
+                            })}
+                        </ScrollView>
+                    </View>
+                )}
+
+                {/* Sub-Modules Filter */}
+                {selectedModuleId !== null && subModules.length > 0 && (
+                    <View style={[styles.filterSection, { marginTop: verticalScale(8) }]}>
+                        <Text style={styles.filterLabel}>Sub Modules</Text>
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.horizontalScrollStyle}
+                        >
+                            <Pressable
+                                style={[
+                                    styles.filterPill,
+                                    selectedSubModuleId === null && styles.filterPillActive,
+                                ]}
+                                onPress={() => setSelectedSubModuleId(null)}
+                            >
+                                <Text
+                                    style={[
+                                        styles.filterPillText,
+                                        selectedSubModuleId === null && styles.filterPillTextActive,
+                                    ]}
+                                >
+                                    All Sub Modules
+                                </Text>
+                            </Pressable>
+                            {subModules.map((sm: any, idx: number) => {
+                                const subModuleId = sm?.id || sm?._id || String(idx);
+                                const subModuleName = sm?.name || sm?.title || `Sub Module ${idx + 1}`;
+                                const isSelected = String(selectedSubModuleId) === String(subModuleId);
+                                return (
+                                    <Pressable
+                                        key={subModuleId}
+                                        style={[
+                                            styles.filterPill,
+                                            isSelected && styles.filterPillActive,
+                                        ]}
+                                        onPress={() => setSelectedSubModuleId(String(subModuleId))}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.filterPillText,
+                                                isSelected && styles.filterPillTextActive,
+                                            ]}
+                                        >
+                                            {subModuleName}
+                                        </Text>
+                                    </Pressable>
+                                );
+                            })}
+                        </ScrollView>
+                    </View>
+                )}
 
                 <View style={styles.tabsContainer}>
                     <Pressable
@@ -222,6 +375,63 @@ const styles = StyleSheet.create({
     priceValue: { fontSize: normalize(20), color: '#111827', fontWeight: 'bold' },
     payButton: { width: '100%', backgroundColor: Colorpath.Primary, paddingVertical: verticalScale(14), borderRadius: normalize(12), alignItems: 'center' },
     payButtonText: { color: '#FFFFFF', fontSize: normalize(15), fontWeight: 'bold' },
+    searchBarContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: normalize(12),
+        paddingHorizontal: normalize(14),
+        height: verticalScale(48),
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        marginBottom: verticalScale(16),
+    },
+    searchIcon: {
+        marginRight: normalize(8),
+    },
+    searchInput: {
+        flex: 1,
+        fontSize: normalize(14),
+        color: '#1F2937',
+        height: '100%',
+        paddingVertical: 0,
+    },
+    filterSection: {
+        marginBottom: verticalScale(12),
+    },
+    filterLabel: {
+        fontSize: normalize(12),
+        fontWeight: 'bold',
+        color: '#6B7280',
+        marginBottom: verticalScale(6),
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    horizontalScrollStyle: {
+        paddingVertical: verticalScale(4),
+        gap: normalize(8),
+    },
+    filterPill: {
+        paddingHorizontal: normalize(14),
+        paddingVertical: verticalScale(8),
+        borderRadius: normalize(20),
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        marginRight: normalize(8),
+    },
+    filterPillActive: {
+        backgroundColor: Colorpath.Primary,
+        borderColor: Colorpath.Primary,
+    },
+    filterPillText: {
+        fontSize: normalize(13),
+        fontWeight: '600',
+        color: '#4B5563',
+    },
+    filterPillTextActive: {
+        color: '#FFFFFF',
+    },
 });
 
 export default MockBankScreen;

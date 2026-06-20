@@ -21,6 +21,9 @@ import {
     enrollBundleRequest,
     enrollBundleSuccess,
     enrollBundleFailure,
+    paymentRequest,
+    paymentSuccess,
+    paymentFailure,
     getMockTestDetailsRequest,
     getMockTestDetailsSuccess,
     getMockTestDetailsFailure,
@@ -36,6 +39,7 @@ import {
 } from '../Reducers/MockTestReducer';
 import { getApi, postApi } from '../../Utils/Helpers/ApiRequest';
 import Toast from 'react-native-toast-message';
+import { Linking } from 'react-native';
 
 const getAuth = (state: any) => state.AuthReducer;
 
@@ -207,6 +211,80 @@ export function* enrollBundleSaga(action: any): Generator<any, void, any> {
     }
 }
 
+export function* paymentSaga(action: any): Generator<any, void, any> {
+    const auth = yield select(getAuth);
+    const header = {
+        Accept: 'application/json',
+        contenttype: 'application/json',
+        authorization: auth.token,
+    };
+    try {
+        const payload = {
+            resourceType: 'QUIZ_BUNDLE',
+            resourceId: action.payload.id,
+            amount: Number(action.payload.price),
+            gateway: 'RAZORPAY',
+            currency: 'INR',
+        };
+        const response = yield call(postApi, 'payments', payload, header);
+        if (response?.data?.success === true || response?.status === 200 || response?.status === 201) {
+            // Helper function to recursively find a URL in the response
+            const findPaymentUrl = (obj: any): string | null => {
+                if (!obj || typeof obj !== 'object') return null;
+                
+                const priorityKeys = ['checkout_url', 'checkoutUrl', 'payment_url', 'paymentUrl', 'paymentLink', 'short_url', 'shortUrl', 'url', 'redirect_url'];
+                for (const key of priorityKeys) {
+                    if (typeof obj[key] === 'string' && (obj[key].startsWith('http://') || obj[key].startsWith('https://'))) {
+                        return obj[key];
+                    }
+                }
+
+                for (const key in obj) {
+                    if (typeof obj[key] === 'string' && (obj[key].startsWith('http://') || obj[key].startsWith('https://'))) {
+                        const val = obj[key];
+                        if (val.includes('/checkout') || val.includes('/payments/') || val.includes('rzp') || val.includes('/pay')) {
+                            return val;
+                        }
+                    }
+                    if (typeof obj[key] === 'object') {
+                        const nested = findPaymentUrl(obj[key]);
+                        if (nested) return nested;
+                    }
+                }
+                return null;
+            };
+
+            const paymentUrl = findPaymentUrl(response?.data);
+
+            if (paymentUrl) {
+                yield put(paymentSuccess(response?.data?.data || response?.data));
+                yield call([Linking, 'openURL'], paymentUrl);
+                Toast.show({ type: 'info', text1: 'Opening Razorpay checkout...' });
+            } else {
+                yield put(paymentSuccess(response?.data?.data || response?.data));
+                
+                const bundleResponse = yield call(getApi, `quizzes/bundles/${action.payload.id}`, header);
+                const bundleDetails = bundleResponse?.data?.data || bundleResponse?.data;
+                const studentModulesResponse = yield call(getApi, 'student/modules', header);
+                const studentModules = studentModulesResponse?.data?.data || studentModulesResponse?.data;
+
+                yield put(enrollBundleSuccess({
+                    ...(response?.data?.data || response?.data || {}),
+                    bundleDetails,
+                    studentModules,
+                }));
+                Toast.show({ type: 'success', text1: response?.data?.message || 'Payment and enrollment successful' });
+            }
+        } else {
+            yield put(paymentFailure(response?.data));
+            Toast.show({ type: 'error', text1: response?.data?.message || 'Failed to complete payment' });
+        }
+    } catch (error: any) {
+        yield put(paymentFailure(error));
+        Toast.show({ type: 'error', text1: error?.response?.data?.message || '!Oops something went wrong' });
+    }
+}
+
 export function* getMockTestDetailsSaga(action: any): Generator<any, void, any> {
     const auth = yield select(getAuth);
     const header = {
@@ -307,6 +385,7 @@ const MockTestSaga = [
     takeLatest(getSubBundleListRequest.type, getSubBundleListSaga),
     takeLatest(getSubBundleDetailsRequest.type, getSubBundleDetailsSaga),
     takeLatest(enrollBundleRequest.type, enrollBundleSaga),
+    takeLatest(paymentRequest.type, paymentSaga),
     takeLatest(getMockTestDetailsRequest.type, getMockTestDetailsSaga),
     takeLatest(startTestRequest.type, startTestSaga),
     takeLatest(submitTestRequest.type, submitTestSaga),
