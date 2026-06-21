@@ -28,69 +28,162 @@ const PrivacyPolicyScreen = ({ navigation }: PrivacyPolicyScreenProps) => {
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
                 <Text style={styles.title}>Privacy Policy</Text>
-                <Text style={styles.updatedText}>Last Updated: June 2026</Text>
+                <Text style={styles.updatedText}>Effective Date: June 17, 2026</Text>
+                
                 <Text style={styles.paragraph}>
-                    GYANODAYA respects your privacy and is committed to protecting your personal information.
+                    Welcome to GYANODAYA, an educational mobile application operated by JANMEJAY PARIDA.
+                </Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(8) }]}>
+                    This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use the GYANODAYA mobile application and related services.
+                </Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(8) }]}>
+                    By downloading, accessing, or using the Application, you agree to the collection and use of information in accordance with this Privacy Policy.
                 </Text>
 
-                <Text style={styles.sectionTitle}>01. Information We Collect</Text>
-                <Text style={styles.paragraph}>We may collect:</Text>
-                <Text style={styles.bullet}>Name</Text>
-                <Text style={styles.bullet}>Email Address</Text>
-                <Text style={styles.bullet}>Mobile Number</Text>
-                <Text style={styles.bullet}>Device Information</Text>
-                <Text style={styles.bullet}>App Usage Data</Text>
-                <Text style={styles.bullet}>Examination Preferences</Text>
+                <Text style={styles.sectionTitle}>1. Information We Collect</Text>
+                
+                <Text style={styles.subSectionTitle}>Personal Information</Text>
+                <Text style={styles.paragraph}>To provide our educational services, we may collect the following information:</Text>
+                <Text style={styles.bullet}>• Full Name</Text>
+                <Text style={styles.bullet}>• Email Address</Text>
+                <Text style={styles.bullet}>• Mobile Number</Text>
+                <Text style={styles.bullet}>• Gender</Text>
+                <Text style={styles.bullet}>• Any information voluntarily provided through forms, feedback, or support requests</Text>
 
-                <Text style={styles.sectionTitle}>02. How We Use Information</Text>
-                <Text style={styles.paragraph}>The collected information may be used to:</Text>
-                <Text style={styles.bullet}>Provide educational services and study materials</Text>
-                <Text style={styles.bullet}>Improve user experience</Text>
-                <Text style={styles.bullet}>Respond to user queries</Text>
-                <Text style={styles.bullet}>Send important notifications and updates</Text>
-                <Text style={styles.bullet}>Analyze application performance</Text>
+                <Text style={styles.subSectionTitle}>Automatically Collected Information</Text>
+                <Text style={styles.paragraph}>When you use the Application, certain information may be collected automatically, including:</Text>
+                <Text style={styles.bullet}>• Device Internet Protocol (IP) Address</Text>
+                <Text style={styles.bullet}>• Device Model and Operating System</Text>
+                <Text style={styles.bullet}>• Application Usage Statistics</Text>
+                <Text style={styles.bullet}>• Pages or Screens Viewed</Text>
+                <Text style={styles.bullet}>• Date and Time of Access</Text>
+                <Text style={styles.bullet}>• Time Spent Using the Application</Text>
+                <Text style={styles.bullet}>• Crash Reports and Diagnostic Data</Text>
 
-                <Text style={styles.sectionTitle}>03. Data Protection</Text>
-                <Text style={styles.paragraph}>
-                    We implement reasonable security measures to protect user information from unauthorized access, alteration, or disclosure.
+                <Text style={styles.sectionTitle}>2. How We Use Your Information</Text>
+                <Text style={styles.paragraph}>The information collected may be used to:</Text>
+                <Text style={styles.bullet}>• Provide and maintain educational services</Text>
+                <Text style={styles.bullet}>• Deliver study materials, mock tests, and learning content</Text>
+                <Text style={styles.bullet}>• Improve application performance and user experience</Text>
+                <Text style={styles.bullet}>• Respond to user inquiries and support requests</Text>
+                <Text style={styles.bullet}>• Monitor usage trends and analytics</Text>
+                <Text style={styles.bullet}>• Send important service-related notifications</Text>
+                <Text style={styles.bullet}>• Comply with legal obligations</Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(8) }]}>
+                    We do not sell users' personal information to third parties.
                 </Text>
 
-                <Text style={styles.sectionTitle}>04. Third-Party Services</Text>
-                <Text style={styles.paragraph}>The application may use third-party services such as:</Text>
-                <Text style={styles.bullet}>Firebase</Text>
+                <Text style={styles.sectionTitle}>3. Cookies and Tracking Technologies</Text>
                 <Text style={styles.paragraph}>
-                    These services may collect information according to their respective privacy policies.
+                    The Application or its third-party service providers may use cookies, SDKs, analytics tools, and similar technologies to:
+                </Text>
+                <Text style={styles.bullet}>• Improve functionality</Text>
+                <Text style={styles.bullet}>• Analyze application performance</Text>
+                <Text style={styles.bullet}>• Enhance user experience</Text>
+                <Text style={styles.bullet}>• Maintain security and reliability</Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(8) }]}>
+                    Where required by applicable laws, user consent will be obtained before using non-essential tracking technologies.
                 </Text>
 
-                <Text style={styles.sectionTitle}>05. Cookies and Analytics</Text>
+                <Text style={styles.sectionTitle}>4. Third-Party Services</Text>
                 <Text style={styles.paragraph}>
-                    We may use cookies or similar technologies to enhance user experience and analyze application usage.
+                    The Application may use trusted third-party services to support functionality and analytics.
+                </Text>
+                <Text style={styles.paragraph}>Current third-party services may include:</Text>
+                <Text style={styles.bullet}>1. Google Play Services</Text>
+                <Text style={styles.bullet}>2. Razorpay</Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(8) }]}>
+                    These third-party providers may collect and process information according to their own privacy policies.
                 </Text>
 
-                <Text style={styles.sectionTitle}>06. Children&apos;s Privacy</Text>
-                <Text style={styles.paragraph}>
-                    GYANODAYA does not knowingly collect personal information from children under 13 years of age without parental consent.
+                <Text style={styles.sectionTitle}>5. Sharing of Information</Text>
+                <Text style={styles.paragraph}>We may disclose information only in the following circumstances:</Text>
+                <Text style={styles.bullet}>• To comply with legal obligations or lawful requests</Text>
+                <Text style={styles.bullet}>• To protect our rights, users, or public safety</Text>
+                <Text style={styles.bullet}>• To prevent fraud, abuse, or security threats</Text>
+                <Text style={styles.bullet}>• To trusted service providers working on our behalf</Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(8) }]}>
+                    All authorized service providers are required to maintain appropriate confidentiality and security measures.
                 </Text>
 
-                <Text style={styles.sectionTitle}>07. Data Sharing</Text>
+                <Text style={styles.sectionTitle}>6. International Data Transfers</Text>
                 <Text style={styles.paragraph}>
-                    We do not sell, rent, or trade users&apos; personal information to third parties except where required by law.
+                    Your information may be processed or stored on servers located outside your country of residence.
+                </Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(8) }]}>
+                    Where required by law, appropriate safeguards will be implemented to protect personal information during international data transfers.
                 </Text>
 
-                <Text style={styles.sectionTitle}>08. User Rights</Text>
+                <Text style={styles.sectionTitle}>7. Your Privacy Rights</Text>
+                <Text style={styles.paragraph}>You may have the right to:</Text>
+                <Text style={styles.bullet}>• Access your personal information</Text>
+                <Text style={styles.bullet}>• Correct inaccurate information</Text>
+                <Text style={styles.bullet}>• Request deletion of personal information</Text>
+                <Text style={styles.bullet}>• Withdraw consent where applicable</Text>
+                <Text style={styles.bullet}>• Object to certain processing activities</Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(8) }]}>
+                    To exercise these rights, contact us at:
+                </Text>
+                <Text style={styles.contactLine}>Email: gyanodaya43@gmail.com</Text>
+
+                <Text style={styles.sectionTitle}>8. Data Retention</Text>
                 <Text style={styles.paragraph}>
-                    Users may request correction, update, or deletion of their personal information by contacting us.
+                    We retain information only as long as necessary to provide services and comply with legal requirements.
+                </Text>
+                <Text style={styles.bullet}>• User Account Information: Retained while your account remains active.</Text>
+                <Text style={styles.bullet}>• Application Usage Data: Retained for up to 24 months.</Text>
+                <Text style={styles.bullet}>• Legal Compliance Data: Retained as required by applicable law.</Text>
+                <Text style={styles.bullet}>• Anonymous or Aggregated Data: May be retained indefinitely.</Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(8) }]}>
+                    You may request deletion of your personal information by contacting us.
                 </Text>
 
-                <Text style={styles.sectionTitle}>09. Changes to Privacy Policy</Text>
+                <Text style={styles.sectionTitle}>9. Children's Privacy</Text>
                 <Text style={styles.paragraph}>
-                    We reserve the right to update this Privacy Policy at any time. Updated versions will be posted within the application.
+                    GYANODAYA is intended for students and learners. However, we do not knowingly collect personal information from children under the age required by applicable law without appropriate parental consent.
+                </Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(8) }]}>
+                    If you believe that a child has provided personal information without proper authorization, please contact us immediately so that we can take appropriate action.
                 </Text>
 
-                <Text style={styles.sectionTitle}>10. Contact Information</Text>
+                <Text style={styles.sectionTitle}>10. Security</Text>
                 <Text style={styles.paragraph}>
-                    If you have any questions regarding this Privacy Policy, please contact us through the contact details provided in the application.
+                    We implement reasonable administrative, technical, and organizational safeguards to protect your information against unauthorized access, disclosure, alteration, or destruction.
                 </Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(8) }]}>
+                    While we strive to protect your information, no method of electronic storage or transmission is completely secure.
+                </Text>
+
+                <Text style={styles.sectionTitle}>11. Data Breach Notification</Text>
+                <Text style={styles.paragraph}>
+                    In the event of a data breach affecting personal information, we will notify affected users and relevant authorities as required by applicable law.
+                </Text>
+
+                <Text style={styles.sectionTitle}>12. Changes to This Privacy Policy</Text>
+                <Text style={styles.paragraph}>
+                    We may update this Privacy Policy from time to time.
+                </Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(8) }]}>
+                    Any changes will be posted within the Application and on our official privacy policy page. The updated policy will become effective upon publication.
+                </Text>
+
+                <Text style={styles.sectionTitle}>13. Your Consent</Text>
+                <Text style={styles.paragraph}>
+                    By using the Application, you consent to the collection, use, and disclosure of information as described in this Privacy Policy.
+                </Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(8) }]}>
+                    You may withdraw consent at any time by contacting us, subject to legal and operational requirements.
+                </Text>
+
+                <Text style={styles.sectionTitle}>14. Contact Us</Text>
+                <Text style={styles.paragraph}>
+                    If you have any questions regarding this Privacy Policy or our privacy practices, please contact:
+                </Text>
+                <View style={styles.contactContainer}>
+                    <Text style={styles.contactName}>JANMEJAY PARIDA</Text>
+                    <Text style={styles.contactLine}>GYANODAYA Educational Application</Text>
+                    <Text style={styles.contactLine}>Email: gyanodaya43@gmail.com</Text>
+                </View>
             </ScrollView>
         </View>
     );
@@ -127,6 +220,13 @@ const styles = StyleSheet.create({
         marginTop: verticalScale(18),
         marginBottom: verticalScale(8),
     },
+    subSectionTitle: {
+        fontSize: normalize(14),
+        fontWeight: '700',
+        color: '#374151',
+        marginTop: verticalScale(12),
+        marginBottom: verticalScale(4),
+    },
     paragraph: {
         fontSize: normalize(14),
         color: '#4B5563',
@@ -136,7 +236,20 @@ const styles = StyleSheet.create({
         fontSize: normalize(14),
         color: '#4B5563',
         lineHeight: normalize(22),
-        marginLeft: normalize(6),
+        marginLeft: normalize(12),
+        marginTop: verticalScale(2),
+    },
+    contactContainer: {
+        marginTop: verticalScale(8),
+        padding: normalize(12),
+        backgroundColor: '#F3F4F6',
+        borderRadius: normalize(8),
+    },
+    contactName: {
+        fontSize: normalize(14),
+        fontWeight: '700',
+        color: '#111827',
+        marginBottom: verticalScale(2),
     },
     contactLine: {
         fontSize: normalize(14),

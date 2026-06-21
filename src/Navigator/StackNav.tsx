@@ -23,6 +23,7 @@ import TeacherProfileScreen from '../Screen/TeacherProfileScreen/TeacherProfileS
 import CoursesScreen from '../Screen/CoursesScreen/CoursesScreen';
 import MockResultScreen from '../Screen/MockResultScreen/MockResultScreen';
 import AboutUsScreen from '../Screen/AboutUsScreen/AboutUsScreen';
+import CoursesPaymentHistoryScreen from '../Screen/CoursesPaymentHistoryScreen/CoursesPaymentHistoryScreen';
 import { bootstrapHomeRequest } from '../Redux/Reducers/HomeReducer';
 import Colorpath from '../Themes/Colorpath';
 
@@ -42,6 +43,7 @@ export type RootStackParamList = {
     MockTestQuestion: { testId?: string | number; duration?: string | number; acceptedTerms?: boolean };
     AboutUs: undefined;
     Profile: undefined;
+    CoursesPaymentHistory: undefined;
     TeacherProfile: { teacher: { name: string, subject: string, rating: string, experience: string, designation: string } };
     MockResult: {
         attemptId?: string | number;
@@ -79,6 +81,7 @@ const AppStack = () => (
         <Stack.Screen name="TeacherProfile" component={TeacherProfileScreen} />
         <Stack.Screen name="MockResult" component={MockResultScreen} />
         <Stack.Screen name="AboutUs" component={AboutUsScreen} />
+        <Stack.Screen name="CoursesPaymentHistory" component={CoursesPaymentHistoryScreen} />
     </Stack.Navigator>
 );
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
@@ -10,6 +10,9 @@ import { RootStackParamList } from '../../Navigator/StackNav';
 import { useDispatch, useSelector } from 'react-redux';
 import { getMockTestListRequest, getStudentModulesRequest } from '../../Redux/Reducers/MockTestReducer';
 import { RootState } from '../../Redux/Store';
+import { paymentHistoryRequest } from '../../Redux/Reducers/ProfileReducer';
+import { useIsFocused } from '@react-navigation/native';
+import Toast from 'react-native-toast-message';
 
 type MockBankScreenProps = {
     navigation: any;
@@ -17,7 +20,9 @@ type MockBankScreenProps = {
 
 const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
     const dispatch = useDispatch();
+    const isFocused = useIsFocused();
     const { mockTestList, studentModules, isLoading } = useSelector((state: RootState) => state.MockTestReducer);
+    const { paymentHistoryData, paymentHistoryLoading } = useSelector((state: RootState) => state.ProfileReducer);
 
     const [activeTab, setActiveTab] = useState('Free Mock');
     const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -36,8 +41,11 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
     }, [searchInput]);
 
     useEffect(() => {
-        dispatch(getStudentModulesRequest({}));
-    }, [dispatch]);
+        if (isFocused) {
+            dispatch(getStudentModulesRequest({}));
+            dispatch(paymentHistoryRequest({ page: 1, limit: 100 }));
+        }
+    }, [dispatch, isFocused]);
 
     useEffect(() => {
         dispatch(getMockTestListRequest({
@@ -47,7 +55,66 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
         }));
     }, [dispatch, selectedModuleId, selectedSubModuleId, debouncedSearch]);
 
-    const modules = studentModules?.data?.modules || studentModules?.modules || studentModules?.data || (Array.isArray(studentModules) ? studentModules : []);
+    const { enrolledBundleIds, failedPendingBundleIds } = useMemo(() => {
+        const collectedIds = studentModules?.data?.modules || studentModules?.modules || studentModules?.data || (Array.isArray(studentModules) ? studentModules : []);
+        const paymentsList = paymentHistoryData?.data?.items || paymentHistoryData?.items || [];
+        const failedPending = new Set<string>();
+
+        const collectedBundleIds = collectedIds.map((item: any) => {
+            const bundleId = item?.bundleId || item?.bundle?.id || item?.bundle?._id || item?.id || item?._id;
+            return String(bundleId || '');
+        }).filter(Boolean);
+
+        if (Array.isArray(paymentsList) && paymentsList.length > 0) {
+            const paymentStatusMap = new Map<string, boolean>();
+            paymentsList.forEach((item: any) => {
+                const bundleId = String(item?.resourceId || item?.course?._id || item?.course?.id || item?.course || '');
+                if (bundleId) {
+                    const status = String(item?.status || '').toLowerCase();
+                    const isSuccess = status === 'captured' || status === 'success' || status === 'paid' || status === 'completed';
+                    if (isSuccess || !paymentStatusMap.has(bundleId)) {
+                        paymentStatusMap.set(bundleId, isSuccess);
+                    }
+                }
+            });
+
+            paymentStatusMap.forEach((isSuccess, bundleId) => {
+                if (!isSuccess) {
+                    failedPending.add(bundleId);
+                }
+            });
+
+            const filteredIds = collectedBundleIds.filter((id: string) => {
+                if (paymentStatusMap.has(id)) {
+                    return paymentStatusMap.get(id);
+                }
+                return true;
+            });
+
+            paymentStatusMap.forEach((isSuccess, bundleId) => {
+                if (isSuccess && !filteredIds.includes(bundleId)) {
+                    filteredIds.push(bundleId);
+                }
+            });
+
+            return {
+                enrolledBundleIds: Array.from(new Set(filteredIds)),
+                failedPendingBundleIds: failedPending,
+            };
+        }
+
+        return {
+            enrolledBundleIds: Array.from(new Set(collectedBundleIds)),
+            failedPendingBundleIds: failedPending,
+        };
+    }, [studentModules, paymentHistoryData]);
+
+    const rawModules = studentModules?.data?.modules || studentModules?.modules || studentModules?.data || (Array.isArray(studentModules) ? studentModules : []);
+    const modules = rawModules.filter((m: any) => {
+        const id = String(m?.id || m?._id || '');
+        return enrolledBundleIds.includes(id);
+    });
+
     const activeModuleObj = modules.find((m: any) => String(m?.id || m?._id) === String(selectedModuleId));
     const subModules = activeModuleObj?.subModules || activeModuleObj?.sub_modules || activeModuleObj?.submodules || activeModuleObj?.childModules || activeModuleObj?.children || [];
 
@@ -76,7 +143,11 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
             markingStr += `/0`;
         }
 
-        const price = Number(mock?.price || 0);
+        const price = Number(mock?.price || mock?.quiz?.price || 0);
+        
+        // Find if this mock test belongs to any module that is enrolled
+        const mockModuleId = String(mock?.moduleId || mock?.quiz?.moduleId || mock?.bundleId || mock?.quiz?.bundleId || mock?.module?._id || mock?.module?.id || selectedModuleId || '');
+        const isUnlocked = mockModuleId ? enrolledBundleIds.includes(mockModuleId) : false;
 
         return {
             id: mock.id || mock._id || mock.testId,
@@ -86,18 +157,14 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
             duration: mock.durationMinutes || mock.duration || mock?.quiz?.durationMinutes || mock?.quiz?.duration || 60,
             marking: markingStr,
             type: price > 0 ? 'premium' : 'free',
+            isUnlocked: isUnlocked,
             price: price,
             originalData: mock
         };
     }).filter((mock: any) => activeTab === 'Free Mock' ? mock.type === 'free' : mock.type === 'premium');
 
     const handleStartTest = (mock: any) => {
-        if (mock.type === 'premium') {
-            setSelectedMock(mock);
-            setShowPaymentModal(true);
-        } else {
-            navigation.navigate('MockTestRules', { testId: mock.id });
-        }
+        navigation.navigate('MockTestRules', { testId: mock.id });
     };
 
     return (
@@ -251,10 +318,10 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
                         <Text style={[styles.tabText, activeTab === 'Free Mock' && styles.activeTabText]}>Free Mock</Text>
                     </Pressable>
                     <Pressable
-                        style={[styles.tab, activeTab === 'Premium Mock' && styles.activeTab]}
-                        onPress={() => setActiveTab('Premium Mock')}
+                        style={[styles.tab, activeTab === 'Purchased Mock' && styles.activeTab]}
+                        onPress={() => setActiveTab('Purchased Mock')}
                     >
-                        <Text style={[styles.tabText, activeTab === 'Premium Mock' && styles.activeTabText]}>Premium Mock</Text>
+                        <Text style={[styles.tabText, activeTab === 'Purchased Mock' && styles.activeTabText]}>Purchased Mock</Text>
                     </Pressable>
                 </View>
 
@@ -271,9 +338,9 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
                         <View style={styles.cardTopRow}>
                             <Text style={styles.testTitle}>{mock.title}</Text>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: normalize(8) }}>
-                                {mock.price > 0 ? (
+                                {mock.type === 'premium' ? (
                                     <View style={[styles.markingBadge, { backgroundColor: '#DCFCE7' }]}>
-                                        <Text style={[styles.markingText, { color: '#16A34A' }]}>₹{mock.price}</Text>
+                                        <Text style={[styles.markingText, { color: '#16A34A' }]}>Purchased</Text>
                                     </View>
                                 ) : (
                                     <View style={[styles.markingBadge, { backgroundColor: '#FEF3C7' }]}>
@@ -300,10 +367,10 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
                         </View>
 
                         <Pressable
-                            style={[styles.startButton, mock.type === 'premium' && { backgroundColor: '#F59E0B' }]}
+                            style={[styles.startButton, mock.type === 'premium' && { backgroundColor: '#16A34A' }]}
                             onPress={() => handleStartTest(mock)}
                         >
-                            <Text style={styles.startButtonText}>{mock.type === 'premium' ? 'Unlock Test' : 'Start Test'}</Text>
+                            <Text style={styles.startButtonText}>Start Test</Text>
                         </Pressable>
                     </View>
                 ))}

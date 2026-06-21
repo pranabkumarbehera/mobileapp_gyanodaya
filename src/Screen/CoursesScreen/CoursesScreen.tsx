@@ -7,6 +7,8 @@ import Colorpath from '../../Themes/Colorpath';
 import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
 import { getApi } from '../../Utils/Helpers/ApiRequest';
 import { useDispatch, useSelector } from 'react-redux';
+import { useIsFocused } from '@react-navigation/native';
+import Toast from 'react-native-toast-message';
 import {
     bundleIDRequest,
     clearBundleFlowState,
@@ -22,6 +24,7 @@ import {
     paymentFailure,
 } from '../../Redux/Reducers/MockTestReducer';
 import { RootState } from '../../Redux/Store';
+import { paymentHistoryRequest } from '../../Redux/Reducers/ProfileReducer';
 
 type CoursesScreenProps = {
     navigation: any;
@@ -896,7 +899,7 @@ const buildSelectedExam = (bundle: any, forceEnrolled = false) => {
             ...buildPatternFromBundle(normalizedBundle, examMeta.pattern),
         },
         quizGroups: buildQuizGroups(normalizedBundle),
-        isEnrolled: Boolean(normalizedBundle?.isEnrolled) || forceEnrolled,
+        isEnrolled: forceEnrolled,
         rawBundle: normalizedBundle,
     };
 };
@@ -933,6 +936,7 @@ const collectEnrolledBundleIds = (studentModules: any) => {
 
 const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     const dispatch = useDispatch();
+    const isFocused = useIsFocused();
     const {
         bundleList,
         studentModules,
@@ -976,24 +980,91 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     const [selectedVideoBankTitle, setSelectedVideoBankTitle] = useState('');
     const [selectedVideoBankItems, setSelectedVideoBankItems] = useState<any[]>([]);
     const authToken = useSelector((state: RootState) => state.AuthReducer.token);
+    const { paymentHistoryData, paymentHistoryLoading } = useSelector((state: RootState) => state.ProfileReducer);
 
     const bundleItems = useMemo(() => getBundleItems(bundleList), [bundleList]);
     const subBundleItems = useMemo(() => getSubBundleItems(subBundleList), [subBundleList]);
-    const enrolledBundleIds = useMemo(
-        () => Array.from(new Set(collectEnrolledBundleIds(studentModules))),
-        [studentModules],
-    );
+    const { enrolledBundleIds, failedPendingBundleIds } = useMemo(() => {
+        const collectedIds = collectEnrolledBundleIds(studentModules);
+        const paymentsList = paymentHistoryData?.data?.items || paymentHistoryData?.items || [];
+        const failedPending = new Set<string>();
+        
+        if (Array.isArray(paymentsList) && paymentsList.length > 0) {
+            const paymentStatusMap = new Map<string, boolean>();
+            paymentsList.forEach((item: any) => {
+                const bundleId = String(item?.resourceId || item?.course?._id || item?.course?.id || item?.course || '');
+                if (bundleId) {
+                    const status = String(item?.status || '').toLowerCase();
+                    const isSuccess = status === 'captured' || status === 'success' || status === 'paid' || status === 'completed';
+                    if (isSuccess || !paymentStatusMap.has(bundleId)) {
+                        paymentStatusMap.set(bundleId, isSuccess);
+                    }
+                }
+            });
+
+            paymentStatusMap.forEach((isSuccess, bundleId) => {
+                if (!isSuccess) {
+                    failedPending.add(bundleId);
+                }
+            });
+
+            const filteredIds = collectedIds.filter((id: string) => {
+                const strId = String(id);
+                if (paymentStatusMap.has(strId)) {
+                    return paymentStatusMap.get(strId);
+                }
+                return true;
+            });
+
+            paymentStatusMap.forEach((isSuccess, bundleId) => {
+                if (isSuccess && !filteredIds.includes(bundleId)) {
+                    filteredIds.push(bundleId);
+                }
+            });
+
+            return {
+                enrolledBundleIds: Array.from(new Set(filteredIds)),
+                failedPendingBundleIds: failedPending,
+            };
+        }
+
+        return {
+            enrolledBundleIds: Array.from(new Set(collectedIds)),
+            failedPendingBundleIds: failedPending,
+        };
+    }, [studentModules, paymentHistoryData]);
     useEffect(() => {
         dispatch(getBundleListRequest({ limit: 50, page: 1, ...(selectedModule ? { module: selectedModule } : {}) }));
     }, [dispatch, selectedModule]);
 
     useEffect(() => {
-        dispatch(getStudentModulesRequest({}));
+        if (isFocused) {
+            dispatch(getStudentModulesRequest({}));
+            dispatch(paymentHistoryRequest({ page: 1, limit: 100 }));
+        }
+    }, [dispatch, isFocused]);
 
+    useEffect(() => {
         return () => {
             dispatch(clearBundleFlowState());
         };
     }, [dispatch]);
+
+    useEffect(() => {
+        if (selectedBundle) {
+            const bundleId = getBundleId(selectedBundle);
+            if (bundleId) {
+                const strId = String(bundleId);
+                const hasAccess =
+                    !failedPendingBundleIds.has(strId) &&
+                    (enrolledBundleIds.includes(strId) || enrolledBundleOverrides.has(strId));
+                
+                if (selectedBundle.isEnrolled !== hasAccess) {
+                    setSelectedBundle((prev: any) => prev ? { ...prev, isEnrolled: hasAccess } : null);
+                }
+            }
+        }
+    }, [enrolledBundleIds, failedPendingBundleIds, enrolledBundleOverrides, selectedBundle]);
 
     useEffect(() => {
         if (!bundleDetails) {
@@ -1002,26 +1073,32 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
         const resolvedBundleId = String(getBundleId(bundleDetails) || activeBundleId || '');
         const isEnrolled =
-            Boolean(bundleDetails?.isEnrolled) ||
+            !failedPendingBundleIds.has(resolvedBundleId) &&
+            (Boolean(bundleDetails?.isEnrolled) ||
             (resolvedBundleId ? enrolledBundleIds.includes(resolvedBundleId) : false) ||
             enrolledBundleOverrides.has(resolvedBundleId) ||
-            Boolean(selectedBundle?.isEnrolled);
+            Boolean(selectedBundle?.isEnrolled));
 
         setSelectedExam(buildSelectedExam(bundleDetails, isEnrolled));
         if (resolvedBundleId) {
             setActiveBundleId(resolvedBundleId);
             dispatch(getSubBundleListRequest({ bundleId: resolvedBundleId }));
         }
-    }, [activeBundleId, bundleDetails, dispatch, enrolledBundleIds, enrolledBundleOverrides, selectedBundle]);
+    }, [activeBundleId, bundleDetails, dispatch, enrolledBundleIds, enrolledBundleOverrides, selectedBundle, failedPendingBundleIds]);
 
     useEffect(() => {
         if (!subBundleDetails) {
             return;
         }
 
-        const isEnrolled = Boolean(subBundleDetails?.isEnrolled) || Boolean(selectedExam?.isEnrolled) || (activeBundleId ? enrolledBundleIds.includes(activeBundleId) : false);
+        const parentBundleId = activeBundleId ? String(activeBundleId) : '';
+        const isEnrolled =
+            !failedPendingBundleIds.has(parentBundleId) &&
+            (Boolean(subBundleDetails?.isEnrolled) ||
+            Boolean(selectedExam?.isEnrolled) ||
+            (parentBundleId ? enrolledBundleIds.includes(parentBundleId) : false));
         setSelectedSubBundleExam(buildSelectedExam(subBundleDetails, isEnrolled));
-    }, [activeBundleId, enrolledBundleIds, subBundleDetails, selectedExam]);
+    }, [activeBundleId, enrolledBundleIds, subBundleDetails, selectedExam, failedPendingBundleIds]);
 
     useEffect(() => {
         if (
@@ -1033,6 +1110,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
             setPendingEnrollmentId(null);
             
             if ((status === enrollBundleSuccess.type || status === paymentSuccess.type) && activeBundleId) {
+                dispatch(paymentHistoryRequest({ page: 1, limit: 100 }));
                 setEnrolledBundleOverrides(prev => {
                     const next = new Set(prev);
                     next.add(String(activeBundleId));
@@ -1043,7 +1121,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                 }
             }
         }
-    }, [status, activeBundleId, selectedBundle]);
+    }, [status, activeBundleId, selectedBundle, dispatch]);
 
     const openExternalVideoUrl = useCallback(async (rawUrl: string) => {
         if (!rawUrl) {
@@ -1178,6 +1256,11 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
             return;
         }
 
+        if (paymentHistoryLoading) {
+            Toast.show({ type: 'info', text1: 'Verifying payment status, please wait...' });
+            return;
+        }
+
         navigation.navigate('MockTestRules', {
             testId: quizId,
             testData: quiz?.rawQuiz || quiz,
@@ -1288,6 +1371,16 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     }, [authToken, openExternalVideoUrl]);
 
     const handleOpenCourseItem = useCallback((sectionKey: string, item: any) => {
+        if (paymentHistoryLoading) {
+            Toast.show({ type: 'info', text1: 'Verifying payment status, please wait...' });
+            return;
+        }
+
+        if (!detailScreen?.isEnrolled) {
+            Toast.show({ type: 'error', text1: 'Please enroll in this course to access study materials' });
+            return;
+        }
+
         if (sectionKey === 'note') {
             handleOpenNoteBank(item);
             return;
@@ -1301,7 +1394,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         if (sectionKey === 'video') {
             handleOpenVideoBank(item);
         }
-    }, [handleOpenNoteBank, handleOpenQuestionBank, handleOpenVideoBank]);
+    }, [handleOpenNoteBank, handleOpenQuestionBank, handleOpenVideoBank, paymentHistoryLoading, detailScreen?.isEnrolled]);
 
     const renderMockSetCards = () => {
         if (!showingSubBundle && subBundleItems.length > 0) {
@@ -1314,7 +1407,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
                             return (
                                 <Pressable
-                                    key={normalizedSubBundle?.id || normalizedSubBundle?._id || normalizedSubBundle?.bundleId || index}
+                                    key={String(getBundleId(normalizedSubBundle) || index)}
                                     style={styles.quizCard}
                                     onPress={() => handleSubBundlePress(normalizedSubBundle)}
                                 >
@@ -1353,15 +1446,15 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
                     <View style={styles.subjectList}>
                         {detailScreen.quizGroups?.map((group: any, groupIndex: number) => (
-                            <View key={`${group.title}-${groupIndex}`} style={styles.quizSection}>
+                            <View key={`${group.title || 'group'}-${groupIndex}`} style={styles.quizSection}>
                                 <View style={styles.topicRow}>
                                     <View style={styles.topicDot} />
                                     <Text style={styles.topicTitle}>{group.title}</Text>
                                 </View>
 
                                 <View style={styles.quizCardsWrap}>
-                                    {group.quizzes.map((quiz: any) => (
-                                        <View key={quiz.id} style={styles.quizCard}>
+                                    {group.quizzes.map((quiz: any, quizIndex: number) => (
+                                        <View key={String(quiz.id || quizIndex)} style={styles.quizCard}>
                                             <View style={styles.quizBadge}>
                                                 <Text style={styles.quizBadgeText}>MOCK</Text>
                                             </View>
@@ -1540,77 +1633,84 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     );
 
     const openBundleDetails = (bundle: any, mode: 'view' | 'enroll') => {
-        const normalizedBundle = getBundlePayload(bundle);
-        const bundleId = getBundleId(normalizedBundle);
-        const resolvedBundleId = bundleId ? String(bundleId) : null;
-
-        if (!resolvedBundleId) {
-            return;
-        }
-
-        const alreadyEnrolled =
-            Boolean(normalizedBundle?.isEnrolled) ||
-            enrolledBundleIds.includes(resolvedBundleId) ||
-            enrolledBundleOverrides.has(resolvedBundleId);
-
-        setShowBundleActionModal(false);
-        setSelectedSubBundleExam(null);
-        setActiveSubBundleId(null);
-        setActiveBundleId(resolvedBundleId);
-
-        if (alreadyEnrolled) {
-            dispatch(bundleIDRequest({ id: resolvedBundleId }));
-            return;
-        }
-
-        if (mode === 'enroll') {
-            if (pendingEnrollmentId === resolvedBundleId) {
-                return;
-            }
-            setPendingEnrollmentId(resolvedBundleId);
-            const originalPrice = Number(normalizedBundle?.price || normalizedBundle?.amount || 0);
-            const discountPrice = Number(normalizedBundle?.discountPrice || 0);
-            const discountPercentage = Number(normalizedBundle?.discountPercentage || 0);
-
-            let finalPrice = originalPrice;
-            if (discountPrice > 0) {
-                finalPrice = discountPrice;
-            } else if (discountPercentage > 0) {
-                finalPrice = originalPrice - (originalPrice * discountPercentage) / 100;
-            }
-            finalPrice = Math.round(finalPrice);
-
-            if (finalPrice > 0) {
-                dispatch(paymentRequest({ id: resolvedBundleId, price: finalPrice }));
-            } else {
-                dispatch(enrollBundleRequest({ id: resolvedBundleId }));
-            }
-            return;
-        }
-
-        dispatch(bundleIDRequest({ id: resolvedBundleId }));
-    };
-
-    const handleBundlePress = (bundle: any) => {
-        const normalizedBundle = getBundlePayload(bundle);
-        const bundleId = getBundleId(normalizedBundle);
-        const hasEnrolledAccess =
-            Boolean(normalizedBundle?.isEnrolled) ||
-            (bundleId ? enrolledBundleIds.includes(String(bundleId)) : false) ||
-            (bundleId ? enrolledBundleOverrides.has(String(bundleId)) : false);
-
-        setSelectedBundle({
-            ...normalizedBundle,
-            isEnrolled: hasEnrolledAccess,
-        });
-        setShowBundleActionModal(true);
-    };
+                                        const normalizedBundle = getBundlePayload(bundle);
+                                        const bundleId = getBundleId(normalizedBundle);
+                                        const resolvedBundleId = bundleId ? String(bundleId) : null;
+                                
+                                        if (!resolvedBundleId) {
+                                            return;
+                                        }
+                                
+                                        const alreadyEnrolled =
+                                            !failedPendingBundleIds.has(resolvedBundleId) &&
+                                            (Boolean(normalizedBundle?.isEnrolled) ||
+                                            enrolledBundleIds.includes(resolvedBundleId) ||
+                                            enrolledBundleOverrides.has(resolvedBundleId));
+                                
+                                        setShowBundleActionModal(false);
+                                        setSelectedSubBundleExam(null);
+                                        setActiveSubBundleId(null);
+                                        setActiveBundleId(resolvedBundleId);
+                                
+                                        if (alreadyEnrolled) {
+                                            dispatch(bundleIDRequest({ id: resolvedBundleId }));
+                                            return;
+                                        }
+                                
+                                        if (mode === 'enroll') {
+                                            if (pendingEnrollmentId === resolvedBundleId) {
+                                                return;
+                                            }
+                                            setPendingEnrollmentId(resolvedBundleId);
+                                            const originalPrice = Number(normalizedBundle?.price || normalizedBundle?.amount || 0);
+                                            const discountPrice = Number(normalizedBundle?.discountPrice || 0);
+                                            const discountPercentage = Number(normalizedBundle?.discountPercentage || 0);
+                                
+                                            let finalPrice = originalPrice;
+                                            if (discountPrice > 0) {
+                                                finalPrice = discountPrice;
+                                            } else if (discountPercentage > 0) {
+                                                finalPrice = originalPrice - (originalPrice * discountPercentage) / 100;
+                                            }
+                                            finalPrice = Math.round(finalPrice);
+                                
+                                            if (finalPrice > 0) {
+                                                dispatch(paymentRequest({ id: resolvedBundleId, price: finalPrice }));
+                                            } else {
+                                                dispatch(enrollBundleRequest({ id: resolvedBundleId }));
+                                            }
+                                            return;
+                                        }
+                                
+                                        dispatch(bundleIDRequest({ id: resolvedBundleId }));
+                                    };
+                                
+                                    const handleBundlePress = (bundle: any) => {
+                                        const normalizedBundle = getBundlePayload(bundle);
+                                        const bundleId = getBundleId(normalizedBundle);
+                                        const hasEnrolledAccess =
+                                            !failedPendingBundleIds.has(String(bundleId)) &&
+                                            (Boolean(normalizedBundle?.isEnrolled) ||
+                                            (bundleId ? enrolledBundleIds.includes(String(bundleId)) : false) ||
+                                            (bundleId ? enrolledBundleOverrides.has(String(bundleId)) : false));
+                                
+                                        setSelectedBundle({
+                                            ...normalizedBundle,
+                                            isEnrolled: hasEnrolledAccess,
+                                        });
+                                        setShowBundleActionModal(true);
+                                    };
 
     const handleSubBundlePress = (subBundle: any) => {
         const normalizedSubBundle = getBundlePayload(subBundle);
         const subBundleId = getBundleId(normalizedSubBundle);
 
         if (!activeBundleId || !subBundleId) {
+            return;
+        }
+
+        if (paymentHistoryLoading) {
+            Toast.show({ type: 'info', text1: 'Verifying payment status, please wait...' });
             return;
         }
 
@@ -1732,7 +1832,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
                                         return (
                                             <Pressable
-                                                key={normalizedSubBundle?.id || normalizedSubBundle?._id || normalizedSubBundle?.bundleId || index}
+                                                key={String(getBundleId(normalizedSubBundle) || index)}
                                                 style={styles.quizCard}
                                                 onPress={() => handleSubBundlePress(normalizedSubBundle)}
                                             >
@@ -1768,7 +1868,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
                             <View style={styles.subjectList}>
                                 {detailScreen.quizGroups?.map((group: any, groupIndex: number) => (
-                                    <View key={`${group.title}-${groupIndex}`} style={styles.quizSection}>
+                                    <View key={`${group.title || 'group'}-${groupIndex}`} style={styles.quizSection}>
                                         <View style={styles.topicRow}>
                                             <View style={styles.topicDot} />
                                             <Text style={styles.topicTitle}>{String(group.title || 'General').toUpperCase()}</Text>
@@ -1776,7 +1876,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
                                         <View style={styles.quizCardsWrap}>
                                             {group.quizzes.map((quiz: any, quizIndex: number) => (
-                                                <View key={quiz.id || quizIndex} style={styles.quizCard}>
+                                                <View key={String(quiz.id || quizIndex)} style={styles.quizCard}>
                                                     <View style={styles.quizBadge}>
                                                         <Text style={styles.quizBadgeText}>MOCK</Text>
                                                     </View>
@@ -2309,7 +2409,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                             const exam = getExamMetaByTitle(normalizedBundle?.title || normalizedBundle?.name || '');
                             return (
                                 <Pressable
-                                    key={normalizedBundle?.id || normalizedBundle?._id || normalizedBundle?.testId || normalizedBundle?.bundleId || index}
+                                    key={String(getBundleId(normalizedBundle) || index)}
                                     style={styles.gridItem}
                                     onPress={() => handleBundlePress(bundle)}
                                 >
@@ -2374,11 +2474,18 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
                         {selectedBundle?.isEnrolled ? (
                             <Pressable
-                                style={styles.modalPrimaryButton}
+                                style={[styles.modalPrimaryButton, paymentHistoryLoading && styles.quizActionButtonDisabled]}
+                                disabled={paymentHistoryLoading}
                                 onPress={() => openBundleDetails(selectedBundle, 'view')}
                             >
-                                <Feather name="layers" size={normalize(16)} color="#FFFFFF" />
-                                <Text style={styles.modalPrimaryButtonText}>View Course</Text>
+                                {paymentHistoryLoading ? (
+                                    <ActivityIndicator size="small" color="#FFFFFF" />
+                                ) : (
+                                    <>
+                                        <Feather name="layers" size={normalize(16)} color="#FFFFFF" />
+                                        <Text style={styles.modalPrimaryButtonText}>View Course</Text>
+                                    </>
+                                )}
                             </Pressable>
                         ) : (
                             <>
@@ -2391,30 +2498,39 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                 </Pressable>
 
                                 <Pressable
-                                    style={[styles.modalPrimaryButton, pendingEnrollmentId ? styles.quizActionButtonDisabled : null]}
-                                    disabled={Boolean(pendingEnrollmentId)}
+                                    style={[
+                                        styles.modalPrimaryButton,
+                                        (pendingEnrollmentId || paymentHistoryLoading) ? styles.quizActionButtonDisabled : null
+                                    ]}
+                                    disabled={Boolean(pendingEnrollmentId) || paymentHistoryLoading}
                                     onPress={() => openBundleDetails(selectedBundle, 'enroll')}
                                 >
-                                    <Feather name="check-circle" size={normalize(16)} color="#FFFFFF" />
-                                    <Text style={styles.modalPrimaryButtonText}>
-                                        {(() => {
-                                            const originalPrice = Number(selectedBundle?.price || 0);
-                                            const discountPrice = Number(selectedBundle?.discountPrice || 0);
-                                            const discountPercentage = Number(selectedBundle?.discountPercentage || 0);
+                                    {paymentHistoryLoading ? (
+                                        <ActivityIndicator size="small" color="#FFFFFF" />
+                                    ) : (
+                                        <>
+                                            <Feather name="check-circle" size={normalize(16)} color="#FFFFFF" />
+                                            <Text style={styles.modalPrimaryButtonText}>
+                                                {(() => {
+                                                    const originalPrice = Number(selectedBundle?.price || 0);
+                                                    const discountPrice = Number(selectedBundle?.discountPrice || 0);
+                                                    const discountPercentage = Number(selectedBundle?.discountPercentage || 0);
 
-                                            let finalPrice = originalPrice;
-                                            if (discountPrice > 0) {
-                                                finalPrice = discountPrice;
-                                            } else if (discountPercentage > 0) {
-                                                finalPrice = originalPrice - (originalPrice * discountPercentage) / 100;
-                                            }
-                                            finalPrice = Math.round(finalPrice);
+                                                    let finalPrice = originalPrice;
+                                                    if (discountPrice > 0) {
+                                                        finalPrice = discountPrice;
+                                                    } else if (discountPercentage > 0) {
+                                                        finalPrice = originalPrice - (originalPrice * discountPercentage) / 100;
+                                                    }
+                                                    finalPrice = Math.round(finalPrice);
 
-                                            return pendingEnrollmentId === String(getBundleId(selectedBundle)) 
-                                                ? (finalPrice > 0 ? 'Processing...' : 'Enrolling...') 
-                                                : (finalPrice > 0 ? `Buy & Enroll (₹${finalPrice})` : 'Enroll');
-                                        })()}
-                                    </Text>
+                                                    return pendingEnrollmentId === String(getBundleId(selectedBundle)) 
+                                                        ? (finalPrice > 0 ? 'Processing...' : 'Enrolling...') 
+                                                        : (finalPrice > 0 ? `Buy & Enroll (₹${finalPrice})` : 'Enroll');
+                                                })()}
+                                            </Text>
+                                        </>
+                                    )}
                                 </Pressable>
                             </>
                         )}

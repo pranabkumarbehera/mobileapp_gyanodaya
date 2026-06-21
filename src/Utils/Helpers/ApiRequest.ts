@@ -203,3 +203,21 @@ export async function patchApi(url: string, payload: any, header: any = {}) {
 
     return axiosInstance.patch(normalizedUrl, payload, { headers: reqHeaders });
 }
+
+export async function deleteApi(url: string, payload?: any, header: any = {}) {
+    const reqHeaders: any = {
+        Accept: header.Accept || 'application/json',
+        'Content-Type': header.contenttype || 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        Pragma: 'no-cache',
+        Expires: '0',
+        ...(header.authorization ? { Authorization: `Bearer ${header.authorization}` } : {}),
+        ...(header.IPADDRESS ? { IPADDRESS: header.IPADDRESS } : {}),
+    };
+    const normalizedUrl = normalizeUrl(url);
+
+    console.log(`[DELETE] Requesting URL: ${constants.BASE_URL}/${normalizedUrl}`, reqHeaders);
+
+    return axiosInstance.delete(normalizedUrl, { headers: reqHeaders, data: payload });
+}
+

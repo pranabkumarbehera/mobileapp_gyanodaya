@@ -28,60 +28,144 @@ const TermsConditionsScreen = ({ navigation }: TermsConditionsScreenProps) => {
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
                 <Text style={styles.title}>Terms & Conditions</Text>
-                <Text style={styles.updatedText}>Last Updated: June 2026</Text>
+                <Text style={styles.updatedText}>Effective Date: June 17, 2026</Text>
+                
                 <Text style={styles.paragraph}>
-                    Welcome to GYANODAYA. By using this application, you agree to the following terms and conditions:
+                    Welcome to GYANODAYA, an educational mobile application operated by JANMEJAY PARIDA.
+                </Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(8) }]}>
+                    By downloading, accessing, or using the GYANODAYA application, you agree to be bound by these Terms and Conditions. If you do not agree with any part of these Terms, please do not use the Application.
                 </Text>
 
-                <Text style={styles.sectionTitle}>01. Purpose of the Application</Text>
+                <Text style={styles.sectionTitle}>1. Acceptance of Terms</Text>
                 <Text style={styles.paragraph}>
-                    GYANODAYA provides educational content including Mock Tests, Notes, Question Banks, YouTube Classes, and study materials for examinations such as SSB TGT, PGT, RHT, LTR, OTET, OSSTET, CTET, B.Ed., and other competitive examinations.
+                    By accessing or using GYANODAYA, you acknowledge that you have read, understood, and agree to comply with these Terms and Conditions and our Privacy Policy.
                 </Text>
 
-                <Text style={styles.sectionTitle}>02. User Responsibilities</Text>
-                <Text style={styles.bullet}>Users must use the application only for lawful educational purposes.</Text>
-                <Text style={styles.bullet}>Users shall not copy, reproduce, distribute, or sell any content available in the application without permission.</Text>
-                <Text style={styles.bullet}>Users are responsible for maintaining the confidentiality of their login credentials.</Text>
-
-                <Text style={styles.sectionTitle}>03. Intellectual Property</Text>
+                <Text style={styles.sectionTitle}>2. Educational Purpose</Text>
                 <Text style={styles.paragraph}>
-                    All study materials, notes, mock tests, designs, logos, and content available in the application are the property of GYANODAYA unless otherwise stated.
+                    GYANODAYA is designed to provide educational content, study materials, quizzes, mock tests, and related learning resources.
+                </Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(8) }]}>
+                    The content provided is intended solely for educational and informational purposes.
                 </Text>
 
-                <Text style={styles.sectionTitle}>04. Accuracy of Information</Text>
+                <Text style={styles.sectionTitle}>3. User Accounts</Text>
                 <Text style={styles.paragraph}>
-                    We strive to provide accurate and updated educational content. However, GYANODAYA does not guarantee the completeness, accuracy, or suitability of any information.
+                    Users may be required to create an account to access certain features.
+                </Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(4) }]}>You agree to:</Text>
+                <Text style={styles.bullet}>• Provide accurate and complete information.</Text>
+                <Text style={styles.bullet}>• Maintain the confidentiality of your account credentials.</Text>
+                <Text style={styles.bullet}>• Be responsible for all activities occurring under your account.</Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(8) }]}>
+                    We reserve the right to suspend or terminate accounts that provide false information or violate these Terms.
                 </Text>
 
-                <Text style={styles.sectionTitle}>05. External Links</Text>
+                <Text style={styles.sectionTitle}>4. User Conduct</Text>
+                <Text style={styles.paragraph}>You agree not to:</Text>
+                <Text style={styles.bullet}>• Use the Application for unlawful purposes.</Text>
+                <Text style={styles.bullet}>• Attempt to gain unauthorized access to systems or data.</Text>
+                <Text style={styles.bullet}>• Upload harmful, abusive, or offensive content.</Text>
+                <Text style={styles.bullet}>• Disrupt or interfere with the operation of the Application.</Text>
+                <Text style={styles.bullet}>• Copy, reproduce, or distribute content without authorization.</Text>
+
+                <Text style={styles.sectionTitle}>5. Intellectual Property</Text>
                 <Text style={styles.paragraph}>
-                    The application may contain links to YouTube or other third-party websites. We are not responsible for the content, privacy practices, or services provided by such third parties.
+                    All content available within GYANODAYA, including text, graphics, logos, images, educational materials, software, and design elements, is owned by or licensed to GYANODAYA and is protected by applicable intellectual property laws.
+                </Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(8) }]}>
+                    Users may access content solely for personal educational use.
                 </Text>
 
-                <Text style={styles.sectionTitle}>06. Limitation of Liability</Text>
+                <Text style={styles.sectionTitle}>6. Payments and Purchases</Text>
                 <Text style={styles.paragraph}>
-                    GYANODAYA shall not be liable for any direct, indirect, incidental, or consequential damages arising from the use of the application.
+                    Certain features or educational services may require payment.
+                </Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(8) }]}>
+                    Payments are securely processed through Razorpay or other authorized payment providers.
+                </Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(8) }]}>
+                    We do not store complete payment card information on our servers.
+                </Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(8) }]}>
+                    All purchases are subject to applicable pricing and payment terms displayed within the Application.
                 </Text>
 
-                <Text style={styles.sectionTitle}>07. Modification of Services</Text>
+                <Text style={styles.sectionTitle}>7. Refund Policy</Text>
                 <Text style={styles.paragraph}>
-                    We reserve the right to modify, suspend, or discontinue any feature of the application at any time without prior notice.
+                    Refunds, if applicable, shall be governed by the refund policy displayed within the Application or communicated at the time of purchase.
+                </Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(8) }]}>
+                    Certain digital educational products may be non-refundable once accessed.
                 </Text>
 
-                <Text style={styles.sectionTitle}>08. Termination</Text>
+                <Text style={styles.sectionTitle}>8. Third-Party Services</Text>
                 <Text style={styles.paragraph}>
-                    We may suspend or terminate access to users who violate these terms and conditions.
+                    The Application may integrate third-party services including but not limited to:
+                </Text>
+                <Text style={styles.bullet}>• Google Play Services</Text>
+                <Text style={styles.bullet}>• Razorpay</Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(8) }]}>
+                    These services operate under their own terms and privacy policies.
                 </Text>
 
-                <Text style={styles.sectionTitle}>09. Changes to Terms</Text>
+                <Text style={styles.sectionTitle}>9. Disclaimer of Warranties</Text>
                 <Text style={styles.paragraph}>
-                    These Terms & Conditions may be updated from time to time. Continued use of the application constitutes acceptance of the revised terms.
+                    The Application and all content are provided on an "as is" and "as available" basis.
+                </Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(4) }]}>We make no warranties regarding:</Text>
+                <Text style={styles.bullet}>• Accuracy of educational content.</Text>
+                <Text style={styles.bullet}>• Uninterrupted availability.</Text>
+                <Text style={styles.bullet}>• Error-free operation.</Text>
+                <Text style={styles.bullet}>• Suitability for any specific examination or purpose.</Text>
+
+                <Text style={styles.sectionTitle}>10. Limitation of Liability</Text>
+                <Text style={styles.paragraph}>
+                    To the maximum extent permitted by law, GYANODAYA and JANMEJAY PARIDA shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from use of the Application.
                 </Text>
 
-                <Text style={styles.sectionTitle}>10. Contact Us</Text>
+                <Text style={styles.sectionTitle}>11. Account Suspension or Termination</Text>
                 <Text style={styles.paragraph}>
-                    For any questions regarding these Terms & Conditions, please contact us through the details provided in the application.
+                    We reserve the right to suspend, restrict, or terminate access to the Application if:
                 </Text>
+                <Text style={styles.bullet}>• These Terms are violated.</Text>
+                <Text style={styles.bullet}>• Fraudulent activity is detected.</Text>
+                <Text style={styles.bullet}>• Required by law.</Text>
+
+                <Text style={styles.sectionTitle}>12. Privacy</Text>
+                <Text style={styles.paragraph}>
+                    Your use of the Application is also governed by our Privacy Policy, which explains how personal information is collected, used, stored, and protected.
+                </Text>
+
+                <Text style={styles.sectionTitle}>13. Changes to Terms</Text>
+                <Text style={styles.paragraph}>
+                    We reserve the right to modify these Terms and Conditions at any time.
+                </Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(8) }]}>
+                    Updated versions will be published within the Application and become effective immediately upon posting.
+                </Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(8) }]}>
+                    Continued use of the Application after updates constitutes acceptance of the revised Terms.
+                </Text>
+
+                <Text style={styles.sectionTitle}>14. Governing Law</Text>
+                <Text style={styles.paragraph}>
+                    These Terms and Conditions shall be governed by and construed in accordance with the laws of India.
+                </Text>
+                <Text style={[styles.paragraph, { marginTop: verticalScale(8) }]}>
+                    Any disputes arising under these Terms shall be subject to the jurisdiction of the competent courts in India.
+                </Text>
+
+                <Text style={styles.sectionTitle}>15. Contact Information</Text>
+                <Text style={styles.paragraph}>
+                    If you have any questions regarding these Terms and Conditions, please contact:
+                </Text>
+                <View style={styles.contactContainer}>
+                    <Text style={styles.contactName}>JANMEJAY PARIDA</Text>
+                    <Text style={styles.contactLine}>GYANODAYA Educational Application</Text>
+                    <Text style={styles.contactLine}>Email: gyanodaya43@gmail.com</Text>
+                </View>
             </ScrollView>
         </View>
     );
@@ -127,7 +211,20 @@ const styles = StyleSheet.create({
         fontSize: normalize(14),
         color: '#4B5563',
         lineHeight: normalize(22),
-        marginLeft: normalize(6),
+        marginLeft: normalize(12),
+        marginTop: verticalScale(2),
+    },
+    contactContainer: {
+        marginTop: verticalScale(8),
+        padding: normalize(12),
+        backgroundColor: '#F3F4F6',
+        borderRadius: normalize(8),
+    },
+    contactName: {
+        fontSize: normalize(14),
+        fontWeight: '700',
+        color: '#111827',
+        marginBottom: verticalScale(2),
     },
     contactLine: {
         fontSize: normalize(14),

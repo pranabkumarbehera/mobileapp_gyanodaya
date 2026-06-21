@@ -14,9 +14,17 @@ import {
     Share,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { logoutRequest } from '../../Redux/Reducers/AuthReducer';
-import { getProfileRequest, updateProfileRequest } from '../../Redux/Reducers/ProfileReducer';
+import { logoutRequest, logoutSuccess } from '../../Redux/Reducers/AuthReducer';
+import {
+    getProfileRequest,
+    updateProfileRequest,
+    sendDeleteAccountOtpRequest,
+    verifyDeleteAccountOtpRequest,
+    deleteAccountRequest,
+    setDeleteAccountStep,
+} from '../../Redux/Reducers/ProfileReducer';
 import { RootState } from '../../Redux/Store';
+import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import Colorpath from '../../Themes/Colorpath';
@@ -67,6 +75,59 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
     const [form, setForm] = useState<EditableProfile>(DEFAULT_FORM);
     const [imageError, setImageError] = useState(false);
     const [editImageError, setEditImageError] = useState(false);
+
+    // Account Deletion States
+    const {
+        deleteAccountStep,
+        sendOtpLoading,
+        verifyOtpLoading,
+        deleteAccountLoading,
+        deleteVerificationToken,
+    } = useSelector((state: RootState) => state.ProfileReducer);
+
+    const [isDeleteVisible, setIsDeleteVisible] = useState(false);
+    const [deleteEmail, setDeleteEmail] = useState('');
+    const [deleteOtp, setDeleteOtp] = useState('');
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    const openDeleteModal = () => {
+        setDeleteEmail('');
+        setDeleteOtp('');
+        dispatch(setDeleteAccountStep('email'));
+        setIsDeleteVisible(true);
+    };
+
+    const handleSendOtp = () => {
+        const trimmedEmail = deleteEmail.trim();
+        if (!trimmedEmail) {
+            Toast.show({ type: 'error', text1: 'Email address is required' });
+            return;
+        }
+        if (!emailRegex.test(trimmedEmail)) {
+            Toast.show({ type: 'error', text1: 'Please enter a valid email address' });
+            return;
+        }
+        dispatch(sendDeleteAccountOtpRequest({ email: trimmedEmail }));
+    };
+
+    const handleVerifyOtp = () => {
+        const trimmedOtp = deleteOtp.trim();
+        if (!trimmedOtp) {
+            Toast.show({ type: 'error', text1: 'OTP is required' });
+            return;
+        }
+        dispatch(verifyDeleteAccountOtpRequest({ email: deleteEmail.trim(), otp: trimmedOtp }));
+    };
+
+    const handleConfirmDelete = () => {
+        dispatch(deleteAccountRequest({ verificationToken: deleteVerificationToken }));
+    };
+
+    const handleReturnToHome = () => {
+        setIsDeleteVisible(false);
+        dispatch(logoutSuccess('logout'));
+    };
 
     useEffect(() => {
         if (logoutResponse === 'logout') {
@@ -295,6 +356,15 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                             </View>
                             <Icon name="chevron-right" size={normalize(18)} color="#9CA3AF" />
                         </Pressable>
+                        <Pressable style={styles.settingItem} onPress={() => navigation.navigate('CoursesPaymentHistory')}>
+                            <View style={styles.settingIconBg}>
+                                <Icon name="credit-card" size={normalize(18)} color={Colorpath.Primary} />
+                            </View>
+                            <View style={styles.settingCopy}>
+                                <Text style={styles.settingText}>Courses Payment History</Text>
+                            </View>
+                            <Icon name="chevron-right" size={normalize(18)} color="#9CA3AF" />
+                        </Pressable>
                         <Pressable style={styles.settingItem} onPress={() => navigation.navigate('AboutUs')}>
                             <View style={styles.settingIconBg}>
                                 <Icon name="info" size={normalize(18)} color={Colorpath.Primary} />
@@ -320,6 +390,15 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                             <View style={styles.settingCopy}>
                                 <Text style={styles.settingText}>Support</Text>
                                 <Text style={styles.settingSubText}>gyanodaya43@gmail.com</Text>
+                            </View>
+                            <Icon name="chevron-right" size={normalize(18)} color="#9CA3AF" />
+                        </Pressable>
+                        <Pressable style={styles.settingItem} onPress={openDeleteModal}>
+                            <View style={[styles.settingIconBg, { backgroundColor: '#FEE2E2' }]}>
+                                <Icon name="trash-2" size={normalize(18)} color="#EF4444" />
+                            </View>
+                            <View style={styles.settingCopy}>
+                                <Text style={[styles.settingText, { color: '#EF4444' }]}>Delete Account</Text>
                             </View>
                             <Icon name="chevron-right" size={normalize(18)} color="#9CA3AF" />
                         </Pressable>
@@ -445,11 +524,196 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                     </View>
                 </View>
             </Modal>
+
+            <Modal
+                visible={isDeleteVisible}
+                animationType="slide"
+                transparent
+                onRequestClose={() => {
+                    if (deleteAccountStep !== 'success' && !deleteAccountLoading) {
+                        setIsDeleteVisible(false);
+                    }
+                }}
+            >
+                <View style={styles.modalBackdrop}>
+                    <View style={styles.modalCard}>
+                        {deleteAccountStep !== 'success' && (
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>Delete Account</Text>
+                                <Pressable
+                                    disabled={sendOtpLoading || verifyOtpLoading || deleteAccountLoading}
+                                    onPress={() => setIsDeleteVisible(false)}
+                                    style={styles.closeButton}
+                                >
+                                    <Icon name="x" size={normalize(20)} color="#6B7280" />
+                                </Pressable>
+                            </View>
+                        )}
+
+                        {deleteAccountStep === 'email' && (
+                            <View style={{ width: '100%' }}>
+                                <Text style={styles.inputLabel}>Enter email address associated with your account</Text>
+                                <TextInput
+                                    value={deleteEmail}
+                                    onChangeText={setDeleteEmail}
+                                    style={styles.input}
+                                    placeholder="Enter your email"
+                                    placeholderTextColor="#9CA3AF"
+                                    keyboardType="email-address"
+                                    autoCapitalize="none"
+                                />
+                                <Pressable
+                                    onPress={handleSendOtp}
+                                    style={[styles.saveButton, sendOtpLoading ? styles.saveButtonDisabled : null]}
+                                    disabled={sendOtpLoading}
+                                >
+                                    {sendOtpLoading ? (
+                                        <ActivityIndicator color="#FFFFFF" />
+                                    ) : (
+                                        <Text style={styles.saveButtonText}>Send OTP</Text>
+                                    )}
+                                </Pressable>
+                            </View>
+                        )}
+
+                        {deleteAccountStep === 'otp' && (
+                            <View style={{ width: '100%' }}>
+                                <Text style={styles.inputLabel}>Enter the OTP sent to {deleteEmail}</Text>
+                                <TextInput
+                                    value={deleteOtp}
+                                    onChangeText={setDeleteOtp}
+                                    style={styles.input}
+                                    placeholder="Enter OTP"
+                                    placeholderTextColor="#9CA3AF"
+                                    keyboardType="number-pad"
+                                />
+                                <Pressable
+                                    onPress={handleVerifyOtp}
+                                    style={[styles.saveButton, verifyOtpLoading ? styles.saveButtonDisabled : null]}
+                                    disabled={verifyOtpLoading}
+                                >
+                                    {verifyOtpLoading ? (
+                                        <ActivityIndicator color="#FFFFFF" />
+                                    ) : (
+                                        <Text style={styles.saveButtonText}>Verify OTP</Text>
+                                    )}
+                                </Pressable>
+                                <Pressable
+                                    style={{ marginTop: verticalScale(14), alignItems: 'center' }}
+                                    onPress={() => dispatch(setDeleteAccountStep('email'))}
+                                >
+                                    <Text style={{ color: Colorpath.Primary, fontWeight: 'bold' }}>Change Email</Text>
+                                </Pressable>
+                            </View>
+                        )}
+
+                        {deleteAccountStep === 'confirm' && (
+                            <View style={{ width: '100%', alignItems: 'center' }}>
+                                <View style={styles.warningIconContainer}>
+                                    <Icon name="alert-triangle" size={normalize(28)} color="#EF4444" />
+                                </View>
+                                <Text style={[styles.modalTitle, { color: '#EF4444', textAlign: 'center', marginBottom: verticalScale(12) }]}>
+                                    Permanently Delete Account?
+                                </Text>
+                                <Text style={{ fontSize: normalize(14), color: '#4B5563', textAlign: 'center', marginBottom: verticalScale(16) }}>
+                                    You have successfully verified your identity.
+                                </Text>
+                                <Text style={{ fontSize: normalize(15), fontWeight: 'bold', color: '#111827', alignSelf: 'flex-start', marginBottom: verticalScale(8) }}>
+                                    Deleting your GYANODAYA account is permanent.
+                                </Text>
+                                <Text style={{ fontSize: normalize(13), color: '#6B7280', alignSelf: 'flex-start', marginBottom: verticalScale(12) }}>
+                                    Once deleted:
+                                </Text>
+                                <ScrollView style={{ maxHeight: verticalScale(180), width: '100%', marginBottom: verticalScale(20) }} showsVerticalScrollIndicator={true}>
+                                    {[
+                                        'Your profile will be permanently removed.',
+                                        'Your enrolled courses will be deleted.',
+                                        'Course progress will be deleted.',
+                                        'Quiz history will be deleted.',
+                                        'Certificates will be deleted.',
+                                        'Bookmarks will be deleted.',
+                                        'Notifications will be deleted.',
+                                        'Saved preferences will be deleted.',
+                                        'Active sessions will be terminated.',
+                                        'You will immediately lose access to your account.'
+                                    ].map((item, idx) => (
+                                        <View key={idx} style={{ flexDirection: 'row', marginBottom: verticalScale(6), paddingRight: normalize(10) }}>
+                                            <Text style={{ fontSize: normalize(14), color: '#4B5563', marginRight: normalize(6) }}>•</Text>
+                                            <Text style={{ fontSize: normalize(13), color: '#4B5563', flex: 1, lineHeight: normalize(18) }}>{item}</Text>
+                                        </View>
+                                    ))}
+                                </ScrollView>
+                                <View style={{ flexDirection: 'row', width: '100%', gap: normalize(12), borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: verticalScale(16) }}>
+                                    <Pressable
+                                        onPress={() => setIsDeleteVisible(false)}
+                                        style={{ flex: 1, paddingVertical: verticalScale(14), alignItems: 'center', justifyContent: 'center' }}
+                                    >
+                                        <Text style={{ fontSize: normalize(15), fontWeight: 'bold', color: '#374151' }}>Cancel</Text>
+                                    </Pressable>
+                                    <Pressable
+                                        onPress={handleConfirmDelete}
+                                        style={{ flex: 1, backgroundColor: '#EF4444', borderRadius: normalize(12), paddingVertical: verticalScale(14), alignItems: 'center', justifyContent: 'center' }}
+                                        disabled={deleteAccountLoading}
+                                    >
+                                        {deleteAccountLoading ? (
+                                            <ActivityIndicator color="#FFFFFF" />
+                                        ) : (
+                                            <Text style={{ color: '#FFFFFF', fontSize: normalize(15), fontWeight: 'bold' }}>
+                                                Permanently Delete Account
+                                            </Text>
+                                        )}
+                                    </Pressable>
+                                </View>
+                            </View>
+                        )}
+
+                        {deleteAccountStep === 'success' && (
+                            <View style={{ width: '100%', alignItems: 'center', paddingVertical: verticalScale(20) }}>
+                                <View style={{ width: normalize(64), height: normalize(64), borderRadius: normalize(32), backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center', marginBottom: verticalScale(16) }}>
+                                    <Icon name="trash" size={normalize(28)} color="#D97706" />
+                                </View>
+                                <Text style={{ fontSize: normalize(22), fontWeight: 'bold', color: '#EF4444', marginBottom: verticalScale(4) }}>
+                                    Delete Your Account
+                                </Text>
+                                <Text style={{ fontSize: normalize(13), color: '#6B7280', marginBottom: verticalScale(24) }}>
+                                    Your request was processed successfully.
+                                </Text>
+                                <View style={{ width: normalize(64), height: normalize(64), borderRadius: normalize(32), backgroundColor: '#D1FAE5', justifyContent: 'center', alignItems: 'center', marginBottom: verticalScale(16) }}>
+                                    <Icon name="check" size={normalize(32)} color="#10B981" />
+                                </View>
+                                <Text style={{ fontSize: normalize(20), fontWeight: 'bold', color: '#111827', marginBottom: verticalScale(8) }}>
+                                    Account Deleted Successfully
+                                </Text>
+                                <Text style={{ fontSize: normalize(14), color: '#4B5563', textAlign: 'center', lineHeight: normalize(20), marginBottom: verticalScale(28) }}>
+                                    your GYANODAYA account has been permanently deleted. We're sorry to see you go.
+                                </Text>
+                                <Pressable
+                                    onPress={handleReturnToHome}
+                                    style={{ width: '100%', backgroundColor: Colorpath.Primary, borderRadius: normalize(12), paddingVertical: verticalScale(14), alignItems: 'center', justifyContent: 'center' }}
+                                >
+                                    <Text style={{ color: '#FFFFFF', fontSize: normalize(15), fontWeight: 'bold' }}>
+                                        Return to Home
+                                    </Text>
+                                </Pressable>
+                            </View>
+                        )}
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 };
 
 const styles = StyleSheet.create({
+    warningIconContainer: {
+        width: normalize(56),
+        height: normalize(56),
+        borderRadius: normalize(28),
+        backgroundColor: '#FEE2E2',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: verticalScale(16),
+    },
     container: { flex: 1, backgroundColor: '#FAFBFF' },
     scrollContent: { flexGrow: 1 },
     headerBackground: { backgroundColor: Colorpath.Primary, height: verticalScale(180), borderBottomLeftRadius: normalize(30), borderBottomRightRadius: normalize(30) },
