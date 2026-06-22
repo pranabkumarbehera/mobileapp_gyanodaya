@@ -77,6 +77,8 @@ export const translations = {
             neon_theme: 'Neon Cyber',
             aurora_theme: 'Aurora Dream',
             sunset_theme: 'Sunset Glow',
+            midnight_theme: 'Midnight Nebula',
+            emerald_theme: 'Emerald Mint',
         },
         deleteAccount: {
             enter_email: 'Enter email address associated with your account',
@@ -184,6 +186,8 @@ export const translations = {
             neon_theme: 'नियोन साइबर',
             aurora_theme: 'ऑरोरा ड्रीम',
             sunset_theme: 'सनसेट ग्लो',
+            midnight_theme: 'मिडनाइट नेबुला',
+            emerald_theme: 'एमेरल्ड मिंट',
         },
         deleteAccount: {
             enter_email: 'अपने खाते से जुड़ा ईमेल पता दर्ज करें',
@@ -291,6 +295,8 @@ export const translations = {
             neon_theme: 'ନିଅନ୍ ସାଇବର',
             aurora_theme: 'ଅରୋରା ଡ୍ରିମ୍',
             sunset_theme: 'ସନସେଟ୍ ଗ୍ଲୋ',
+            midnight_theme: 'ମିଡନାଇଟ୍ ନେବୁଲା',
+            emerald_theme: 'ଏମେରାଲ୍ଡ ମିଣ୍ଟ',
         },
         deleteAccount: {
             enter_email: 'ଆପଣଙ୍କ ଖାତା ସହିତ ଜଡିତ ଇମେଲ୍ ଠିକଣା ପ୍ରବେଶ କରନ୍ତୁ',

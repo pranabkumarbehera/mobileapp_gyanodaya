@@ -21,11 +21,11 @@ import { useDispatch, useSelector } from 'react-redux';
 import Toast from 'react-native-toast-message';
 import { createShimmerPlaceholder } from 'react-native-shimmer-placeholder';
 import LinearGradient from 'react-native-linear-gradient';
-import Colorpath from '../../Themes/Colorpath';
 import { RootStackParamList } from '../../Navigator/StackNav';
-import { clearStartTestState, clearTestResult, getTestResultRequest, startTestRequest, submitTestRequest } from '../../Redux/Reducers/MockTestReducer';
+import { clearStartTestState, getTestResultRequest, startTestRequest, submitTestRequest } from '../../Redux/Reducers/MockTestReducer';
 import { RootState } from '../../Redux/Store';
 import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
+import { useTheme } from '../../Themes/hooks';
 
 const ShimmerPlaceholder = createShimmerPlaceholder(LinearGradient);
 const { height } = Dimensions.get('window');
@@ -154,6 +154,10 @@ const mapQuestions = (rawQuestions: any[]) =>
 const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenProps) => {
     const { testId, duration, acceptedTerms } = route.params || {};
     const dispatch = useDispatch();
+    const { colors, theme } = useTheme();
+    const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
+    const styles = useMemo(() => getStyles(colors, isDarkTheme), [colors, isDarkTheme]);
+
     const { startTestResponse, submitTestResponse, testResult, isLoading, error, status } = useSelector((state: RootState) => state.MockTestReducer);
 
     const [rawQuestions, setRawQuestions] = useState<any[]>([]);
@@ -571,7 +575,7 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
     if (isSubmittingExam) {
         return (
             <View style={styles.container}>
-                <StatusBar backgroundColor={Colorpath.Primary} barStyle="light-content" />
+                <StatusBar backgroundColor={colors.statusBg} barStyle={colors.statusBar} />
                 <View style={styles.headerBackground}>
                     <SafeAreaView edges={['top']}>
                         <View style={styles.topBar}>
@@ -594,7 +598,7 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
                 {/* Modern Professional Loading UI Overlay */}
                 <View style={styles.loadingOverlay}>
                     <View style={styles.loadingCard}>
-                        <ActivityIndicator size="large" color={Colorpath.Primary} style={styles.loadingSpinner} />
+                        <ActivityIndicator size="large" color={colors.Primary} style={styles.loadingSpinner} />
                         <Text style={styles.loadingOverlayTitle}>Preparing Result...</Text>
                         <Text style={styles.loadingOverlaySubtitle}>Analyzing your performance</Text>
                     </View>
@@ -605,7 +609,7 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
 
     return (
         <View style={styles.container}>
-            <StatusBar backgroundColor={Colorpath.Primary} barStyle="light-content" />
+            <StatusBar backgroundColor={colors.statusBg} barStyle={colors.statusBar} />
 
             <View style={styles.headerBackground}>
                 <SafeAreaView edges={['top']}>
@@ -613,7 +617,7 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
                         <Pressable onPress={() => navigation.goBack()} style={styles.iconButton}>
                             <Icon name="arrow-left" size={normalize(24)} color="#FFFFFF" />
                         </Pressable>
-                        <Text style={styles.headerTitle}>{sessionMeta?.title || startTestResponse?.title || startTestResponse?.quiz?.title || 'Mock Test'}</Text>
+                        <Text style={styles.headerTitle} numberOfLines={1}>{sessionMeta?.title || startTestResponse?.title || startTestResponse?.quiz?.title || 'Mock Test'}</Text>
                         <Pressable style={styles.jumpButton} onPress={() => setShowPalette(!showPalette)}>
                             <Animated.Text
                                 style={[
@@ -653,7 +657,7 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
                         </Text>
                     </View>
                     <View style={styles.timerBadge}>
-                        <Icon name="clock" size={normalize(14)} color="#FFFFFF" />
+                        <Icon name="clock" size={normalize(14)} color={colors.tagOrangeText} />
                         <Text style={styles.timerText}>{formatClock(remainingSeconds)}</Text>
                     </View>
                 </View>
@@ -662,12 +666,12 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
                 {isLoading && mappedQuestions.length === 0 ? (
                     <View style={{ marginTop: verticalScale(40), alignItems: 'center' }}>
-                        <ActivityIndicator size="large" color={Colorpath.Primary} />
-                        <Text style={{ marginTop: 10, color: '#6B7280' }}>Loading questions...</Text>
+                        <ActivityIndicator size="large" color={colors.Primary} />
+                        <Text style={{ marginTop: 10, color: colors.textSecondary }}>Loading questions...</Text>
                     </View>
                 ) : mappedQuestions.length === 0 ? (
                     <View style={{ marginTop: verticalScale(40), alignItems: 'center', paddingHorizontal: normalize(24) }}>
-                        <Text style={{ color: '#6B7280', textAlign: 'center' }}>No questions were returned for this test yet.</Text>
+                        <Text style={{ color: colors.textSecondary, textAlign: 'center' }}>No questions were returned for this test yet.</Text>
                     </View>
                 ) : (
                     <>
@@ -684,25 +688,30 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
                         </View>
 
                         <View style={styles.optionsContainer}>
-                            {currentQ?.options?.map((option: any, index: number) => (
-                                <Pressable
-                                    key={index}
-                                    style={[
-                                        styles.optionContainer,
-                                        selectedOption === index && styles.optionSelected,
-                                    ]}
-                                    onPress={() => handleSelectOption(index)}
-                                >
-                                    <View style={[
-                                        styles.radioCircle,
-                                        selectedOption === index && styles.radioCircleSelected,
-                                    ]}>
-                                        {selectedOption === index && <View style={styles.radioDot} />}
-                                    </View>
-                                    <Text style={styles.optionLetter}>{['(A)', '(B)', '(C)', '(D)', '(E)', '(F)'][index]}</Text>
-                                    <Text style={styles.optionText}>{typeof option === 'string' ? option : option?.text || option?.value || 'Option'}</Text>
-                                </Pressable>
-                            ))}
+                            {currentQ?.options?.map((option: any, index: number) => {
+                                const isSelected = selectedOption === index;
+                                return (
+                                    <Pressable
+                                        key={index}
+                                        style={[
+                                            styles.optionContainer,
+                                            isSelected && styles.optionSelected,
+                                            { borderColor: isSelected ? colors.Primary : colors.border }
+                                        ]}
+                                        onPress={() => handleSelectOption(index)}
+                                    >
+                                        <View style={[
+                                            styles.radioCircle,
+                                            isSelected && styles.radioCircleSelected,
+                                            { borderColor: isSelected ? colors.accent : colors.border }
+                                        ]}>
+                                            {isSelected && <View style={styles.radioDot} />}
+                                        </View>
+                                        <Text style={styles.optionLetter}>{['(A)', '(B)', '(C)', '(D)', '(E)', '(F)'][index]}</Text>
+                                        <Text style={styles.optionText}>{typeof option === 'string' ? option : option?.text || option?.value || 'Option'}</Text>
+                                    </Pressable>
+                                );
+                            })}
                         </View>
                     </>
                 )}
@@ -710,7 +719,7 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
 
             <View style={styles.bottomBar}>
                 <Pressable style={[styles.prevButton, isSubmittingExam && styles.disabledButton]} onPress={handlePrev} disabled={isSubmittingExam}>
-                    <Icon name="chevron-left" size={normalize(18)} color="#4B5563" />
+                    <Icon name="chevron-left" size={normalize(18)} color={colors.textSecondary} />
                     <Text style={styles.prevButtonText}>Prev</Text>
                 </Pressable>
 
@@ -723,7 +732,7 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
                     onPress={handleToggleReview}
                     disabled={isSubmittingExam}
                 >
-                    <Icon name="bookmark" size={normalize(16)} color={reviewed.has(currentQuestionIndex) ? '#FFFFFF' : '#D97706'} style={styles.reviewIcon} />
+                    <Icon name="bookmark" size={normalize(16)} color={reviewed.has(currentQuestionIndex) ? '#FFFFFF' : colors.accent} style={styles.reviewIcon} />
                     <Text style={[styles.reviewButtonText, reviewed.has(currentQuestionIndex) && styles.reviewButtonTextActive]}>
                         {reviewed.has(currentQuestionIndex) ? 'Marked' : 'Review'}
                     </Text>
@@ -733,11 +742,11 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
                     {isSubmittingExam ? (
                         <>
                             <ActivityIndicator size="small" color="#FFFFFF" />
-                            <Text style={styles.nextButtonText}>Preparing Result...</Text>
+                            <Text style={styles.nextButtonText}>Preparing...</Text>
                         </>
                     ) : (
                         <>
-                            <Text style={styles.nextButtonText}>{currentQuestionIndex === mappedQuestions.length - 1 ? 'Submit Exam' : 'Next'}</Text>
+                            <Text style={styles.nextButtonText}>{currentQuestionIndex === mappedQuestions.length - 1 ? 'Submit' : 'Next'}</Text>
                             <Icon name={currentQuestionIndex === mappedQuestions.length - 1 ? 'check' : 'chevron-right'} size={normalize(18)} color="#FFFFFF" />
                         </>
                     )}
@@ -751,7 +760,7 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
                         <View style={styles.paletteHeader}>
                             <Text style={styles.paletteTitle}>Question Palette</Text>
                             <Pressable onPress={() => setShowPalette(false)}>
-                                <Icon name="x" size={normalize(20)} color="#111827" />
+                                <Icon name="x" size={normalize(20)} color={colors.text} />
                             </Pressable>
                         </View>
                         <ScrollView showsVerticalScrollIndicator={false}>
@@ -824,7 +833,7 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
                                 {isSubmittingExam ? (
                                     <ActivityIndicator size="small" color="#FFFFFF" />
                                 ) : (
-                                    <Text style={styles.footerBtnSolidText}>{currentQuestionIndex === mappedQuestions.length - 1 ? 'Submit Exam' : 'Save & Next'}</Text>
+                                    <Text style={styles.footerBtnSolidText}>{currentQuestionIndex === mappedQuestions.length - 1 ? 'Submit' : 'Save & Next'}</Text>
                                 )}
                             </Pressable>
                         </View>
@@ -835,79 +844,79 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
     );
 };
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#FAFBFF' },
-    headerBackground: { backgroundColor: Colorpath.Primary },
+const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.Background },
+    headerBackground: { backgroundColor: colors.statusBg },
     topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: normalize(24), paddingTop: verticalScale(10), paddingBottom: verticalScale(16) },
     iconButton: { padding: normalize(4) },
     jumpButton: { flexDirection: 'row', alignItems: 'center', padding: normalize(4) },
-    jumpButtonText: { color: '#FF4D4F', fontSize: normalize(14), fontWeight: '800', marginRight: normalize(8) },
-    headerTitle: { fontSize: normalize(18), fontWeight: 'bold', color: '#FFFFFF' },
-    subHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: normalize(24), paddingVertical: verticalScale(16), backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-    qCountBadge: { paddingHorizontal: normalize(12), paddingVertical: verticalScale(6), backgroundColor: '#F3F4F6', borderRadius: normalize(12) },
-    qCountText: { fontSize: normalize(14), fontWeight: 'bold', color: Colorpath.Primary },
+    jumpButtonText: { color: '#FFFFFF', fontSize: normalize(14), fontWeight: '800', marginRight: normalize(8) },
+    headerTitle: { fontSize: normalize(18), fontWeight: 'bold', color: '#FFFFFF', flex: 1, textAlign: 'center', marginHorizontal: normalize(8) },
+    subHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: normalize(24), paddingVertical: verticalScale(16), backgroundColor: colors.cardBackground, borderBottomWidth: 1, borderBottomColor: colors.border },
+    qCountBadge: { paddingHorizontal: normalize(12), paddingVertical: verticalScale(6), backgroundColor: colors.Background, borderRadius: normalize(12), borderWidth: 1, borderColor: colors.border },
+    qCountText: { fontSize: normalize(14), fontWeight: 'bold', color: colors.Primary },
     subHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: normalize(10) },
-    syncBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ECFDF5', paddingHorizontal: normalize(10), paddingVertical: verticalScale(6), borderRadius: normalize(12) },
-    syncBadgeOffline: { backgroundColor: '#FEF2F2' },
+    syncBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.tagGreen, paddingHorizontal: normalize(10), paddingVertical: verticalScale(6), borderRadius: normalize(12), borderWidth: 1, borderColor: colors.border },
+    syncBadgeOffline: { backgroundColor: colors.tagOrange },
     syncDot: { width: normalize(7), height: normalize(7), borderRadius: normalize(4), backgroundColor: '#10B981', marginRight: normalize(6) },
     syncDotOffline: { backgroundColor: '#EF4444' },
-    syncText: { color: '#047857', fontSize: normalize(11), fontWeight: '700' },
-    syncTextOffline: { color: '#B91C1C' },
-    timerBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EF4444', paddingHorizontal: normalize(12), paddingVertical: verticalScale(6), borderRadius: normalize(12), gap: normalize(6) },
-    timerText: { color: '#FFFFFF', fontSize: normalize(14), fontWeight: 'bold' },
+    syncText: { color: colors.tagGreenText, fontSize: normalize(11), fontWeight: '700' },
+    syncTextOffline: { color: colors.tagOrangeText, fontSize: normalize(11), fontWeight: '700' },
+    timerBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.tagOrange, paddingHorizontal: normalize(12), paddingVertical: verticalScale(6), borderRadius: normalize(12), gap: normalize(6), borderWidth: 1, borderColor: colors.border },
+    timerText: { color: colors.tagOrangeText, fontSize: normalize(14), fontWeight: 'bold' },
     scrollContent: { paddingHorizontal: normalize(24), paddingTop: verticalScale(20), paddingBottom: verticalScale(100) },
-    passageContainer: { backgroundColor: '#EEF2FF', padding: normalize(16), borderRadius: normalize(12), marginBottom: verticalScale(24), borderWidth: 1, borderColor: '#EEF2FF', borderLeftWidth: normalize(6), borderLeftColor: '#F59E0B' },
-    passageLabel: { fontSize: normalize(11), fontWeight: 'bold', color: '#B45309', marginBottom: verticalScale(8), letterSpacing: 0.5 },
-    passageText: { fontSize: normalize(14), color: '#92400E', lineHeight: normalize(22) },
+    passageContainer: { backgroundColor: colors.tagCyan, padding: normalize(16), borderRadius: normalize(12), marginBottom: verticalScale(24), borderWidth: 1, borderColor: colors.border, borderLeftWidth: normalize(6), borderLeftColor: colors.accent },
+    passageLabel: { fontSize: normalize(11), fontWeight: 'bold', color: colors.tagCyanText, marginBottom: verticalScale(8), letterSpacing: 0.5 },
+    passageText: { fontSize: normalize(14), color: colors.text, lineHeight: normalize(22) },
     questionSection: { marginBottom: verticalScale(24) },
-    qTag: { backgroundColor: '#EEF2FF', paddingHorizontal: normalize(10), paddingVertical: verticalScale(4), borderRadius: normalize(8), alignSelf: 'flex-start', marginBottom: verticalScale(12) },
-    qTagText: { color: '#4F46E5', fontSize: normalize(12), fontWeight: 'bold' },
-    questionText: { fontSize: normalize(16), color: '#111827', fontWeight: '600', lineHeight: normalize(24) },
+    qTag: { backgroundColor: colors.tagCyan, paddingHorizontal: normalize(10), paddingVertical: verticalScale(4), borderRadius: normalize(8), alignSelf: 'flex-start', marginBottom: verticalScale(12), borderWidth: 1, borderColor: colors.border },
+    qTagText: { color: colors.tagCyanText, fontSize: normalize(12), fontWeight: 'bold' },
+    questionText: { fontSize: normalize(16), color: colors.text, fontWeight: '600', lineHeight: normalize(24) },
     optionsContainer: { gap: verticalScale(12) },
-    optionContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: normalize(16), paddingVertical: verticalScale(12), borderRadius: normalize(8), borderWidth: 1, borderColor: '#EEF2FF', borderLeftWidth: normalize(6), borderLeftColor: '#EEF2FF', backgroundColor: '#FFFFFF' },
-    optionSelected: { borderColor: Colorpath.Primary, borderLeftColor: Colorpath.Primary, backgroundColor: '#FFFFFF' },
-    radioCircle: { width: normalize(20), height: normalize(20), borderRadius: normalize(10), borderWidth: 2, borderColor: '#D1D5DB', alignItems: 'center', justifyContent: 'center', marginRight: normalize(12) },
-    radioCircleSelected: { borderColor: '#D97706' },
-    radioDot: { width: normalize(10), height: normalize(10), borderRadius: normalize(5), backgroundColor: Colorpath.Primary },
-    optionLetter: { fontSize: normalize(15), color: '#374151', fontWeight: '600', marginRight: normalize(8) },
-    optionText: { fontSize: normalize(15), color: '#374151', flex: 1 },
-    bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: normalize(20), paddingVertical: verticalScale(16), backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#F3F4F6', shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 10 },
+    optionContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: normalize(16), paddingVertical: verticalScale(12), borderRadius: normalize(8), borderWidth: 1, borderColor: colors.border, borderLeftWidth: normalize(6), borderLeftColor: colors.border, backgroundColor: colors.cardBackground },
+    optionSelected: { borderColor: colors.Primary, borderLeftColor: colors.Primary, shadowColor: colors.Primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
+    radioCircle: { width: normalize(20), height: normalize(20), borderRadius: normalize(10), borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginRight: normalize(12) },
+    radioCircleSelected: { borderColor: colors.accent },
+    radioDot: { width: normalize(10), height: normalize(10), borderRadius: normalize(5), backgroundColor: colors.Primary },
+    optionLetter: { fontSize: normalize(15), color: colors.text, fontWeight: '600', marginRight: normalize(8) },
+    optionText: { fontSize: normalize(15), color: colors.text, flex: 1 },
+    bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: normalize(20), paddingVertical: verticalScale(16), backgroundColor: colors.cardBackground, borderTopWidth: 1, borderTopColor: colors.border, shadowColor: isDarkTheme ? colors.accent : '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: isDarkTheme ? 0.16 : 0.05, shadowRadius: 10, elevation: 10 },
     prevButton: { flexDirection: 'row', alignItems: 'center', paddingVertical: verticalScale(10), paddingHorizontal: normalize(12) },
-    prevButtonText: { color: '#4B5563', fontSize: normalize(15), fontWeight: '600', marginLeft: normalize(4) },
-    reviewButton: { flexDirection: 'row', alignItems: 'center', paddingVertical: verticalScale(10), paddingHorizontal: normalize(20), borderRadius: normalize(10), borderWidth: 1, borderColor: '#F59E0B' },
-    reviewButtonActive: { backgroundColor: '#D97706', borderColor: '#D97706' },
+    prevButtonText: { color: colors.textSecondary, fontSize: normalize(15), fontWeight: '600', marginLeft: normalize(4) },
+    reviewButton: { flexDirection: 'row', alignItems: 'center', paddingVertical: verticalScale(10), paddingHorizontal: normalize(20), borderRadius: normalize(10), borderWidth: 1, borderColor: colors.accent },
+    reviewButtonActive: { backgroundColor: colors.accent, borderColor: colors.accent },
     reviewIcon: { marginRight: normalize(6) },
-    reviewButtonText: { color: '#D97706', fontSize: normalize(14), fontWeight: 'bold' },
+    reviewButtonText: { color: colors.accent, fontSize: normalize(14), fontWeight: 'bold' },
     reviewButtonTextActive: { color: '#FFFFFF' },
-    nextButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: Colorpath.Primary, paddingVertical: verticalScale(10), paddingHorizontal: normalize(24), borderRadius: normalize(10), marginLeft: normalize(12) },
+    nextButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.Primary, paddingVertical: verticalScale(10), paddingHorizontal: normalize(24), borderRadius: normalize(10), marginLeft: normalize(12) },
     nextButtonText: { color: '#FFFFFF', fontSize: normalize(15), fontWeight: 'bold', marginRight: normalize(4) },
     disabledButton: { opacity: 0.6 },
     submittingButton: { minWidth: normalize(150), justifyContent: 'center' },
     paletteOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100 },
     paletteBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
-    paletteContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, height: height * 0.6, backgroundColor: '#FFFFFF', borderTopLeftRadius: normalize(24), borderTopRightRadius: normalize(24), padding: normalize(24), paddingBottom: verticalScale(20) },
+    paletteContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, height: height * 0.6, backgroundColor: colors.cardBackground, borderTopLeftRadius: normalize(24), borderTopRightRadius: normalize(24), padding: normalize(24), paddingBottom: verticalScale(20), borderTopWidth: 1, borderTopColor: colors.border },
     paletteHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: verticalScale(20) },
-    paletteTitle: { fontSize: normalize(18), fontWeight: 'bold', color: '#111827' },
+    paletteTitle: { fontSize: normalize(18), fontWeight: 'bold', color: colors.text },
     gridContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: normalize(10), justifyContent: 'flex-start' },
-    gridBox: { width: normalize(40), height: normalize(40), borderRadius: normalize(8), backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D1D5DB', alignItems: 'center', justifyContent: 'center' },
+    gridBox: { width: normalize(40), height: normalize(40), borderRadius: normalize(8), backgroundColor: colors.Background, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
     gridAnswered: { backgroundColor: '#10B981', borderWidth: 0 },
     gridAnsweredMarked: { backgroundColor: '#4F46E5', borderWidth: 0 },
-    gridCurrent: { backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: Colorpath.Secondary },
-    gridReview: { backgroundColor: '#FFF7ED', borderWidth: 2, borderColor: '#F59E0B' },
-    gridSkipped: { backgroundColor: '#FEF3C7', borderWidth: 0 },
-    gridText: { fontSize: normalize(14), color: '#4B5563', fontWeight: '600' },
+    gridCurrent: { backgroundColor: colors.cardBackground, borderWidth: 2, borderColor: colors.accent },
+    gridReview: { backgroundColor: colors.tagOrange, borderWidth: 1, borderColor: colors.border },
+    gridSkipped: { backgroundColor: colors.tagCyan, borderWidth: 0 },
+    gridText: { fontSize: normalize(14), color: colors.textSecondary, fontWeight: '600' },
     gridTextAnswered: { color: '#FFFFFF' },
-    gridTextCurrent: { color: Colorpath.Secondary },
-    gridTextReview: { color: '#D97706' },
-    gridTextSkipped: { color: '#B45309' },
+    gridTextCurrent: { color: colors.accent },
+    gridTextReview: { color: colors.tagOrangeText },
+    gridTextSkipped: { color: colors.tagCyanText },
     paletteLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: normalize(12), marginTop: verticalScale(18) },
     legendItem: { flexDirection: 'row', alignItems: 'center' },
     legendDot: { width: normalize(14), height: normalize(14), borderRadius: normalize(4), marginRight: normalize(6) },
-    legendText: { color: '#4B5563', fontSize: normalize(11), fontWeight: '600' },
+    legendText: { color: colors.textSecondary, fontSize: normalize(11), fontWeight: '600' },
     paletteFooter: { flexDirection: 'row', gap: normalize(12), marginTop: verticalScale(20) },
-    footerBtnOutline: { flex: 1, paddingVertical: verticalScale(14), borderRadius: normalize(10), borderWidth: 1, borderColor: '#D1D5DB', alignItems: 'center' },
-    footerBtnText: { color: '#374151', fontSize: normalize(14), fontWeight: '600' },
-    footerBtnSolid: { flex: 1, backgroundColor: Colorpath.Primary, paddingVertical: verticalScale(14), borderRadius: normalize(10), alignItems: 'center' },
+    footerBtnOutline: { flex: 1, paddingVertical: verticalScale(14), borderRadius: normalize(10), borderWidth: 1, borderColor: colors.border, alignItems: 'center', backgroundColor: colors.Background },
+    footerBtnText: { color: colors.text, fontSize: normalize(14), fontWeight: '600' },
+    footerBtnSolid: { flex: 1, backgroundColor: colors.Primary, paddingVertical: verticalScale(14), borderRadius: normalize(10), alignItems: 'center' },
     footerBtnSolidText: { color: '#FFFFFF', fontSize: normalize(14), fontWeight: '600' },
     loadingOverlay: {
         position: 'absolute',
@@ -915,25 +924,25 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+        backgroundColor: isDarkTheme ? 'rgba(0, 0, 0, 0.85)' : 'rgba(255, 255, 255, 0.85)',
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 1000,
     },
     loadingCard: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.cardBackground,
         borderRadius: normalize(16),
         paddingHorizontal: normalize(32),
         paddingVertical: verticalScale(32),
         alignItems: 'center',
-        shadowColor: '#000',
+        shadowColor: isDarkTheme ? colors.accent : '#000',
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.1,
         shadowRadius: 20,
         elevation: 10,
         width: '80%',
         borderWidth: 1,
-        borderColor: '#F3F4F6',
+        borderColor: colors.border,
     },
     loadingSpinner: {
         marginBottom: verticalScale(20),
@@ -942,13 +951,13 @@ const styles = StyleSheet.create({
     loadingOverlayTitle: {
         fontSize: normalize(18),
         fontWeight: 'bold',
-        color: '#111827',
+        color: colors.text,
         textAlign: 'center',
         marginBottom: verticalScale(8),
     },
     loadingOverlaySubtitle: {
         fontSize: normalize(13),
-        color: '#6B7280',
+        color: colors.textSecondary,
         textAlign: 'center',
         fontWeight: '500',
     },

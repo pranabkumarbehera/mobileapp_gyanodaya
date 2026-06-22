@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
     View,
     Text,
@@ -10,16 +10,17 @@ import {
     StatusBar,
     ScrollView,
     ActivityIndicator,
+    Animated,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { changePasswordRequest, changePasswordSuccess, resetPasswordRequest, resetPasswordSuccess } from '../../../Redux/Reducers/AuthReducer';
 import { RootState } from '../../../Redux/Store';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
-import Colorpath from '../../../Themes/Colorpath';
 import { normalize, verticalScale } from '../../../Utils/Helpers/normalize';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../Navigator/StackNav';
+import { useTheme } from '../../../Themes/hooks';
 
 type ChangePasswordScreenProps = StackScreenProps<RootStackParamList, 'ChangePassword'>;
 type ChangePasswordErrors = {
@@ -34,6 +35,10 @@ const ChangePasswordScreen = ({ route, navigation }: ChangePasswordScreenProps) 
     const resetToken = route.params?.token;
     const isResetMode = !!resetToken;
 
+    const { colors, theme } = useTheme();
+    const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
+    const statusBarStyle = isDarkTheme ? 'light-content' : 'dark-content';
+
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -45,6 +50,31 @@ const ChangePasswordScreen = ({ route, navigation }: ChangePasswordScreenProps) 
         newPassword: false,
         confirmPassword: false,
     });
+
+    // Focus states for fields
+    const [currentFocused, setCurrentFocused] = useState(false);
+    const [newFocused, setNewFocused] = useState(false);
+    const [confirmFocused, setConfirmFocused] = useState(false);
+
+    // Spring button scale animation
+    const buttonScale = useRef(new Animated.Value(1)).current;
+    const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+    const handlePressIn = () => {
+        Animated.spring(buttonScale, {
+            toValue: 0.96,
+            useNativeDriver: true,
+        }).start();
+    };
+
+    const handlePressOut = () => {
+        Animated.spring(buttonScale, {
+            toValue: 1,
+            friction: 4,
+            tension: 40,
+            useNativeDriver: true,
+        }).start();
+    };
 
     const dispatch = useDispatch();
     const { isLoading, changePasswordResponse, resetPasswordResponse, token } = useSelector((state: RootState) => state.AuthReducer);
@@ -132,8 +162,8 @@ const ChangePasswordScreen = ({ route, navigation }: ChangePasswordScreenProps) 
     };
 
     return (
-        <SafeAreaView style={styles.container}>
-            <StatusBar backgroundColor="#FAFBFF" barStyle="dark-content" />
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.Background }]}>
+            <StatusBar backgroundColor={colors.Background} barStyle={statusBarStyle} />
 
             <KeyboardAvoidingView
                 style={styles.keyboardView}
@@ -141,12 +171,12 @@ const ChangePasswordScreen = ({ route, navigation }: ChangePasswordScreenProps) 
             >
                 <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
                     <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
-                        <Icon name="arrow-left" size={normalize(24)} color="#111827" />
+                        <Icon name="arrow-left" size={normalize(24)} color={colors.text} />
                     </Pressable>
 
                     <View style={styles.headerContainer}>
-                        <Text style={styles.brandTitle}>{isResetMode ? 'Reset Password' : 'Change Password'}</Text>
-                        <Text style={styles.subtitle}>
+                        <Text style={[styles.brandTitle, { color: colors.Primary }]}>{isResetMode ? 'Reset Password' : 'Change Password'}</Text>
+                        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
                             {isResetMode
                                 ? 'Create a secure new password for your account.'
                                 : 'Create a new password that is secure and easy to remember.'}
@@ -156,24 +186,41 @@ const ChangePasswordScreen = ({ route, navigation }: ChangePasswordScreenProps) 
                     <View style={styles.formContainer}>
                         {!isResetMode && (
                             <View style={styles.fieldWrapper}>
-                                <Text style={styles.inputLabel}>Current Password</Text>
-                                <View style={[styles.inputContainer, touched.currentPassword && errors.currentPassword ? styles.inputContainerError : null]}>
-                                    <Icon name="lock" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
+                                <Text style={[styles.inputLabel, { color: colors.text }]}>Current Password</Text>
+                                <View style={[
+                                    styles.inputContainer,
+                                    {
+                                        backgroundColor: colors.cardBackground,
+                                        borderColor: currentFocused ? colors.accent : (touched.currentPassword && errors.currentPassword ? '#EF4444' : colors.border),
+                                        shadowColor: colors.accent,
+                                        shadowOffset: { width: 0, height: 0 },
+                                        shadowOpacity: currentFocused && isDarkTheme ? 0.35 : 0,
+                                        shadowRadius: 8,
+                                        elevation: currentFocused ? 2 : 0,
+                                    }
+                                ]}>
+                                    <Icon name="lock" size={normalize(18)} color={currentFocused ? colors.accent : colors.textSecondary} style={styles.inputIcon} />
                                     <TextInput
-                                        style={styles.input}
+                                        style={[styles.input, { color: colors.text }]}
                                         placeholder="Enter current password"
-                                        placeholderTextColor="#9CA3AF"
+                                        placeholderTextColor={colors.textSecondary}
                                         secureTextEntry={secureCurrent}
                                         value={currentPassword}
                                         onChangeText={(value) => {
                                             updateTouched('currentPassword');
                                             setCurrentPassword(value);
                                         }}
-                                        onFocus={() => updateTouched('currentPassword')}
-                                        onBlur={() => updateTouched('currentPassword')}
+                                        onFocus={() => {
+                                            updateTouched('currentPassword');
+                                            setCurrentFocused(true);
+                                        }}
+                                        onBlur={() => {
+                                            updateTouched('currentPassword');
+                                            setCurrentFocused(false);
+                                        }}
                                     />
                                     <Pressable onPress={() => setSecureCurrent(!secureCurrent)} style={styles.eyeIcon}>
-                                        <Icon name={secureCurrent ? 'eye-off' : 'eye'} size={normalize(18)} color="#9CA3AF" />
+                                        <Icon name={secureCurrent ? 'eye-off' : 'eye'} size={normalize(18)} color={colors.textSecondary} />
                                     </Pressable>
                                 </View>
                                 {touched.currentPassword && errors.currentPassword ? <Text style={styles.errorText}>{errors.currentPassword}</Text> : null}
@@ -181,56 +228,104 @@ const ChangePasswordScreen = ({ route, navigation }: ChangePasswordScreenProps) 
                         )}
 
                         <View style={styles.fieldWrapper}>
-                            <Text style={styles.inputLabel}>New Password</Text>
-                            <View style={[styles.inputContainer, touched.newPassword && errors.newPassword ? styles.inputContainerError : null]}>
-                                <Icon name="lock" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
+                            <Text style={[styles.inputLabel, { color: colors.text }]}>New Password</Text>
+                            <View style={[
+                                styles.inputContainer,
+                                {
+                                    backgroundColor: colors.cardBackground,
+                                    borderColor: newFocused ? colors.accent : (touched.newPassword && errors.newPassword ? '#EF4444' : colors.border),
+                                    shadowColor: colors.accent,
+                                    shadowOffset: { width: 0, height: 0 },
+                                    shadowOpacity: newFocused && isDarkTheme ? 0.35 : 0,
+                                    shadowRadius: 8,
+                                    elevation: newFocused ? 2 : 0,
+                                }
+                            ]}>
+                                <Icon name="lock" size={normalize(18)} color={newFocused ? colors.accent : colors.textSecondary} style={styles.inputIcon} />
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, { color: colors.text }]}
                                     placeholder="Enter new password"
-                                    placeholderTextColor="#9CA3AF"
+                                    placeholderTextColor={colors.textSecondary}
                                     secureTextEntry={secureNew}
                                     value={newPassword}
                                     onChangeText={(value) => {
                                         updateTouched('newPassword');
                                         setNewPassword(value);
                                     }}
-                                    onFocus={() => updateTouched('newPassword')}
-                                    onBlur={() => updateTouched('newPassword')}
+                                    onFocus={() => {
+                                        updateTouched('newPassword');
+                                        setNewFocused(true);
+                                    }}
+                                    onBlur={() => {
+                                        updateTouched('newPassword');
+                                        setNewFocused(false);
+                                    }}
                                 />
                                 <Pressable onPress={() => setSecureNew(!secureNew)} style={styles.eyeIcon}>
-                                    <Icon name={secureNew ? 'eye-off' : 'eye'} size={normalize(18)} color="#9CA3AF" />
+                                    <Icon name={secureNew ? 'eye-off' : 'eye'} size={normalize(18)} color={colors.textSecondary} />
                                 </Pressable>
                             </View>
                             {touched.newPassword && errors.newPassword ? <Text style={styles.errorText}>{errors.newPassword}</Text> : null}
                         </View>
 
                         <View style={styles.fieldWrapper}>
-                            <Text style={styles.inputLabel}>Confirm New Password</Text>
-                            <View style={[styles.inputContainer, touched.confirmPassword && errors.confirmPassword ? styles.inputContainerError : null]}>
-                                <Icon name="lock" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
+                            <Text style={[styles.inputLabel, { color: colors.text }]}>Confirm New Password</Text>
+                            <View style={[
+                                styles.inputContainer,
+                                {
+                                    backgroundColor: colors.cardBackground,
+                                    borderColor: confirmFocused ? colors.accent : (touched.confirmPassword && errors.confirmPassword ? '#EF4444' : colors.border),
+                                    shadowColor: colors.accent,
+                                    shadowOffset: { width: 0, height: 0 },
+                                    shadowOpacity: confirmFocused && isDarkTheme ? 0.35 : 0,
+                                    shadowRadius: 8,
+                                    elevation: confirmFocused ? 2 : 0,
+                                }
+                            ]}>
+                                <Icon name="lock" size={normalize(18)} color={confirmFocused ? colors.accent : colors.textSecondary} style={styles.inputIcon} />
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, { color: colors.text }]}
                                     placeholder="Confirm new password"
-                                    placeholderTextColor="#9CA3AF"
+                                    placeholderTextColor={colors.textSecondary}
                                     secureTextEntry={secureConfirm}
                                     value={confirmPassword}
                                     onChangeText={(value) => {
                                         updateTouched('confirmPassword');
                                         setConfirmPassword(value);
                                     }}
-                                    onFocus={() => updateTouched('confirmPassword')}
-                                    onBlur={() => updateTouched('confirmPassword')}
+                                    onFocus={() => {
+                                        updateTouched('confirmPassword');
+                                        setConfirmFocused(true);
+                                    }}
+                                    onBlur={() => {
+                                        updateTouched('confirmPassword');
+                                        setConfirmFocused(false);
+                                    }}
                                 />
                                 <Pressable onPress={() => setSecureConfirm(!secureConfirm)} style={styles.eyeIcon}>
-                                    <Icon name={secureConfirm ? 'eye-off' : 'eye'} size={normalize(18)} color="#9CA3AF" />
+                                    <Icon name={secureConfirm ? 'eye-off' : 'eye'} size={normalize(18)} color={colors.textSecondary} />
                                 </Pressable>
                             </View>
                             {touched.confirmPassword && errors.confirmPassword ? <Text style={styles.errorText}>{errors.confirmPassword}</Text> : null}
                         </View>
 
-                        <Pressable
-                            style={styles.submitButton}
+                        <AnimatedPressable
+                            style={[
+                                styles.submitButton,
+                                {
+                                    backgroundColor: colors.Primary,
+                                    borderColor: colors.border,
+                                    borderWidth: isDarkTheme ? 1 : 0,
+                                    transform: [{ scale: buttonScale }],
+                                    shadowColor: isDarkTheme ? colors.accent : '#000000',
+                                    shadowOpacity: isDarkTheme ? 0.25 : 0.1,
+                                    shadowRadius: 8,
+                                    shadowOffset: { width: 0, height: 4 },
+                                }
+                            ]}
                             onPress={handleChangePassword}
+                            onPressIn={handlePressIn}
+                            onPressOut={handlePressOut}
                             disabled={isLoading}
                         >
                             {isLoading ? (
@@ -238,7 +333,7 @@ const ChangePasswordScreen = ({ route, navigation }: ChangePasswordScreenProps) 
                             ) : (
                                 <Text style={styles.submitButtonText}>{isResetMode ? 'Reset Password' : 'Update Password'}</Text>
                             )}
-                        </Pressable>
+                        </AnimatedPressable>
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
@@ -249,7 +344,6 @@ const ChangePasswordScreen = ({ route, navigation }: ChangePasswordScreenProps) 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FAFBFF',
     },
     keyboardView: {
         flex: 1,
@@ -270,12 +364,10 @@ const styles = StyleSheet.create({
     brandTitle: {
         fontSize: normalize(28),
         fontWeight: '800',
-        color: Colorpath.Primary,
         marginBottom: verticalScale(12),
     },
     subtitle: {
         fontSize: normalize(15),
-        color: '#6B7280',
         lineHeight: normalize(22),
     },
     formContainer: {
@@ -286,17 +378,14 @@ const styles = StyleSheet.create({
     },
     inputLabel: {
         fontSize: normalize(14),
-        color: '#374151',
         fontWeight: '600',
         marginBottom: verticalScale(8),
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
         borderRadius: normalize(12),
         borderWidth: 1,
-        borderColor: '#E5E7EB',
         height: verticalScale(55),
         paddingHorizontal: normalize(16),
     },
@@ -308,7 +397,6 @@ const styles = StyleSheet.create({
     },
     input: {
         flex: 1,
-        color: '#111827',
         fontSize: normalize(15),
     },
     eyeIcon: {
@@ -321,17 +409,16 @@ const styles = StyleSheet.create({
         marginLeft: normalize(4),
     },
     submitButton: {
-        backgroundColor: Colorpath.Primary,
         borderRadius: normalize(12),
         height: verticalScale(55),
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: verticalScale(10),
-        shadowColor: Colorpath.Primary,
+        elevation: 3,
+        shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 4,
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
     },
     submitButtonText: {
         color: '#FFFFFF',

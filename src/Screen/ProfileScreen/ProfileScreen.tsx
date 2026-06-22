@@ -76,11 +76,13 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
     const [form, setForm] = useState<EditableProfile>(DEFAULT_FORM);
     const [imageError, setImageError] = useState(false);
     const [editImageError, setEditImageError] = useState(false);
+    const [focusedField, setFocusedField] = useState<string | null>(null);
+
 
     const { colors, theme } = useTheme();
     const { t, language } = useTranslation();
 
-    const isDarkTheme = theme === 'neon' || theme === 'sunset';
+    const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
     const statusBarStyle = isDarkTheme ? 'light-content' : 'dark-content';
 
     // Account Deletion States
@@ -269,7 +271,9 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
         { name: 'classic', label: t('profile.classic_theme'), mainColor: '#092948', accentColor: '#f0a335' },
         { name: 'neon', label: t('profile.neon_theme'), mainColor: '#0A0A10', accentColor: '#00F2FE' },
         { name: 'aurora', label: t('profile.aurora_theme'), mainColor: '#4F46E5', accentColor: '#EC4899' },
-        { name: 'sunset', label: t('profile.sunset_theme'), mainColor: '#1E0D06', accentColor: '#F97316' }
+        { name: 'sunset', label: t('profile.sunset_theme'), mainColor: '#1E0D06', accentColor: '#F97316' },
+        { name: 'midnight', label: t('profile.midnight_theme'), mainColor: '#0F172A', accentColor: '#6366F1' },
+        { name: 'emerald', label: t('profile.emerald_theme'), mainColor: '#064E3B', accentColor: '#10B981' }
     ];
 
     const langOptions = [
@@ -528,9 +532,11 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                             <TextInput
                                 value={form.firstName}
                                 onChangeText={(value) => updateField('firstName', value)}
-                                style={[styles.input, { backgroundColor: colors.Background, borderColor: colors.border, color: colors.text }]}
+                                style={[styles.input, { backgroundColor: colors.Background, borderColor: focusedField === 'firstName' ? colors.Primary : colors.border, color: colors.text }]}
                                 placeholder="Enter first name"
                                 placeholderTextColor={colors.textSecondary}
+                                onFocus={() => setFocusedField('firstName')}
+                                onBlur={() => setFocusedField(null)}
                             />
                         </View>
 
@@ -539,25 +545,29 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                             <TextInput
                                 value={form.lastName}
                                 onChangeText={(value) => updateField('lastName', value)}
-                                style={[styles.input, { backgroundColor: colors.Background, borderColor: colors.border, color: colors.text }]}
+                                style={[styles.input, { backgroundColor: colors.Background, borderColor: focusedField === 'lastName' ? colors.Primary : colors.border, color: colors.text }]}
                                 placeholder="Enter last name"
                                 placeholderTextColor={colors.textSecondary}
+                                onFocus={() => setFocusedField('lastName')}
+                                onBlur={() => setFocusedField(null)}
                             />
                         </View>
 
                         <View style={styles.inputGroup}>
                             <Text style={[styles.inputLabel, { color: colors.text }]}>{t('profile.phone')}</Text>
                             <View style={styles.phoneInputRow}>
-                                <View style={[styles.phonePrefixBox, { backgroundColor: colors.Background, borderColor: colors.border }]}>
+                                <View style={[styles.phonePrefixBox, { backgroundColor: colors.Background, borderColor: focusedField === 'phone' ? colors.Primary : colors.border }]}>
                                     <Text style={[styles.phonePrefixText, { color: colors.text }]}>+91</Text>
                                 </View>
                                 <TextInput
                                     value={form.phone}
                                     onChangeText={(value) => updateField('phone', value.replace(/^\+91\s*/, ''))}
-                                    style={[styles.input, styles.phoneInput, { backgroundColor: colors.Background, borderColor: colors.border, color: colors.text }]}
+                                    style={[styles.input, styles.phoneInput, { backgroundColor: colors.Background, borderColor: focusedField === 'phone' ? colors.Primary : colors.border, color: colors.text }]}
                                     placeholder="Enter phone number"
                                     placeholderTextColor={colors.textSecondary}
                                     keyboardType="phone-pad"
+                                    onFocus={() => setFocusedField('phone')}
+                                    onBlur={() => setFocusedField(null)}
                                 />
                             </View>
                         </View>
@@ -567,11 +577,13 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                             <TextInput
                                 value={form.bio}
                                 onChangeText={(value) => updateField('bio', value)}
-                                style={[styles.input, styles.bioInput, { backgroundColor: colors.Background, borderColor: colors.border, color: colors.text }]}
+                                style={[styles.input, styles.bioInput, { backgroundColor: colors.Background, borderColor: focusedField === 'bio' ? colors.Primary : colors.border, color: colors.text }]}
                                 placeholder={t('profile.bio_placeholder')}
                                 placeholderTextColor={colors.textSecondary}
                                 multiline
                                 textAlignVertical="top"
+                                onFocus={() => setFocusedField('bio')}
+                                onBlur={() => setFocusedField(null)}
                             />
                         </View>
 
@@ -585,6 +597,7 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                                 <Text style={styles.saveButtonText}>{t('common.save')}</Text>
                             )}
                         </Pressable>
+
                     </View>
                 </View>
             </Modal>

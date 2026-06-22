@@ -1,25 +1,26 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { StackScreenProps } from '@react-navigation/stack';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-    View,
-    Text,
-    StyleSheet,
-    TextInput,
-    Pressable,
+    ActivityIndicator,
+    Animated,
+    Keyboard,
     KeyboardAvoidingView,
     Platform,
+    Pressable,
     StatusBar,
-    ActivityIndicator,
-    Keyboard,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
 } from 'react-native';
-import { useDispatch, useSelector } from 'react-redux';
-import { verifyOtpRequest, forgotPasswordRequest } from '../../../Redux/Reducers/AuthReducer';
-import { RootState } from '../../../Redux/Store';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
-import Colorpath from '../../../Themes/Colorpath';
-import { normalize, verticalScale } from '../../../Utils/Helpers/normalize';
-import { StackScreenProps } from '@react-navigation/stack';
+import { useDispatch, useSelector } from 'react-redux';
 import { RootStackParamList } from '../../../Navigator/StackNav';
+import { forgotPasswordRequest, verifyOtpRequest } from '../../../Redux/Reducers/AuthReducer';
+import { RootState } from '../../../Redux/Store';
+import { useTheme } from '../../../Themes/hooks';
+import { normalize, verticalScale } from '../../../Utils/Helpers/normalize';
 
 type OtpScreenProps = StackScreenProps<RootStackParamList, 'Otp'>;
 
@@ -28,10 +29,35 @@ const OtpScreen = ({ route, navigation }: OtpScreenProps) => {
     const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
     const [touched, setTouched] = useState(false);
     const [resendTimer, setResendTimer] = useState(30);
+    const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
+
+    const { colors, theme } = useTheme();
+    const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
+    const statusBarStyle = isDarkTheme ? 'light-content' : 'dark-content';
 
     const inputRefs = useRef<(TextInput | null)[]>([]);
     const dispatch = useDispatch();
     const { isLoading, verifyOtpResponse } = useSelector((state: RootState) => state.AuthReducer);
+
+    // Spring button scale animation
+    const buttonScale = useRef(new Animated.Value(1)).current;
+    const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+    const handlePressIn = () => {
+        Animated.spring(buttonScale, {
+            toValue: 0.96,
+            useNativeDriver: true,
+        }).start();
+    };
+
+    const handlePressOut = () => {
+        Animated.spring(buttonScale, {
+            toValue: 1,
+            friction: 4,
+            tension: 40,
+            useNativeDriver: true,
+        }).start();
+    };
 
     // Countdown timer for Resend OTP
     useEffect(() => {
@@ -49,12 +75,12 @@ const OtpScreen = ({ route, navigation }: OtpScreenProps) => {
         if (verifyOtpResponse?.success || verifyOtpResponse?.message) {
             // Find token in standard places
             const token = verifyOtpResponse?.resetToken ||
-                          verifyOtpResponse?.data?.resetToken ||
-                          verifyOtpResponse?.token || 
-                          verifyOtpResponse?.data?.token || 
-                          verifyOtpResponse?.data?.data?.token ||
-                          (typeof verifyOtpResponse?.data === 'string' ? verifyOtpResponse?.data : undefined);
-                          
+                verifyOtpResponse?.data?.resetToken ||
+                verifyOtpResponse?.token ||
+                verifyOtpResponse?.data?.token ||
+                verifyOtpResponse?.data?.data?.token ||
+                (typeof verifyOtpResponse?.data === 'string' ? verifyOtpResponse?.data : undefined);
+
             if (token && typeof token === 'string') {
                 // Navigate to Reset Password screen with the verification token
                 navigation.navigate('ChangePassword', { token });
@@ -67,11 +93,12 @@ const OtpScreen = ({ route, navigation }: OtpScreenProps) => {
 
     const handleOtpChange = (value: string, index: number) => {
         const nextOtp = [...otp];
-        
+
         // Take only the last character entered
         const char = value.substring(value.length - 1);
         nextOtp[index] = char;
         setOtp(nextOtp);
+        setTouched(true);
 
         // Move focus to next input if filled
         if (char && index < 5) {
@@ -114,27 +141,27 @@ const OtpScreen = ({ route, navigation }: OtpScreenProps) => {
     };
 
     return (
-        <SafeAreaView style={styles.container}>
-            <StatusBar backgroundColor="#FAFBFF" barStyle="dark-content" />
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.Background }]}>
+            <StatusBar backgroundColor={colors.Background} barStyle={statusBarStyle} />
 
-            <KeyboardAvoidingView 
+            <KeyboardAvoidingView
                 style={styles.keyboardView}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             >
                 <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
-                    <Icon name="arrow-left" size={normalize(24)} color="#111827" />
+                    <Icon name="arrow-left" size={normalize(24)} color={colors.text} />
                 </Pressable>
 
                 <View style={styles.contentContainer}>
                     <View style={styles.headerContainer}>
-                        <View style={styles.iconContainer}>
-                            <Icon name="shield" size={normalize(28)} color={Colorpath.Primary} />
+                        <View style={[styles.iconContainer, { backgroundColor: colors.tagPurple }]}>
+                            <Icon name="shield" size={normalize(28)} color={colors.tagPurpleText} />
                         </View>
-                        <Text style={styles.brandTitle}>OTP Verification</Text>
-                        <Text style={styles.subtitle}>
+                        <Text style={[styles.brandTitle, { color: colors.text }]}>OTP Verification</Text>
+                        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
                             We've sent a 6-digit verification code to your email address:
                         </Text>
-                        <Text style={styles.emailText}>{email}</Text>
+                        <Text style={[styles.emailText, { color: colors.accent }]}>{email}</Text>
                     </View>
 
                     <View style={styles.formContainer}>
@@ -144,13 +171,24 @@ const OtpScreen = ({ route, navigation }: OtpScreenProps) => {
                                     key={index}
                                     ref={(ref) => { inputRefs.current[index] = ref; }}
                                     style={[
-                                        styles.otpInput, 
+                                        styles.otpInput,
+                                        { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.text },
                                         touched && !digit ? styles.otpInputError : null,
-                                        digit ? styles.otpInputFilled : null
+                                        digit ? { borderColor: colors.accent, backgroundColor: colors.Background } : null,
+                                        focusedIndex === index ? { borderColor: colors.accent, borderWidth: 2 } : null,
+                                        focusedIndex === index && isDarkTheme ? {
+                                            shadowColor: colors.accent,
+                                            shadowOffset: { width: 0, height: 0 },
+                                            shadowOpacity: 0.35,
+                                            shadowRadius: 8,
+                                            elevation: 2,
+                                        } : null
                                     ]}
                                     value={digit}
                                     onChangeText={(val) => handleOtpChange(val, index)}
                                     onKeyPress={(e) => handleKeyPress(e, index)}
+                                    onFocus={() => setFocusedIndex(index)}
+                                    onBlur={() => setFocusedIndex(null)}
                                     keyboardType="number-pad"
                                     maxLength={1}
                                     selectTextOnFocus
@@ -162,9 +200,24 @@ const OtpScreen = ({ route, navigation }: OtpScreenProps) => {
                             <Text style={styles.errorText}>Please enter all 6 digits of the OTP</Text>
                         )}
 
-                        <Pressable 
-                            style={[styles.submitButton, !isOtpComplete() && styles.submitButtonDisabled]} 
+                        <AnimatedPressable
+                            style={[
+                                styles.submitButton,
+                                {
+                                    backgroundColor: colors.Primary,
+                                    borderColor: colors.border,
+                                    borderWidth: isDarkTheme ? 1 : 0,
+                                    transform: [{ scale: buttonScale }],
+                                    shadowColor: isDarkTheme ? colors.accent : '#000000',
+                                    shadowOpacity: isDarkTheme ? 0.25 : 0.1,
+                                    shadowRadius: 8,
+                                    shadowOffset: { width: 0, height: 4 },
+                                },
+                                !isOtpComplete() && styles.submitButtonDisabled
+                            ]}
                             onPress={handleVerify}
+                            onPressIn={handlePressIn}
+                            onPressOut={handlePressOut}
                             disabled={isLoading}
                         >
                             {isLoading ? (
@@ -172,16 +225,16 @@ const OtpScreen = ({ route, navigation }: OtpScreenProps) => {
                             ) : (
                                 <Text style={styles.submitButtonText}>Verify OTP</Text>
                             )}
-                        </Pressable>
+                        </AnimatedPressable>
                     </View>
 
                     <View style={styles.resendContainer}>
-                        <Text style={styles.resendText}>Didn't receive the code? </Text>
+                        <Text style={[styles.resendText, { color: colors.textSecondary }]}>Didn't receive the code? </Text>
                         {resendTimer > 0 ? (
-                            <Text style={styles.timerText}>Resend in {resendTimer}s</Text>
+                            <Text style={[styles.timerText, { color: colors.textSecondary }]}>Resend in {resendTimer}s</Text>
                         ) : (
                             <Pressable onPress={handleResendOTP}>
-                                <Text style={styles.resendButtonText}>Resend OTP</Text>
+                                <Text style={[styles.resendButtonText, { color: colors.Secondary }]}>Resend OTP</Text>
                             </Pressable>
                         )}
                     </View>
@@ -194,7 +247,6 @@ const OtpScreen = ({ route, navigation }: OtpScreenProps) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FAFBFF',
     },
     keyboardView: {
         flex: 1,
@@ -216,7 +268,6 @@ const styles = StyleSheet.create({
         width: normalize(60),
         height: normalize(60),
         borderRadius: normalize(16),
-        backgroundColor: '#EEF2FF',
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: verticalScale(24),
@@ -224,18 +275,15 @@ const styles = StyleSheet.create({
     brandTitle: {
         fontSize: normalize(28),
         fontWeight: '800',
-        color: Colorpath.Primary,
         marginBottom: verticalScale(12),
     },
     subtitle: {
         fontSize: normalize(15),
-        color: '#6B7280',
         lineHeight: normalize(22),
     },
     emailText: {
         fontSize: normalize(16),
         fontWeight: '700',
-        color: Colorpath.Primary,
         marginTop: verticalScale(6),
     },
     formContainer: {
@@ -250,16 +298,12 @@ const styles = StyleSheet.create({
     otpInput: {
         width: normalize(45),
         height: verticalScale(55),
-        backgroundColor: '#FFFFFF',
         borderRadius: normalize(12),
         borderWidth: 1,
-        borderColor: '#E5E7EB',
         fontSize: normalize(20),
         fontWeight: '700',
-        color: '#111827',
     },
     otpInputFilled: {
-        borderColor: Colorpath.Primary,
         backgroundColor: '#F8FAFC',
     },
     otpInputError: {
@@ -272,16 +316,15 @@ const styles = StyleSheet.create({
         alignSelf: 'center',
     },
     submitButton: {
-        backgroundColor: Colorpath.Primary,
         borderRadius: normalize(12),
         height: verticalScale(55),
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: Colorpath.Primary,
+        elevation: 3,
+        shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 4,
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
     },
     submitButtonDisabled: {
         opacity: 0.7,
@@ -298,16 +341,13 @@ const styles = StyleSheet.create({
         paddingVertical: verticalScale(10),
     },
     resendText: {
-        color: '#6B7280',
         fontSize: normalize(14),
     },
     timerText: {
-        color: '#9CA3AF',
         fontWeight: '600',
         fontSize: normalize(14),
     },
     resendButtonText: {
-        color: Colorpath.Primary,
         fontWeight: '700',
         fontSize: normalize(14),
     },

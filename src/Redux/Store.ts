@@ -20,7 +20,7 @@ const store = configureStore({
     },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({ 
-            thunk: false,
+            thunk: true,
             serializableCheck: false 
         }).concat(sagaMiddleware, logger as any),
 });

@@ -1,0 +1,25 @@
+services:
+  # Development service: builds and runs with live-reloads via local volume mounting
+  web-dev:
+    build:
+      context: .
+      target: development
+    container_name: gyanodaya-web-dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules # Isolate container node_modules from host node_modules
+    environment:
+      - NODE_ENV=development
+
+  # Production service: builds and spins up Nginx containing optimized production static assets
+  web-prod:
+    build:
+      context: .
+      target: production
+    container_name: gyanodaya-web-prod
+    ports:
+      - "8080:80"
+    environment:
+      - NODE_ENV=production

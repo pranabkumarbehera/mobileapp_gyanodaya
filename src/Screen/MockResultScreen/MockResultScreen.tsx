@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, StatusBar, FlatList, Image, Animated, Easing } from 'react-native';
+import { View, Text, StyleSheet, Pressable, StatusBar, FlatList, Image, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
-import Colorpath from '../../Themes/Colorpath';
 import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../Navigator/StackNav';
@@ -13,6 +12,7 @@ import { bootstrapHomeRequest } from '../../Redux/Reducers/HomeReducer';
 import LinearGradient from 'react-native-linear-gradient';
 import Imagepath from '../../Themes/Imagepath';
 import { createShimmerPlaceholder } from 'react-native-shimmer-placeholder';
+import { useTheme } from '../../Themes/hooks';
 
 const ShimmerPlaceholder = createShimmerPlaceholder(LinearGradient);
 
@@ -183,8 +183,6 @@ const getRawResultItems = (resultData: any) => {
     return Array.isArray(rawItems) ? rawItems : [];
 };
 
-
-
 const formatTimeSpent = (value: any) => {
     const seconds = Number(value);
     if (!Number.isFinite(seconds) || seconds <= 0) {
@@ -203,17 +201,12 @@ const formatTimeSpent = (value: any) => {
     return `${remainingSeconds}s`;
 };
 
-const AnimatedSkeleton = ({ style }: { style?: any }) => {
-    return (
-        <ShimmerPlaceholder
-            style={style}
-            shimmerColors={['#E5E7EB', '#F3F4F6', '#E5E7EB']}
-        />
-    );
-};
-
 const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
     const dispatch = useDispatch();
+    const { colors, theme } = useTheme();
+    const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
+    const styles = useMemo(() => getStyles(colors, isDarkTheme), [colors, isDarkTheme]);
+
     const { testResult, isLoading, submitTestResponse, startTestResponse, status } = useSelector((state: RootState) => state.MockTestReducer);
     const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
     const routeResultData = route.params?.resultData;
@@ -234,6 +227,7 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
     const submitData = submitTestResponse?.data || submitTestResponse || {};
     const resultData = routeResultData || testResult?.data || testResult || {};
     const resultWhole = resultData || {};
+
     useEffect(() => {
         if (attemptId && !routeResultData) {
             dispatch(getTestResultRequest({ id: attemptId }));
@@ -281,7 +275,7 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
     const correctMarkingValue = Math.abs(Number(rawCorrectMarkingText));
     const calculatedEarned = Number(correct) * correctMarkingValue;
     const earned = calculatedEarned > 0 ? calculatedEarned : (resultData?.score ?? resultData?.marksEarned ?? resultData?.stats?.earned ?? submitData?.score ?? score);
-    // const rank = resultData?.rank ?? resultData?.allIndiaRank ?? resultData?.air ?? '-';
+
     const attemptedQuestions = Number(attempted ?? 0);
     const correctAnswers = Number(correct ?? 0);
     const accuracy = attemptedQuestions > 0
@@ -327,29 +321,28 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
                         </View>
                         <View style={styles.trophyIconBg}>
                             <Image source={Imagepath.Trophy} style={{ width: normalize(24), height: normalize(24) }} resizeMode="contain" />
-                            {/* <Icon name="award" size={normalize(24)} color="#D97706" /> */}
                         </View>
                     </View>
 
                     <View style={styles.scorePillsRow}>
-                        <View style={[styles.scorePill, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
-                            <Text style={[styles.pillValue, { color: '#059669' }]}>+{score}</Text>
-                            <Text style={[styles.pillLabel, { color: '#059669' }]}>Total Marks Earned</Text>
+                        <View style={[styles.scorePill, { backgroundColor: colors.tagGreen, borderColor: colors.border }]}>
+                            <Text style={[styles.pillValue, { color: colors.tagGreenText }]}>+{score}</Text>
+                            <Text style={[styles.pillLabel, { color: colors.tagGreenText }]}>Total Score</Text>
                         </View>
-                        <View style={[styles.scorePill, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
-                            <Text style={[styles.pillValue, { color: '#DC2626' }]}>{accuracy}%</Text>
-                            <Text style={[styles.pillLabel, { color: '#DC2626' }]}>Accuracy</Text>
+                        <View style={[styles.scorePill, { backgroundColor: colors.tagOrange, borderColor: colors.border }]}>
+                            <Text style={[styles.pillValue, { color: colors.tagOrangeText }]}>{accuracy}%</Text>
+                            <Text style={[styles.pillLabel, { color: colors.tagOrangeText }]}>Accuracy</Text>
                         </View>
-                        <View style={[styles.scorePill, { backgroundColor: '#EEF2FF', borderColor: '#C7D2FE' }]}>
-                            <Text style={[styles.pillValue, { color: '#4F46E5' }]}>{timeSpent}</Text>
-                            <Text style={[styles.pillLabel, { color: '#4F46E5' }]}>Time Spend</Text>
+                        <View style={[styles.scorePill, { backgroundColor: colors.tagCyan, borderColor: colors.border }]}>
+                            <Text style={[styles.pillValue, { color: colors.tagCyanText }]}>{timeSpent}</Text>
+                            <Text style={[styles.pillLabel, { color: colors.tagCyanText }]}>Time Spent</Text>
                         </View>
                     </View>
                 </View>
 
                 <View style={styles.statsRow}>
                     <View style={styles.statBox}>
-                        <Text style={[styles.statValue, { color: '#374151' }]}>{attempted}</Text>
+                        <Text style={[styles.statValue, { color: colors.text }]}>{attempted}</Text>
                         <Text style={styles.statLabel}>Attempted</Text>
                     </View>
                     <View style={styles.statBox}>
@@ -361,14 +354,14 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
                         <Text style={styles.statLabel}>Wrong</Text>
                     </View>
                     <View style={styles.statBox}>
-                        <Text style={[styles.statValue, { color: '#F59E0B' }]}>{skipped}</Text>
+                        <Text style={[styles.statValue, { color: colors.accent }]}>{skipped}</Text>
                         <Text style={styles.statLabel}>Skipped</Text>
                     </View>
                 </View>
 
                 <View style={styles.penaltyCard}>
                     <View style={styles.penaltyHeader}>
-                        <Icon name="bar-chart-2" size={normalize(16)} color="#4B5563" />
+                        <Icon name="bar-chart-2" size={normalize(16)} color={colors.text} />
                         <Text style={styles.penaltyTitle}>Negative Marking Breakdown</Text>
                     </View>
 
@@ -377,15 +370,15 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
                             <Text style={styles.penaltyRowTitle}>Marks Earned</Text>
                             <Text style={styles.penaltyRowSub}>Based on correct answers</Text>
                         </View>
-                        <Text style={[styles.penaltyRowValue, { color: '#059669' }]}>+{earned}</Text>
+                        <Text style={[styles.penaltyRowValue, { color: '#10B981' }]}>+{earned}</Text>
                     </View>
 
-                    <View style={[styles.penaltyRow, { backgroundColor: '#FEF2F2' }]}>
+                    <View style={[styles.penaltyRow, { backgroundColor: colors.tagOrange }]}>
                         <View>
-                            <Text style={[styles.penaltyRowTitle, { color: '#DC2626' }]}>Penalty Applied</Text>
+                            <Text style={[styles.penaltyRowTitle, { color: colors.tagOrangeText }]}>Penalty Applied</Text>
                             <Text style={styles.penaltyRowSub}>Negative marking per wrong answer: {negativeMarkingText}</Text>
                         </View>
-                        <Text style={[styles.penaltyRowValue, { color: '#DC2626' }]}>-{penalty}</Text>
+                        <Text style={[styles.penaltyRowValue, { color: colors.tagOrangeText }]}>-{penalty}</Text>
                     </View>
 
                     <View style={styles.penaltyTotalRow}>
@@ -477,49 +470,52 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
         </View>
     );
 
-    const renderShimmer = () => (
-        <View style={styles.container}>
-            <StatusBar backgroundColor={Colorpath.Primary} barStyle="light-content" />
-            <View style={styles.headerBackground}>
-                <SafeAreaView edges={['top']}>
-                    <View style={styles.topBar}>
-                        <Text style={styles.loadingTitle}>Preparing Result</Text>
-                        <Text style={styles.loadingSubtitle}>
-                            Please wait while we calculate your latest test summary.
-                        </Text>
-                        <AnimatedSkeleton style={{ width: 100, height: 14, borderRadius: 4, marginBottom: 8, marginTop: verticalScale(16) }} />
-                        <AnimatedSkeleton style={{ width: 180, height: 28, borderRadius: 6 }} />
-                    </View>
-                </SafeAreaView>
-            </View>
-            <View style={styles.contentWrap}>
-                <View style={styles.scoreCard}>
-                    <View style={styles.scoreTopRow}>
-                        <View>
-                            <AnimatedSkeleton style={{ width: 80, height: 12, borderRadius: 4, marginBottom: 8 }} />
-                            <AnimatedSkeleton style={{ width: 120, height: 36, borderRadius: 8 }} />
+    const renderShimmer = () => {
+        const shimmerColors = isDarkTheme ? [colors.border, colors.Background, colors.border] : ['#E5E7EB', '#F3F4F6', '#E5E7EB'];
+        return (
+            <View style={styles.container}>
+                <StatusBar backgroundColor={colors.statusBg} barStyle={colors.statusBar} />
+                <View style={styles.headerBackground}>
+                    <SafeAreaView edges={['top']}>
+                        <View style={styles.topBar}>
+                            <Text style={styles.loadingTitle}>Preparing Result</Text>
+                            <Text style={styles.loadingSubtitle}>
+                                Please wait while we calculate your latest test summary.
+                            </Text>
+                            <ShimmerPlaceholder style={{ width: 100, height: 14, borderRadius: 4, marginBottom: 8, marginTop: verticalScale(16) }} shimmerColors={shimmerColors} />
+                            <ShimmerPlaceholder style={{ width: 180, height: 28, borderRadius: 6 }} shimmerColors={shimmerColors} />
                         </View>
-                        <AnimatedSkeleton style={{ width: 48, height: 48, borderRadius: 24 }} />
-                    </View>
-                    <View style={styles.scorePillsRow}>
-                        <AnimatedSkeleton style={{ flex: 1, height: 60, borderRadius: 10 }} />
-                        <AnimatedSkeleton style={{ flex: 1, height: 60, borderRadius: 10 }} />
-                        <AnimatedSkeleton style={{ flex: 1, height: 60, borderRadius: 10 }} />
-                    </View>
+                    </SafeAreaView>
                 </View>
-                <View style={styles.statsRow}>
-                    <AnimatedSkeleton style={{ flex: 1, height: 40, borderRadius: 8, marginHorizontal: 4 }} />
-                    <AnimatedSkeleton style={{ flex: 1, height: 40, borderRadius: 8, marginHorizontal: 4 }} />
-                    <AnimatedSkeleton style={{ flex: 1, height: 40, borderRadius: 8, marginHorizontal: 4 }} />
-                    <AnimatedSkeleton style={{ flex: 1, height: 40, borderRadius: 8, marginHorizontal: 4 }} />
+                <View style={styles.contentWrap}>
+                    <View style={styles.scoreCard}>
+                        <View style={styles.scoreTopRow}>
+                            <View>
+                                <ShimmerPlaceholder style={{ width: 80, height: 12, borderRadius: 4, marginBottom: 8 }} shimmerColors={shimmerColors} />
+                                <ShimmerPlaceholder style={{ width: 120, height: 36, borderRadius: 8 }} shimmerColors={shimmerColors} />
+                            </View>
+                            <ShimmerPlaceholder style={{ width: 48, height: 48, borderRadius: 24 }} shimmerColors={shimmerColors} />
+                        </View>
+                        <View style={styles.scorePillsRow}>
+                            <ShimmerPlaceholder style={{ flex: 1, height: 60, borderRadius: 10 }} shimmerColors={shimmerColors} />
+                            <ShimmerPlaceholder style={{ flex: 1, height: 60, borderRadius: 10 }} shimmerColors={shimmerColors} />
+                            <ShimmerPlaceholder style={{ flex: 1, height: 60, borderRadius: 10 }} shimmerColors={shimmerColors} />
+                        </View>
+                    </View>
+                    <View style={styles.statsRow}>
+                        <ShimmerPlaceholder style={{ flex: 1, height: 40, borderRadius: 8, marginHorizontal: 4 }} shimmerColors={shimmerColors} />
+                        <ShimmerPlaceholder style={{ flex: 1, height: 40, borderRadius: 8, marginHorizontal: 4 }} shimmerColors={shimmerColors} />
+                        <ShimmerPlaceholder style={{ flex: 1, height: 40, borderRadius: 8, marginHorizontal: 4 }} shimmerColors={shimmerColors} />
+                        <ShimmerPlaceholder style={{ flex: 1, height: 40, borderRadius: 8, marginHorizontal: 4 }} shimmerColors={shimmerColors} />
+                    </View>
+                    <ShimmerPlaceholder style={{ width: '100%', height: 160, borderRadius: 12, marginBottom: 16 }} shimmerColors={shimmerColors} />
+                    <ShimmerPlaceholder style={{ width: '72%', height: 14, borderRadius: 6, marginBottom: 10 }} shimmerColors={shimmerColors} />
+                    <ShimmerPlaceholder style={{ width: '100%', height: 72, borderRadius: 12, marginBottom: 10 }} shimmerColors={shimmerColors} />
+                    <ShimmerPlaceholder style={{ width: '100%', height: 72, borderRadius: 12 }} shimmerColors={shimmerColors} />
                 </View>
-                <AnimatedSkeleton style={{ width: '100%', height: 160, borderRadius: 12, marginBottom: 16 }} />
-                <AnimatedSkeleton style={{ width: '72%', height: 14, borderRadius: 6, marginBottom: 10 }} />
-                <AnimatedSkeleton style={{ width: '100%', height: 72, borderRadius: 12, marginBottom: 10 }} />
-                <AnimatedSkeleton style={{ width: '100%', height: 72, borderRadius: 12 }} />
             </View>
-        </View>
-    );
+        );
+    };
 
     const isTestResultLoading = !routeResultData && (isLoading || status === 'MockTest/getTestResultRequest');
 
@@ -529,7 +525,7 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
 
     return (
         <View style={styles.container}>
-            <StatusBar backgroundColor={Colorpath.Primary} barStyle="light-content" />
+            <StatusBar backgroundColor={colors.statusBg} barStyle={colors.statusBar} />
 
             <FlatList
                 data={visibleReviewItems}
@@ -540,7 +536,7 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
                     <View style={styles.footerSpace}>
                         {visibleCount < reviewItems.length ? (
                             <Pressable style={styles.loadMoreBtn} onPress={loadMore}>
-                                <Text style={styles.loadMoreText}>Load 5 More</Text>
+                                <Text style={styles.loadMoreText}>Load More</Text>
                             </Pressable>
                         ) : null}
                     </View>
@@ -553,7 +549,7 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
 
             <View style={styles.bottomBar}>
                 <Pressable style={styles.retryBtn} onPress={() => navigation.goBack()}>
-                    <Icon name="rotate-ccw" size={normalize(16)} color="#4B5563" style={{ marginRight: normalize(6) }} />
+                    <Icon name="rotate-ccw" size={normalize(16)} color={colors.textSecondary} style={{ marginRight: normalize(6) }} />
                     <Text style={styles.retryBtnText}>Retry</Text>
                 </Pressable>
                 <Pressable style={styles.homeBtn} onPress={() => {
@@ -572,53 +568,50 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
     );
 };
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#FAFBFF' },
+const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.Background },
     centered: { justifyContent: 'center', alignItems: 'center' },
-    headerBackground: { backgroundColor: Colorpath.Primary, paddingBottom: verticalScale(20) },
+    headerBackground: { backgroundColor: colors.statusBg, paddingBottom: verticalScale(20) },
     topBar: { paddingHorizontal: normalize(24), paddingTop: verticalScale(16) },
     headerSubtitle: { fontSize: normalize(10), fontWeight: '600', color: '#9CA3AF', letterSpacing: 1, marginBottom: verticalScale(4) },
     headerTitle: { fontSize: normalize(22), fontWeight: 'bold', color: '#FFFFFF' },
     listContent: { paddingBottom: verticalScale(110) },
     contentWrap: { paddingHorizontal: normalize(20), paddingTop: verticalScale(20) },
-    loadingText: { marginTop: verticalScale(12), color: '#6B7280' },
+    loadingText: { marginTop: verticalScale(12), color: colors.textSecondary },
     loadingTitle: { fontSize: normalize(24), fontWeight: '700', color: '#FFFFFF' },
     loadingSubtitle: { marginTop: verticalScale(6), fontSize: normalize(12), lineHeight: normalize(18), color: '#D1D5DB', maxWidth: '84%' },
-    skeletonBase: { overflow: 'hidden', backgroundColor: '#E5E7EB' },
-    skeletonHighlightWrap: { position: 'absolute', top: 0, bottom: 0, width: '45%' },
-    skeletonHighlight: { flex: 1 },
-    scoreCard: { backgroundColor: '#FFFFFF', borderRadius: normalize(16), padding: normalize(20), marginBottom: verticalScale(16), shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 5, borderWidth: 1, borderColor: '#F3F4F6' },
+    scoreCard: { backgroundColor: colors.cardBackground, borderRadius: normalize(16), padding: normalize(20), marginBottom: verticalScale(16), shadowColor: isDarkTheme ? colors.accent : '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: isDarkTheme ? 0.16 : 0.05, shadowRadius: 10, elevation: 5, borderWidth: 1, borderColor: colors.border },
     scoreTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: verticalScale(20) },
-    finalScoreLabel: { fontSize: normalize(11), fontWeight: 'bold', color: '#6B7280', letterSpacing: 0.5, marginBottom: verticalScale(4) },
+    finalScoreLabel: { fontSize: normalize(11), fontWeight: 'bold', color: colors.textSecondary, letterSpacing: 0.5, marginBottom: verticalScale(4) },
     scoreValueRow: { flexDirection: 'row', alignItems: 'baseline' },
-    scoreMain: { fontSize: normalize(32), fontWeight: 'bold', color: '#111827' },
-    scoreTotal: { fontSize: normalize(14), fontWeight: '600', color: '#6B7280', marginLeft: normalize(4) },
-    trophyIconBg: { width: normalize(48), height: normalize(48), borderRadius: normalize(24), backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#F59E0B' },
+    scoreMain: { fontSize: normalize(32), fontWeight: 'bold', color: colors.text },
+    scoreTotal: { fontSize: normalize(14), fontWeight: '600', color: colors.textSecondary, marginLeft: normalize(4) },
+    trophyIconBg: { width: normalize(48), height: normalize(48), borderRadius: normalize(24), backgroundColor: colors.Background, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: colors.accent },
     scorePillsRow: { flexDirection: 'row', justifyContent: 'space-between', gap: normalize(10) },
     scorePill: { flex: 1, paddingVertical: verticalScale(10), paddingHorizontal: normalize(8), borderRadius: normalize(10), borderWidth: 1, alignItems: 'center' },
     pillValue: { fontSize: normalize(15), fontWeight: 'bold', marginBottom: verticalScale(2) },
     pillLabel: { fontSize: normalize(10), fontWeight: '600' },
-    statsRow: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#FFFFFF', borderRadius: normalize(12), padding: normalize(16), marginBottom: verticalScale(24), borderWidth: 1, borderColor: '#F3F4F6' },
+    statsRow: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: colors.cardBackground, borderRadius: normalize(12), padding: normalize(16), marginBottom: verticalScale(24), borderWidth: 1, borderColor: colors.border },
     statBox: { alignItems: 'center', flex: 1 },
     statValue: { fontSize: normalize(16), fontWeight: 'bold', marginBottom: verticalScale(4) },
-    statLabel: { fontSize: normalize(11), color: '#6B7280', fontWeight: '500' },
-    penaltyCard: { backgroundColor: '#FFFFFF', borderRadius: normalize(12), padding: normalize(16), marginBottom: verticalScale(24), borderWidth: 1, borderColor: '#F3F4F6' },
+    statLabel: { fontSize: normalize(11), color: colors.textSecondary, fontWeight: '500' },
+    penaltyCard: { backgroundColor: colors.cardBackground, borderRadius: normalize(12), padding: normalize(16), marginBottom: verticalScale(24), borderWidth: 1, borderColor: colors.border },
     penaltyHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: verticalScale(16) },
-    penaltyTitle: { fontSize: normalize(14), fontWeight: 'bold', color: '#374151', marginLeft: normalize(8) },
-    penaltyRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: normalize(12), borderRadius: normalize(8), marginBottom: verticalScale(8), backgroundColor: '#F9FAFB' },
-    penaltyRowTitle: { fontSize: normalize(13), fontWeight: '600', color: '#4B5563', marginBottom: verticalScale(2) },
-    penaltyRowSub: { fontSize: normalize(11), color: '#9CA3AF' },
-    penaltyRowValue: { fontSize: normalize(14), fontWeight: 'bold', color: '#4B5563' },
-    penaltyTotalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: verticalScale(12), marginTop: verticalScale(4), borderTopWidth: 1, borderTopColor: '#E5E7EB' },
-    penaltyTotalTitle: { fontSize: normalize(14), fontWeight: 'bold', color: '#111827' },
-    penaltyTotalValue: { fontSize: normalize(16), fontWeight: 'bold', color: '#111827' },
+    penaltyTitle: { fontSize: normalize(14), fontWeight: 'bold', color: colors.text, marginLeft: normalize(8) },
+    penaltyRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: normalize(12), borderRadius: normalize(8), marginBottom: verticalScale(8), backgroundColor: colors.Background, borderWidth: 1, borderColor: colors.border },
+    penaltyRowTitle: { fontSize: normalize(13), fontWeight: '600', color: colors.text, marginBottom: verticalScale(2) },
+    penaltyRowSub: { fontSize: normalize(11), color: colors.textSecondary },
+    penaltyRowValue: { fontSize: normalize(14), fontWeight: 'bold' },
+    penaltyTotalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: verticalScale(12), marginTop: verticalScale(4), borderTopWidth: 1, borderTopColor: colors.border },
+    penaltyTotalTitle: { fontSize: normalize(14), fontWeight: 'bold', color: colors.text },
+    penaltyTotalValue: { fontSize: normalize(16), fontWeight: 'bold', color: colors.text },
     reviewHeader: { marginBottom: verticalScale(14) },
-    reviewTitle: { fontSize: normalize(18), fontWeight: 'bold', color: '#111827', marginBottom: verticalScale(4) },
-    reviewSubtitle: { fontSize: normalize(12), color: '#6B7280' },
-    reviewCard: { backgroundColor: '#FFFFFF', borderRadius: normalize(14), padding: normalize(16), marginHorizontal: normalize(20), marginBottom: verticalScale(14), borderWidth: 1, borderColor: '#F1F5F9' },
+    reviewTitle: { fontSize: normalize(18), fontWeight: 'bold', color: colors.text, marginBottom: verticalScale(4) },
+    reviewSubtitle: { fontSize: normalize(12), color: colors.textSecondary },
+    reviewCard: { backgroundColor: colors.cardBackground, borderRadius: normalize(14), padding: normalize(16), marginHorizontal: normalize(20), marginBottom: verticalScale(14), borderWidth: 1, borderColor: colors.border, shadowColor: isDarkTheme ? colors.accent : '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: isDarkTheme ? 0.12 : 0.03, shadowRadius: 6, elevation: 2 },
     reviewCardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: verticalScale(10) },
-    reviewQNum: { fontSize: normalize(13), fontWeight: '700', color: Colorpath.Primary },
-    reviewMeta: { fontSize: normalize(11), color: '#6B7280', marginTop: verticalScale(4) },
+    reviewQNum: { fontSize: normalize(13), fontWeight: '700', color: colors.Primary },
+    reviewMeta: { fontSize: normalize(11), color: colors.textSecondary, marginTop: verticalScale(4) },
     reviewBadge: { paddingHorizontal: normalize(10), paddingVertical: verticalScale(5), borderRadius: normalize(999) },
     correctBadge: { backgroundColor: '#DCFCE7' },
     incorrectBadge: { backgroundColor: '#FEE2E2' },
@@ -627,26 +620,26 @@ const styles = StyleSheet.create({
     correctBadgeText: { color: '#15803D' },
     incorrectBadgeText: { color: '#B91C1C' },
     skippedBadgeText: { color: '#B45309' },
-    reviewQText: { fontSize: normalize(15), color: '#111827', fontWeight: '600', lineHeight: normalize(22), marginBottom: verticalScale(14) },
+    reviewQText: { fontSize: normalize(15), color: colors.text, fontWeight: '600', lineHeight: normalize(22), marginBottom: verticalScale(14) },
     reviewOptionsWrap: { gap: verticalScale(10) },
-    reviewOption: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: normalize(10), paddingHorizontal: normalize(12), paddingVertical: verticalScale(12), backgroundColor: '#FFFFFF' },
-    reviewOptionLetter: { fontSize: normalize(14), fontWeight: '700', color: '#374151', marginRight: normalize(10) },
-    reviewOptionText: { flex: 1, fontSize: normalize(14), color: '#374151' },
+    reviewOption: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: normalize(10), paddingHorizontal: normalize(12), paddingVertical: verticalScale(12), backgroundColor: colors.cardBackground },
+    reviewOptionLetter: { fontSize: normalize(14), fontWeight: '700', color: colors.text, marginRight: normalize(10) },
+    reviewOptionText: { flex: 1, fontSize: normalize(14), color: colors.text },
     correctOption: { backgroundColor: '#F0FDF4', borderColor: '#86EFAC' },
     incorrectOption: { backgroundColor: '#FEF2F2', borderColor: '#FCA5A5' },
     correctOptionText: { color: '#166534' },
     incorrectOptionText: { color: '#991B1B' },
     answerMetaWrap: { marginTop: verticalScale(14), gap: verticalScale(4) },
-    answerMetaText: { fontSize: normalize(12), color: '#4B5563', fontWeight: '600' },
+    answerMetaText: { fontSize: normalize(12), color: colors.textSecondary, fontWeight: '600' },
     positiveMarksText: { color: '#15803D' },
     negativeMarksText: { color: '#B91C1C' },
     footerSpace: { paddingHorizontal: normalize(20), paddingBottom: verticalScale(16) },
-    loadMoreBtn: { alignSelf: 'center', backgroundColor: '#EEF2FF', paddingHorizontal: normalize(18), paddingVertical: verticalScale(10), borderRadius: normalize(999) },
-    loadMoreText: { color: Colorpath.Primary, fontSize: normalize(13), fontWeight: '700' },
-    bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: normalize(20), paddingVertical: verticalScale(16), backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#F3F4F6', gap: normalize(12) },
-    retryBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: verticalScale(12), borderRadius: normalize(10), borderWidth: 1, borderColor: '#D1D5DB' },
-    retryBtnText: { color: '#374151', fontSize: normalize(15), fontWeight: '600' },
-    homeBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: Colorpath.Primary, paddingVertical: verticalScale(12), paddingHorizontal: normalize(14), borderRadius: normalize(10) },
+    loadMoreBtn: { alignSelf: 'center', backgroundColor: colors.tagCyan, paddingHorizontal: normalize(18), paddingVertical: verticalScale(10), borderRadius: normalize(999), borderWidth: 1, borderColor: colors.border },
+    loadMoreText: { color: colors.tagCyanText, fontSize: normalize(13), fontWeight: '700' },
+    bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: normalize(20), paddingVertical: verticalScale(16), backgroundColor: colors.cardBackground, borderTopWidth: 1, borderTopColor: colors.border, gap: normalize(12), shadowColor: isDarkTheme ? colors.accent : '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: isDarkTheme ? 0.16 : 0.05, shadowRadius: 10, elevation: 10 },
+    retryBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: verticalScale(12), borderRadius: normalize(10), borderWidth: 1, borderColor: colors.border, backgroundColor: colors.Background },
+    retryBtnText: { color: colors.text, fontSize: normalize(15), fontWeight: '600' },
+    homeBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.Primary, paddingVertical: verticalScale(12), paddingHorizontal: normalize(14), borderRadius: normalize(10) },
     homeBtnLeftIcon: { marginRight: normalize(8) },
     homeBtnText: { color: '#FFFFFF', fontSize: normalize(15), fontWeight: '600' },
     homeBtnRightIcon: { marginLeft: 'auto' },

@@ -159,7 +159,7 @@ export function* deleteAccountSaga(action: any): Generator<any, void, any> {
             yield put(deleteAccountSuccess(response?.data));
             yield put(setDeleteAccountStep('success'));
 
-            yield call(AsyncStorage.multiRemove, [
+            yield call(AsyncStorage.removeMany, [
                 constants.TOKEN,
                 constants.REFRESH_TOKEN,
                 constants.USER_DATA,

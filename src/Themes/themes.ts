@@ -129,5 +129,57 @@ export const themes: Record<string, ThemeColors> = {
         tagOrangeText: '#FDBA74',
         tagPurple: '#581C87',
         tagPurpleText: '#E9D5FF',
+    },
+    midnight: {
+        Primary: '#0F172A', // Slate 900
+        Secondary: '#6366F1', // Indigo Neon
+        Tertiary: '#EC4899', // Aurora Pink accent
+        White: '#1E293B',
+        Black: '#F8FAFC',
+        Background: '#020617', // Deep slate space black
+        cardBackground: '#0B0F19', // Dark glossy card
+        text: '#F8FAFC',
+        textSecondary: '#94A3B8',
+        border: '#1E293B',
+        accent: '#6366F1',
+        statusBar: 'light-content',
+        statusBg: '#0F172A',
+        tabBg: '#0B0F19',
+        tabActive: '#6366F1',
+        tabInactive: '#475569',
+        tagCyan: '#1E1B4B',
+        tagCyanText: '#818CF8',
+        tagGreen: '#064E3B',
+        tagGreenText: '#34D399',
+        tagOrange: '#7C2D12',
+        tagOrangeText: '#FB923C',
+        tagPurple: '#4C1D95',
+        tagPurpleText: '#C084FC',
+    },
+    emerald: {
+        Primary: '#064E3B', // Forest Emerald
+        Secondary: '#10B981', // Mint Green
+        Tertiary: '#059669', // Emerald accent
+        White: '#0B2D24',
+        Black: '#E6F4EA',
+        Background: '#031E17', // Dark Jade void
+        cardBackground: '#072C22', // Glassy deep teal card
+        text: '#E6F4EA',
+        textSecondary: '#34D399',
+        border: '#0A4235',
+        accent: '#10B981',
+        statusBar: 'light-content',
+        statusBg: '#064E3B',
+        tabBg: '#072C22',
+        tabActive: '#10B981',
+        tabInactive: '#1F6D5B',
+        tagCyan: '#0F172A',
+        tagCyanText: '#38BDF8',
+        tagGreen: '#D1FAE5',
+        tagGreenText: '#065F46',
+        tagOrange: '#FEF3C7',
+        tagOrangeText: '#92400E',
+        tagPurple: '#F3E8FF',
+        tagPurpleText: '#6B21A8',
     }
 };

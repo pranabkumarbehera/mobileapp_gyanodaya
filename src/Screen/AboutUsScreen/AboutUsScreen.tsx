@@ -1,18 +1,22 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
-import Colorpath from '../../Themes/Colorpath';
 import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../Navigator/StackNav';
+import { useTheme } from '../../Themes/hooks';
 
 type AboutUsScreenProps = StackScreenProps<RootStackParamList, 'AboutUs'>;
 
 const AboutUsScreen = ({ navigation }: AboutUsScreenProps) => {
+    const { colors, theme } = useTheme();
+    const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
+    const styles = useMemo(() => getStyles(colors, isDarkTheme), [colors, isDarkTheme]);
+
     return (
         <View style={styles.container}>
-            <StatusBar backgroundColor={Colorpath.Primary} barStyle="light-content" />
+            <StatusBar backgroundColor={colors.statusBg} barStyle={colors.statusBar} />
 
             <View style={styles.headerBackground}>
                 <SafeAreaView edges={['top']}>
@@ -44,7 +48,7 @@ const AboutUsScreen = ({ navigation }: AboutUsScreenProps) => {
                             'Regular Updates and Guidance'
                         ].map((item, index) => (
                             <View key={index} style={styles.bulletItem}>
-                                <Icon name="check-circle" size={normalize(16)} color={Colorpath.Primary} style={styles.bulletIcon} />
+                                <Icon name="check-circle" size={normalize(16)} color={colors.Primary} style={styles.bulletIcon} />
                                 <Text style={styles.bulletText}>{item}</Text>
                             </View>
                         ))}
@@ -62,14 +66,14 @@ const AboutUsScreen = ({ navigation }: AboutUsScreenProps) => {
                     </View>
 
                     <Text style={styles.paragraphText}>
-                        Under the expert guidance of <Text style={{ fontWeight: 'bold', color: '#111827' }}>Janmejay Sir and Niyati Ma'am</Text> and other experts, Gyanodaya aims to provide simple, effective, and affordable learning solutions for every student.
+                        Under the expert guidance of <Text style={{ fontWeight: 'bold', color: colors.text }}>Janmejay Sir and Niyati Ma'am</Text> and other experts, Gyanodaya aims to provide simple, effective, and affordable learning solutions for every student.
                     </Text>
 
                     <View style={styles.missionVisionContainer}>
                         <View style={styles.missionCard}>
                             <View style={styles.missionHeader}>
                                 <View style={styles.iconBg}>
-                                    <Icon name="target" size={normalize(18)} color="#D97706" />
+                                    <Icon name="target" size={normalize(18)} color={colors.tagOrangeText} />
                                 </View>
                                 <Text style={styles.missionTitle}>Our Mission</Text>
                             </View>
@@ -80,8 +84,8 @@ const AboutUsScreen = ({ navigation }: AboutUsScreenProps) => {
 
                         <View style={styles.missionCard}>
                             <View style={styles.missionHeader}>
-                                <View style={[styles.iconBg, { backgroundColor: '#EEF2FF' }]}>
-                                    <Icon name="eye" size={normalize(18)} color={Colorpath.Primary} />
+                                <View style={[styles.iconBg, { backgroundColor: colors.tagCyan }]}>
+                                    <Icon name="eye" size={normalize(18)} color={colors.tagCyanText} />
                                 </View>
                                 <Text style={styles.missionTitle}>Our Vision</Text>
                             </View>
@@ -100,33 +104,33 @@ const AboutUsScreen = ({ navigation }: AboutUsScreenProps) => {
     );
 };
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#FAFBFF' },
-    headerBackground: { backgroundColor: Colorpath.Primary, paddingBottom: verticalScale(16) },
+const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.Background },
+    headerBackground: { backgroundColor: colors.statusBg, paddingBottom: verticalScale(16) },
     topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: normalize(20), paddingTop: verticalScale(10) },
     iconButton: { padding: normalize(8), width: normalize(40) },
     headerTitle: { fontSize: normalize(18), fontWeight: 'bold', color: '#FFFFFF' },
     scrollContent: { paddingHorizontal: normalize(20), paddingVertical: verticalScale(24), paddingBottom: verticalScale(40) },
-    contentCard: { backgroundColor: '#FFFFFF', borderRadius: normalize(16), padding: normalize(20), shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3, borderWidth: 1, borderColor: '#F3F4F6' },
-    introText: { fontSize: normalize(14), color: '#4B5563', lineHeight: normalize(22), marginBottom: verticalScale(20) },
-    highlightText: { fontWeight: 'bold', color: Colorpath.Primary, fontSize: normalize(15) },
-    sectionHeading: { fontSize: normalize(15), fontWeight: 'bold', color: '#111827', marginBottom: verticalScale(12), marginTop: verticalScale(8) },
+    contentCard: { backgroundColor: colors.cardBackground, borderRadius: normalize(16), padding: normalize(20), shadowColor: isDarkTheme ? colors.accent : '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: isDarkTheme ? 0.16 : 0.05, shadowRadius: 10, elevation: 3, borderWidth: 1, borderColor: colors.border },
+    introText: { fontSize: normalize(14), color: colors.textSecondary, lineHeight: normalize(22), marginBottom: verticalScale(20) },
+    highlightText: { fontWeight: 'bold', color: colors.Primary, fontSize: normalize(15) },
+    sectionHeading: { fontSize: normalize(15), fontWeight: 'bold', color: colors.text, marginBottom: verticalScale(12), marginTop: verticalScale(8) },
     bulletList: { marginBottom: verticalScale(20) },
     bulletItem: { flexDirection: 'row', alignItems: 'center', marginBottom: verticalScale(8) },
     bulletIcon: { marginRight: normalize(10) },
-    bulletText: { fontSize: normalize(13), color: '#374151', flex: 1 },
+    bulletText: { fontSize: normalize(13), color: colors.text, flex: 1 },
     tagsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: normalize(8), marginBottom: verticalScale(24) },
-    tagBadge: { backgroundColor: '#F3F4F6', paddingHorizontal: normalize(12), paddingVertical: verticalScale(6), borderRadius: normalize(8), borderWidth: 1, borderColor: '#E5E7EB' },
-    tagText: { fontSize: normalize(12), color: '#4B5563', fontWeight: '600' },
-    paragraphText: { fontSize: normalize(14), color: '#4B5563', lineHeight: normalize(22), marginBottom: verticalScale(24) },
+    tagBadge: { backgroundColor: colors.Background, paddingHorizontal: normalize(12), paddingVertical: verticalScale(6), borderRadius: normalize(8), borderWidth: 1, borderColor: colors.border },
+    tagText: { fontSize: normalize(12), color: colors.textSecondary, fontWeight: '600' },
+    paragraphText: { fontSize: normalize(14), color: colors.textSecondary, lineHeight: normalize(22), marginBottom: verticalScale(24) },
     missionVisionContainer: { gap: verticalScale(16), marginBottom: verticalScale(24) },
-    missionCard: { backgroundColor: '#F9FAFB', borderRadius: normalize(12), padding: normalize(16), borderWidth: 1, borderColor: '#F3F4F6' },
+    missionCard: { backgroundColor: colors.Background, borderRadius: normalize(12), padding: normalize(16), borderWidth: 1, borderColor: colors.border },
     missionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: verticalScale(8) },
-    iconBg: { width: normalize(32), height: normalize(32), borderRadius: normalize(8), backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center', marginRight: normalize(10) },
-    missionTitle: { fontSize: normalize(15), fontWeight: 'bold', color: '#111827' },
-    missionText: { fontSize: normalize(13), color: '#4B5563', lineHeight: normalize(20) },
-    footerWrap: { alignItems: 'center', marginTop: verticalScale(10), paddingVertical: verticalScale(16), borderTopWidth: 1, borderTopColor: '#F3F4F6' },
-    footerQuote: { fontSize: normalize(14), fontStyle: 'italic', fontWeight: 'bold', color: Colorpath.Primary, textAlign: 'center' }
+    iconBg: { width: normalize(32), height: normalize(32), borderRadius: normalize(8), backgroundColor: colors.tagOrange, justifyContent: 'center', alignItems: 'center', marginRight: normalize(10) },
+    missionTitle: { fontSize: normalize(15), fontWeight: 'bold', color: colors.text },
+    missionText: { fontSize: normalize(13), color: colors.textSecondary, lineHeight: normalize(20) },
+    footerWrap: { alignItems: 'center', marginTop: verticalScale(10), paddingVertical: verticalScale(16), borderTopWidth: 1, borderTopColor: colors.border },
+    footerQuote: { fontSize: normalize(14), fontStyle: 'italic', fontWeight: 'bold', color: colors.Primary, textAlign: 'center' }
 });
 
 export default AboutUsScreen;

@@ -2,14 +2,18 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import Toast from 'react-native-toast-message';
+import { Platform } from 'react-native';
 import constants from './constants';
 import Store from '../../Redux/Store';
 import { logoutSuccess } from '../../Redux/Reducers/AuthReducer';
 
 const normalizeUrl = (url: string) => url.replace(/^\/+/, '');
 
+const isWeb = Platform.OS === 'web';
+const currentBaseUrl = isWeb ? '/api/v1' : constants.BASE_URL;
+
 const axiosInstance = axios.create({
-    baseURL: constants.BASE_URL,
+    baseURL: currentBaseUrl,
 });
 
 let refreshPromise: Promise<string | null> | null = null;
@@ -63,7 +67,8 @@ const refreshAccessToken = async () => {
                 return null;
             }
 
-            const response = await axios.post(`${constants.BASE_URL}/auth/refresh`, {
+            const refreshUrl = isWeb ? '/api/v1/auth/refresh' : `${constants.BASE_URL}/auth/refresh`;
+            const response = await axios.post(refreshUrl, {
                 refreshToken: storedRefreshToken,
             });
 
@@ -165,7 +170,7 @@ export async function getApi(url: string, header: any = {}) {
     };
     const normalizedUrl = normalizeUrl(url);
 
-    console.log(`[GET] Requesting URL: ${constants.BASE_URL}/${normalizedUrl}`);
+    console.log(`[GET] Requesting URL: ${currentBaseUrl}/${normalizedUrl}`);
 
     return axiosInstance.get(normalizedUrl, { headers: reqHeaders });
 }
@@ -182,7 +187,7 @@ export async function postApi(url: string, payload: any, header: any = {}) {
     };
     const normalizedUrl = normalizeUrl(url);
 
-    console.log(`[POST] Requesting URL: ${constants.BASE_URL}/${normalizedUrl}`, reqHeaders);
+    console.log(`[POST] Requesting URL: ${currentBaseUrl}/${normalizedUrl}`, reqHeaders);
 
     return axiosInstance.post(normalizedUrl, payload, { headers: reqHeaders });
 }
@@ -199,7 +204,7 @@ export async function patchApi(url: string, payload: any, header: any = {}) {
     };
     const normalizedUrl = normalizeUrl(url);
 
-    console.log(`[PATCH] Requesting URL: ${constants.BASE_URL}/${normalizedUrl}`, reqHeaders);
+    console.log(`[PATCH] Requesting URL: ${currentBaseUrl}/${normalizedUrl}`, reqHeaders);
 
     return axiosInstance.patch(normalizedUrl, payload, { headers: reqHeaders });
 }
@@ -216,7 +221,7 @@ export async function deleteApi(url: string, payload?: any, header: any = {}) {
     };
     const normalizedUrl = normalizeUrl(url);
 
-    console.log(`[DELETE] Requesting URL: ${constants.BASE_URL}/${normalizedUrl}`, reqHeaders);
+    console.log(`[DELETE] Requesting URL: ${currentBaseUrl}/${normalizedUrl}`, reqHeaders);
 
     return axiosInstance.delete(normalizedUrl, { headers: reqHeaders, data: payload });
 }

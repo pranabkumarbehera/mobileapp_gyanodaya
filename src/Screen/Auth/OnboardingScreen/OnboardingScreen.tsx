@@ -5,6 +5,7 @@ import {
     ListRenderItem,
     NativeScrollEvent,
     NativeSyntheticEvent,
+    Platform,
     Pressable,
     StatusBar,
     StyleSheet,
@@ -13,13 +14,15 @@ import {
 } from 'react-native';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../Navigator/StackNav';
-import { normalize, verticalScale } from '../../../Utils/Helpers/normalize';
+import { normalize, verticalScale, getContainerWidth } from '../../../Utils/Helpers/normalize';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import { useTheme, useTranslation } from '../../../Themes/hooks';
 import Fonts from '../../../Themes/Fonts';
 
-const { width } = Dimensions.get('window');
+// On web the app renders inside a max-480px container, not the full window width.
+// getContainerWidth() returns the correct slide width for horizontal pagination.
+const slideWidth = getContainerWidth();
 
 type OnboardingScreenProps = StackScreenProps<RootStackParamList, 'Onboarding'>;
 
@@ -92,7 +95,7 @@ const OnboardingScreen = ({ navigation }: OnboardingScreenProps) => {
     };
 
     const onMomentumEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-        const nextIndex = Math.round(event.nativeEvent.contentOffset.x / width);
+        const nextIndex = Math.round(event.nativeEvent.contentOffset.x / slideWidth);
         setCurrentIndex(nextIndex);
     };
 
@@ -195,7 +198,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     slide: {
-        width,
+        width: slideWidth,
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',

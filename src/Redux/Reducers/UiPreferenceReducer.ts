@@ -1,7 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export type AppThemeName = 'classic' | 'neon' | 'aurora' | 'sunset';
+export type AppThemeName = 'classic' | 'neon' | 'aurora' | 'sunset' | 'midnight' | 'emerald';
 export type AppLanguage = 'en' | 'hi' | 'or';
 
 interface UiPreferenceState {

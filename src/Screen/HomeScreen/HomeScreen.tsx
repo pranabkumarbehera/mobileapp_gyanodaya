@@ -2,6 +2,7 @@ import React, { memo, useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
+    InteractionManager,
     Pressable,
     RefreshControl,
     StatusBar,
@@ -81,11 +82,27 @@ const StatCard = memo(({ label, value }: StatCardProps) => {
         labelColor = colors.tagPurpleText;
     }
 
+    const isFuturistic = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
+
+    if (isFuturistic) {
+        labelColor = colors.textSecondary;
+        valueColor = colors.accent;
+    }
+
     return (
         <View
             style={[
                 styles.statCard,
-                {
+                isFuturistic ? {
+                    backgroundColor: colors.cardBackground,
+                    borderColor: colors.accent + '25', // 15% opacity accent border
+                    borderWidth: 1.5,
+                    shadowColor: colors.accent,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.12,
+                    shadowRadius: 8,
+                    elevation: 2,
+                } : {
                     backgroundColor: cardBg,
                     borderColor: colors.border,
                     borderWidth: theme === 'classic' ? 0 : 1,
@@ -102,10 +119,24 @@ const RecentItemCard = memo(({ item, isLoading, onPress }: RecentItemCardProps) 
     const { colors, theme } = useTheme();
     const { t } = useTranslation();
 
-    const isDark = theme === 'neon' || theme === 'sunset';
+    const isDark = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
 
     return (
-        <View style={[styles.resultCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+        <View style={[
+            styles.resultCard, 
+            { 
+                backgroundColor: colors.cardBackground, 
+                borderColor: isDark ? colors.accent + '20' : colors.border,
+                borderWidth: 1,
+            },
+            isDark && {
+                shadowColor: colors.accent,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.08,
+                shadowRadius: 10,
+                elevation: 3,
+            }
+        ]}>
             <View style={styles.resultTopRow}>
                 <View style={styles.resultMetaRow}>
                     <View style={[styles.resultTypeBadge, { backgroundColor: colors.tagCyan }]}>
@@ -200,7 +231,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
     const { colors, theme } = useTheme();
     const { t } = useTranslation();
 
-    const isDarkTheme = theme === 'neon' || theme === 'sunset';
+    const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
     const statusBarStyle = isDarkTheme ? 'light-content' : 'dark-content';
 
     const recentSectionTitle = useMemo(
@@ -211,15 +242,21 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
     const translatedHeadline = recentSectionTitle === 'Recent Activity' ? t('home.recent_title') : recentSectionTitle;
 
     useEffect(() => {
-        if (!homeState.dashboardData && !homeState.isBootstrapping) {
-            dispatch(bootstrapHomeRequest({}));
-        }
+        const task = InteractionManager.runAfterInteractions(() => {
+            if (!homeState.dashboardData && !homeState.isBootstrapping) {
+                dispatch(bootstrapHomeRequest({}));
+            }
+        });
+        return () => task.cancel();
     }, [dispatch, homeState.dashboardData, homeState.isBootstrapping]);
 
     useEffect(() => {
-        if (authState.token && !profileState.profileData && !profileState.isLoading) {
-            dispatch(getProfileRequest({}));
-        }
+        const task = InteractionManager.runAfterInteractions(() => {
+            if (authState.token && !profileState.profileData && !profileState.isLoading) {
+                dispatch(getProfileRequest({}));
+            }
+        });
+        return () => task.cancel();
     }, [authState.token, dispatch, profileState.isLoading, profileState.profileData]);
 
     useEffect(() => {
@@ -404,7 +441,6 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F8FAFC',
     },
     listContent: {
         paddingBottom: verticalScale(34),

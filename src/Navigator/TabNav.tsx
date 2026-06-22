@@ -3,7 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/Feather';
 import { normalize, verticalScale } from '../Utils/Helpers/normalize';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Pressable } from 'react-native';
+import { Pressable, View } from 'react-native';
 import Fonts from '../Themes/Fonts';
 import HomeScreen from '../Screen/HomeScreen/HomeScreen';
 import MockBankScreen from '../Screen/MockBankScreen/MockBankScreen';
@@ -26,6 +26,8 @@ const TabNav = () => {
   
   const { colors, theme } = useTheme();
   const { t, language } = useTranslation();
+
+  const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
 
   const getTabLabel = (routeName: string) => {
     if (routeName === 'Home') {
@@ -59,14 +61,14 @@ const TabNav = () => {
                 rest.style,
                 {
                   opacity: 1,
-                  backgroundColor: colors.tabBg,
+                  backgroundColor: 'transparent',
                 },
               ]}
             />
           );
         },
 
-        tabBarIcon: ({ color }) => {
+        tabBarIcon: ({ color, focused }) => {
           let iconName = 'home';
 
           if (route.name === 'Home') iconName = 'home';
@@ -74,32 +76,58 @@ const TabNav = () => {
           else if (route.name === 'Courses') iconName = 'book-open';
           else if (route.name === 'Profile') iconName = 'user';
 
-          return <Icon name={iconName} size={normalize(26)} color={color} />;
+          return (
+            <View style={{ alignItems: 'center', justifyContent: 'center', height: '100%', width: normalize(50) }}>
+              <Icon name={iconName} size={normalize(23)} color={color} />
+              {focused && (
+                <View 
+                  style={{
+                    position: 'absolute',
+                    bottom: -verticalScale(6),
+                    width: normalize(5),
+                    height: normalize(5),
+                    borderRadius: normalize(2.5),
+                    backgroundColor: colors.tabActive,
+                    shadowColor: colors.tabActive,
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.8,
+                    shadowRadius: 3,
+                    elevation: 2,
+                  }} 
+                />
+              )}
+            </View>
+          );
         },
 
         tabBarActiveTintColor: colors.tabActive,
         tabBarInactiveTintColor: colors.tabInactive,
-        tabBarActiveBackgroundColor: colors.tabBg,
-        tabBarInactiveBackgroundColor: colors.tabBg,
+        tabBarActiveBackgroundColor: 'transparent',
+        tabBarInactiveBackgroundColor: 'transparent',
 
         tabBarStyle: {
-          backgroundColor: colors.tabBg,
-          borderTopWidth: 1,
-          borderTopColor: colors.border,
-          height: verticalScale(64) + bottomInset,
-          paddingBottom: bottomInset,
-          paddingTop: verticalScale(10),
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: theme === 'classic' ? 0.05 : 0.25,
-          shadowRadius: 10,
-          elevation: 10,
+          position: 'absolute',
+          bottom: verticalScale(12) + (bottomInset > 8 ? bottomInset - 8 : 0),
+          left: normalize(16),
+          right: normalize(16),
+          backgroundColor: theme === 'classic' ? colors.tabBg : 'rgba(11, 15, 25, 0.94)',
+          borderWidth: 1,
+          borderColor: theme === 'classic' ? colors.border : 'rgba(255, 255, 255, 0.08)',
+          borderRadius: normalize(24),
+          height: verticalScale(64),
+          paddingBottom: verticalScale(8),
+          paddingTop: verticalScale(8),
+          shadowColor: isDarkTheme ? colors.accent : '#000000',
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: isDarkTheme ? 0.16 : 0.06,
+          shadowRadius: 16,
+          elevation: 6,
         },
 
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-          marginTop: verticalScale(2),
+          fontSize: 10,
+          fontWeight: '700',
+          marginTop: verticalScale(3),
           fontFamily: Fonts.InterBold,
         },
       })}

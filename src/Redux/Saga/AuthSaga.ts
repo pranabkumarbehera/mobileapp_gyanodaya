@@ -101,7 +101,7 @@ export function* signupSaga(action: any): Generator<any, void, any> {
         
         if (response?.status === 200 || response?.status === 201) {
             yield put(signupSuccess(response?.data));
-            yield call(AsyncStorage.multiRemove, [
+            yield call(AsyncStorage.removeMany, [
                 constants.SAVED_EMAIL,
                 constants.SAVED_PASSWORD,
                 constants.TOKEN,
@@ -183,7 +183,7 @@ export function* logoutSaga(): Generator<any, void, any> {
         yield call(AsyncStorage.removeItem, constants.REFRESH_TOKEN);
         yield call(AsyncStorage.removeItem, constants.USER_DATA);
         if (rememberPassword !== 'true') {
-            yield call(AsyncStorage.multiRemove, [
+            yield call(AsyncStorage.removeMany, [
                 constants.SAVED_EMAIL,
                 constants.SAVED_PASSWORD,
             ]);

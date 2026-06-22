@@ -1,16 +1,19 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, StatusBar, Image, Animated, Easing, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, StatusBar, Image, Animated, Easing, Dimensions, Platform } from 'react-native';
 import { StackScreenProps } from '@react-navigation/stack';
 import { useDispatch, useSelector } from 'react-redux';
 import Imagepath from '../../Themes/Imagepath';
 import { RootStackParamList } from '../../Navigator/StackNav';
-import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
+import { normalize, verticalScale, getContainerWidth } from '../../Utils/Helpers/normalize';
 import Fonts from '../../Themes/Fonts';
 import { tokenRequest, tokenFailure, tokenSuccess } from '../../Redux/Reducers/AuthReducer';
 import { RootState } from '../../Redux/Store';
 import { loadPreferences } from '../../Redux/Reducers/UiPreferenceReducer';
 
-const { width, height } = Dimensions.get('window');
+const { width: WIN_WIDTH, height: WIN_HEIGHT } = Dimensions.get('window');
+// On web, use the container width (max 480px) not the full browser window
+const width = getContainerWidth();
+const height = WIN_HEIGHT;
 
 type SplashScreenProps = StackScreenProps<RootStackParamList, 'Splash'>;
 

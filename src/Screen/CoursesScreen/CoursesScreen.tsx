@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, TextInput, ActivityIndicator, Modal, Linking, FlatList } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, TextInput, ActivityIndicator, Modal, Linking, FlatList, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from 'react-native-vector-icons/Feather';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
@@ -8,6 +8,7 @@ import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
 import { getApi } from '../../Utils/Helpers/ApiRequest';
 import { useDispatch, useSelector } from 'react-redux';
 import { useIsFocused } from '@react-navigation/native';
+import { useTheme, useTranslation } from '../../Themes/hooks';
 import Toast from 'react-native-toast-message';
 import {
     bundleIDRequest,
@@ -175,7 +176,22 @@ const getBundleQuizzes = (bundle: any) => {
 const getDetailCollections = (bundle: any) => {
     const payload = getBundlePayload(bundle);
     const parsedData = parseMaybeJson(bundle?.data);
-    const sources = [bundle, payload, parsedData];
+    const parsedPayloadData = parseMaybeJson(payload?.data);
+    const parsedDataData = parseMaybeJson(parsedData?.data);
+    const parsedContent = parseMaybeJson(payload?.content || bundle?.content);
+
+    // Broaden sources to cover nested shapes: bundle, payload, data, data.data, content
+    const sources = [
+        bundle,
+        payload,
+        parsedData,
+        parsedPayloadData,
+        parsedDataData,
+        parsedContent,
+        payload?.rawBundle,
+        bundle?.rawBundle,
+    ].filter(Boolean);
+
     const getCollection = (...keys: string[]) => {
         for (const source of sources) {
             for (const key of keys) {
@@ -185,15 +201,24 @@ const getDetailCollections = (bundle: any) => {
                 }
             }
         }
-
         return [];
     };
 
-    const quizzes = getCollection('quizzes', 'mockTests', 'tests');
-    const noteBanks = getCollection('note_banks', 'noteBanks', 'notes');
-    const questionBanks = getCollection('question_banks', 'questionBanks', 'questions');
-    const videoBanks = getCollection('video_banks', 'videoBanks', 'videos', 'youtube_banks', 'youtubeBanks', 'youtube');
-    const youtubeBanks = getCollection('youtube_banks', 'youtubeBanks', 'youtube');
+    const quizzes = getCollection('quizzes', 'mockTests', 'tests', 'quiz_list', 'quizList');
+    const noteBanks = getCollection(
+        'note_banks', 'noteBanks', 'notes', 'noteBank', 'note_bank',
+        'notebanks', 'NoteBank', 'NoteBanks', 'notebankItems',
+    );
+    const questionBanks = getCollection(
+        'question_banks', 'questionBanks', 'questions', 'questionBank', 'question_bank',
+        'questionbanks', 'QuestionBank', 'QuestionBanks', 'previousYearQuestions',
+        'pyq', 'pyqs', 'prevYearQuestions',
+    );
+    const videoBanks = getCollection(
+        'video_banks', 'videoBanks', 'videos', 'youtube_banks', 'youtubeBanks',
+        'youtube', 'videoBank', 'video_bank', 'videoLinks', 'video_links',
+    );
+    const youtubeBanks = getCollection('youtube_banks', 'youtubeBanks', 'youtube', 'youtubeLinks');
     const quizCount = Number(
         firstDisplayValue(
             payload?.quizCount,
@@ -934,9 +959,283 @@ const collectEnrolledBundleIds = (studentModules: any) => {
     }, []);
 };
 
+const renderIcon = (name: string, type: string, size: number, color: string) => {
+    if (type === 'FontAwesome5') {
+        return <FontAwesome5 name={name} size={size} color={color} />;
+    }
+    return <Feather name={name} size={size} color={color} />;
+};
+
+const ExamCard = ({ bundle, index, onPress, colors, isDarkTheme, styles }: any) => {
+    const scale = useRef(new Animated.Value(1)).current;
+
+    const handlePressIn = () => {
+        Animated.spring(scale, {
+            toValue: 0.95,
+            useNativeDriver: true,
+        }).start();
+    };
+
+    const handlePressOut = () => {
+        Animated.spring(scale, {
+            toValue: 1,
+            friction: 4,
+            tension: 40,
+            useNativeDriver: true,
+        }).start();
+    };
+
+    const normalizedBundle = getBundlePayload(bundle);
+    const exam = getExamMetaByTitle(normalizedBundle?.title || normalizedBundle?.name || '');
+
+    return (
+        <Animated.View style={{ width: '48%', margin: '1%', transform: [{ scale }] }}>
+            <Pressable
+                onPress={onPress}
+                onPressIn={handlePressIn}
+                onPressOut={handlePressOut}
+                style={[
+                    styles.gridItem,
+                    {
+                        backgroundColor: colors.cardBackground,
+                        borderColor: colors.border,
+                        shadowColor: isDarkTheme ? colors.accent : '#000000',
+                    }
+                ]}
+            >
+                <View style={[styles.circleContainer, { backgroundColor: isDarkTheme ? 'rgba(255, 255, 255, 0.05)' : exam.bgColor }]}>
+                    {renderIcon(exam.icon, exam.iconType, normalize(24), isDarkTheme ? colors.accent : exam.iconColor)}
+                </View>
+                <Text style={[styles.examLabel, { color: colors.text }]} numberOfLines={2}>
+                    {normalizedBundle?.title || normalizedBundle?.name}
+                </Text>
+            </Pressable>
+        </Animated.View>
+    );
+};
+
+const QuizCard = ({ quiz, index, isEnrollingBundle, handleQuizAction, canAttemptMocks, colors, isDarkTheme, styles }: any) => {
+    const scale = useRef(new Animated.Value(1)).current;
+
+    const handlePressIn = () => {
+        Animated.spring(scale, {
+            toValue: 0.96,
+            useNativeDriver: true,
+        }).start();
+    };
+
+    const handlePressOut = () => {
+        Animated.spring(scale, {
+            toValue: 1,
+            friction: 4,
+            tension: 40,
+            useNativeDriver: true,
+        }).start();
+    };
+
+    return (
+        <Animated.View style={{ width: '48%', transform: [{ scale }] }}>
+            <View style={[styles.quizCard, { backgroundColor: colors.cardBackground, borderColor: colors.border, shadowColor: isDarkTheme ? colors.accent : '#000000' }]}>
+                <View style={[styles.quizBadge, { backgroundColor: colors.tagCyan, borderColor: colors.border }]}>
+                    <Text style={[styles.quizBadgeText, { color: colors.tagCyanText }]}>MOCK</Text>
+                </View>
+
+                <Text style={[styles.quizCardTitle, { color: colors.text }]} numberOfLines={2}>{quiz.title}</Text>
+                
+                <View style={styles.quizMetaRow}>
+                    <View style={styles.quizMetaItem}>
+                        <Feather name="book-open" size={normalize(12)} color={colors.textSecondary} />
+                        <Text style={[styles.quizMetaText, { color: colors.textSecondary }]}>{quiz.questionCount || 0} Qs</Text>
+                    </View>
+                    <View style={styles.quizMetaItem}>
+                        <Feather name="clock" size={normalize(12)} color={colors.textSecondary} />
+                        <Text style={[styles.quizMetaText, { color: colors.textSecondary }]}>{quiz.durationMinutes || 0}m</Text>
+                    </View>
+                </View>
+                <Text style={[styles.quizPriceText, { color: colors.text, marginBottom: verticalScale(12) }]}>Rs. {quiz.price || 0}</Text>
+
+                {canAttemptMocks ? (
+                    <Pressable
+                        style={[styles.quizActionButton, { backgroundColor: colors.accent }, isEnrollingBundle && styles.quizActionButtonDisabled]}
+                        disabled={isEnrollingBundle}
+                        onPressIn={handlePressIn}
+                        onPressOut={handlePressOut}
+                        onPress={() => handleQuizAction(quiz)}
+                    >
+                        {isEnrollingBundle ? (
+                            <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                            <>
+                                <Text style={styles.quizActionText}>Attempt</Text>
+                                <Feather name="play" size={normalize(12)} color="#FFFFFF" />
+                            </>
+                        )}
+                    </Pressable>
+                ) : (
+                    <View style={[styles.quizViewOnlyTag, { backgroundColor: colors.Background, borderColor: colors.border }]}>
+                        <Feather name="eye" size={normalize(12)} color={colors.textSecondary} />
+                        <Text style={[styles.quizViewOnlyText, { color: colors.textSecondary }]}>View only</Text>
+                    </View>
+                )}
+            </View>
+        </Animated.View>
+    );
+};
+
+const SubBundleCard = ({ subBundle, index, handleSubBundlePress, colors, isDarkTheme, styles }: any) => {
+    const scale = useRef(new Animated.Value(1)).current;
+
+    const handlePressIn = () => {
+        Animated.spring(scale, {
+            toValue: 0.96,
+            useNativeDriver: true,
+        }).start();
+    };
+
+    const handlePressOut = () => {
+        Animated.spring(scale, {
+            toValue: 1,
+            friction: 4,
+            tension: 40,
+            useNativeDriver: true,
+        }).start();
+    };
+
+    const normalizedSubBundle = getBundlePayload(subBundle);
+    const mockCount = getBundleMockCount(normalizedSubBundle);
+
+    return (
+        <Animated.View style={{ width: '48%', transform: [{ scale }] }}>
+            <Pressable
+                onPressIn={handlePressIn}
+                onPressOut={handlePressOut}
+                onPress={() => handleSubBundlePress(normalizedSubBundle)}
+                style={[
+                    styles.quizCard,
+                    {
+                        backgroundColor: colors.cardBackground,
+                        borderColor: colors.border,
+                        shadowColor: isDarkTheme ? colors.accent : '#000000',
+                    }
+                ]}
+            >
+                <Text style={[styles.quizCardTitle, { color: colors.text }]} numberOfLines={2}>
+                    {normalizedSubBundle?.title || normalizedSubBundle?.name || `Sub Bundle ${index + 1}`}
+                </Text>
+
+                <View style={styles.quizMetaRow}>
+                    <View style={styles.quizMetaItem}>
+                        <Feather name="layers" size={normalize(12)} color={colors.textSecondary} />
+                        <Text style={[styles.quizMetaText, { color: colors.textSecondary }]}>{mockCount} Mock Test{mockCount === 1 ? '' : 's'}</Text>
+                    </View>
+                </View>
+
+                <View style={[styles.quizActionButton, { backgroundColor: colors.accent }]}>
+                    <Text style={styles.quizActionText}>Explore</Text>
+                    <Feather name="chevron-right" size={normalize(12)} color="#FFFFFF" />
+                </View>
+            </Pressable>
+        </Animated.View>
+    );
+};
+
+const CourseMaterialCard = ({ item, sectionKey, handleOpenCourseItem, colors, isDarkTheme, styles }: any) => {
+    const scale = useRef(new Animated.Value(1)).current;
+
+    const handlePressIn = () => {
+        Animated.spring(scale, {
+            toValue: 0.97,
+            useNativeDriver: true,
+        }).start();
+    };
+
+    const handlePressOut = () => {
+        Animated.spring(scale, {
+            toValue: 1,
+            friction: 4,
+            tension: 40,
+            useNativeDriver: true,
+        }).start();
+    };
+
+    if (sectionKey === 'note') {
+        return (
+            <Animated.View style={{ transform: [{ scale }] }}>
+                <Pressable
+                    onPressIn={handlePressIn}
+                    onPressOut={handlePressOut}
+                    style={[styles.courseCard, { backgroundColor: colors.cardBackground, borderColor: colors.border, shadowColor: isDarkTheme ? colors.accent : '#000000' }]}
+                    onPress={() => handleOpenCourseItem(sectionKey, item)}
+                >
+                    <View style={[styles.courseCardBadge, { backgroundColor: colors.tagGreen, borderColor: colors.border }]}>
+                        <Text style={[styles.courseCardBadgeText, { color: colors.tagGreenText }]}>NOTES</Text>
+                    </View>
+                    <Text style={[styles.courseCardTitle, { color: colors.text }]}>{getItemTitle(item, 'Note Bank')}</Text>
+                    {getItemDescription(item) ? <Text style={[styles.courseCardSubtitle, { color: colors.textSecondary }]}>{getItemDescription(item)}</Text> : null}
+                    <View style={styles.courseCardFooter}>
+                        <Feather name="book-open" size={normalize(14)} color={colors.accent} />
+                        <Text style={[styles.courseCardFooterText, { color: colors.textSecondary, marginLeft: normalize(6) }]}>Open note pages</Text>
+                    </View>
+                </Pressable>
+            </Animated.View>
+        );
+    }
+
+    if (sectionKey === 'question') {
+        return (
+            <Animated.View style={{ transform: [{ scale }] }}>
+                <Pressable
+                    onPressIn={handlePressIn}
+                    onPressOut={handlePressOut}
+                    style={[styles.courseCard, { backgroundColor: colors.cardBackground, borderColor: colors.border, shadowColor: isDarkTheme ? colors.accent : '#000000' }]}
+                    onPress={() => handleOpenCourseItem(sectionKey, item)}
+                >
+                    <View style={[styles.courseCardBadge, { backgroundColor: colors.tagPurple, borderColor: colors.border }]}>
+                        <Text style={[styles.courseCardBadgeText, { color: colors.tagPurpleText }]}>QUESTION BANK</Text>
+                    </View>
+                    <Text style={[styles.courseCardTitle, { color: colors.text }]}>{getItemTitle(item, 'Question Bank')}</Text>
+                    {getQuestionBankYear(item) ? <Text style={[styles.courseCardSubtitle, { color: colors.textSecondary }]}>Year: {getQuestionBankYear(item)}</Text> : null}
+                    <View style={styles.courseCardFooter}>
+                        <Feather name="help-circle" size={normalize(14)} color={colors.accent} />
+                        <Text style={[styles.courseCardFooterText, { color: colors.textSecondary, marginLeft: normalize(6) }]}>View questions & answers</Text>
+                    </View>
+                </Pressable>
+            </Animated.View>
+        );
+    }
+
+    return (
+        <Animated.View style={{ transform: [{ scale }] }}>
+            <Pressable
+                onPressIn={handlePressIn}
+                onPressOut={handlePressOut}
+                style={[styles.courseCard, { backgroundColor: colors.cardBackground, borderColor: colors.border, shadowColor: isDarkTheme ? colors.accent : '#000000' }]}
+                onPress={() => handleOpenCourseItem(sectionKey, item)}
+            >
+                <View style={[styles.courseCardBadge, { backgroundColor: colors.tagOrange, borderColor: colors.border }]}>
+                    <Text style={[styles.courseCardBadgeText, { color: colors.tagOrangeText }]}>VIDEOLINK BANK</Text>
+                </View>
+                <View style={styles.videoCardTitleRow}>
+                    <Feather name="play-circle" size={normalize(16)} color={colors.accent} />
+                    <Text style={[styles.courseCardTitle, { color: colors.text }]}>{getItemTitle(item, 'Video Bank')}</Text>
+                </View>
+                {getItemDescription(item) ? <Text style={[styles.courseCardSubtitle, { color: colors.textSecondary }]}>{getItemDescription(item)}</Text> : <Text style={[styles.courseCardSubtitle, { color: colors.textSecondary }]}>YouTube Video</Text>}
+                <View style={styles.courseCardFooter}>
+                    <Feather name="youtube" size={normalize(14)} color="#FF0000" />
+                    <Text style={[styles.courseCardFooterText, { color: '#FF0000', marginLeft: normalize(6) }]}>Open in YouTube</Text>
+                </View>
+            </Pressable>
+        </Animated.View>
+    );
+};
+
 const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     const dispatch = useDispatch();
     const isFocused = useIsFocused();
+    const { colors, theme } = useTheme();
+    const { t } = useTranslation();
+    const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
+    const styles = useMemo(() => getStyles(colors, isDarkTheme), [colors, isDarkTheme]);
     const {
         bundleList,
         studentModules,
@@ -1070,6 +1369,16 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         if (!bundleDetails) {
             return;
         }
+
+        // DEBUG: Log the raw bundle response so we can see what keys the backend returns
+        const payload = getBundlePayload(bundleDetails);
+        const topKeys = Object.keys(bundleDetails || {});
+        const payloadKeys = Object.keys(payload || {});
+        console.log('[BundleDetails] Top-level keys:', topKeys);
+        console.log('[BundleDetails] Payload keys:', payloadKeys);
+        console.log('[BundleDetails] note_banks:', payload?.note_banks, '| noteBanks:', payload?.noteBanks, '| notes:', payload?.notes);
+        console.log('[BundleDetails] question_banks:', payload?.question_banks, '| questionBanks:', payload?.questionBanks);
+        console.log('[BundleDetails] Full payload (truncated):', JSON.stringify(payload)?.slice(0, 500));
 
         const resolvedBundleId = String(getBundleId(bundleDetails) || activeBundleId || '');
         const isEnrolled =
@@ -1243,12 +1552,6 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         }
     }, [showNotePageModal]);
 
-    const renderIcon = (name: string, type: string, size: number, color: string) => {
-        if (type === 'FontAwesome5') {
-            return <FontAwesome5 name={name} size={size} color={color} />;
-        }
-        return <Feather name={name} size={size} color={color} />;
-    };
 
     const handleQuizAction = (quiz: any) => {
         const quizId = getQuizId(quiz?.rawQuiz || quiz) || quiz?.id;
@@ -1271,36 +1574,64 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         const noteId = getNoteBankId(item);
 
         if (!noteId) {
+            Toast.show({ type: 'error', text1: 'Note bank ID not found' });
             return null;
         }
 
-        try {
-            setIsLoadingNotePages(true);
-            const response = await getApi(`student/note-banks/${noteId}/pages`, {
-                Accept: 'application/json',
-                contenttype: 'application/json',
-                authorization: authToken,
-            });
+        setSelectedNoteBankTitle(getItemTitle(item, 'Note Bank'));
+        setSelectedNotePages([]);
+        setSelectedNotePageIndex(0);
+        setShowNoteViewerModal(true);
+        setIsLoadingNotePages(true);
 
-            const pages = response?.data?.data || response?.data || [];
-            setSelectedNoteBankTitle(getItemTitle(item, 'Note Bank'));
-            setSelectedNotePages(Array.isArray(pages) ? pages : []);
-            setSelectedNotePageIndex(0);
-            setShowNoteViewerModal(true);
-        } catch {
-            setSelectedNoteBankTitle(getItemTitle(item, 'Note Bank'));
-            setSelectedNotePages([]);
-            setSelectedNotePageIndex(0);
-            setShowNoteViewerModal(true);
-        } finally {
-            setIsLoadingNotePages(false);
+        // Try multiple API endpoint patterns the backend might use
+        const endpoints = [
+            `student/note-banks/${noteId}/pages`,
+            `note-banks/${noteId}/pages`,
+            `student/note-banks/${noteId}`,
+            `note-banks/${noteId}`,
+        ];
+
+        let found = false;
+        for (const endpoint of endpoints) {
+            try {
+                const response = await getApi(endpoint);
+                // Try multiple response shapes
+                const raw = response?.data?.data ?? response?.data ?? [];
+                const pages = Array.isArray(raw)
+                    ? raw
+                    : Array.isArray(raw?.pages)
+                        ? raw.pages
+                        : Array.isArray(raw?.items)
+                            ? raw.items
+                            : Array.isArray(raw?.content)
+                                ? raw.content
+                                : Array.isArray(raw?.notes)
+                                    ? raw.notes
+                                    : raw?.htmlContent
+                                        ? [raw]  // single page response
+                                        : [];
+                if (pages.length > 0) {
+                    setSelectedNotePages(pages);
+                    found = true;
+                    break;
+                }
+            } catch {
+                // try next endpoint
+            }
         }
-    }, [authToken]);
+
+        if (!found) {
+            setSelectedNotePages([]);
+        }
+        setIsLoadingNotePages(false);
+    }, []);
 
     const handleOpenQuestionBank = useCallback(async (item: any) => {
         const questionBankId = getItemId(item);
 
         if (!questionBankId) {
+            Toast.show({ type: 'error', text1: 'Question bank ID not found' });
             return;
         }
 
@@ -1314,20 +1645,34 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         setShowQuestionAnswerModal(false);
         setSelectedQuestionAnswerDetail(null);
 
-        try {
-            const response = await getApi(`student/question-banks/${questionBankId}/questions`, {
-                Accept: 'application/json',
-                contenttype: 'application/json',
-                authorization: authToken,
-            });
-            const questions = getQuestionBankQuestions(response);
-            setSelectedQuestionBankQuestions(Array.isArray(questions) ? questions : []);
-        } catch {
-            setSelectedQuestionBankQuestions([]);
-        } finally {
-            setIsLoadingQuestionBank(false);
+        // Try multiple API endpoint patterns
+        const endpoints = [
+            `student/question-banks/${questionBankId}/questions`,
+            `question-banks/${questionBankId}/questions`,
+            `student/question-banks/${questionBankId}`,
+            `question-banks/${questionBankId}`,
+        ];
+
+        let found = false;
+        for (const endpoint of endpoints) {
+            try {
+                const response = await getApi(endpoint);
+                const questions = getQuestionBankQuestions(response);
+                if (Array.isArray(questions) && questions.length > 0) {
+                    setSelectedQuestionBankQuestions(questions);
+                    found = true;
+                    break;
+                }
+            } catch {
+                // try next endpoint
+            }
         }
-    }, [authToken]);
+
+        if (!found) {
+            setSelectedQuestionBankQuestions([]);
+        }
+        setIsLoadingQuestionBank(false);
+    }, []);
 
     const handleOpenVideoBank = useCallback(async (item: any) => {
         const videoBankId = getItemId(item) || item?.videoBankId;
@@ -1401,34 +1746,17 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
             return (
                 <View style={styles.subjectList}>
                     <View style={styles.quizCardsWrap}>
-                        {subBundleItems.map((subBundle: any, index: number) => {
-                            const normalizedSubBundle = getBundlePayload(subBundle);
-                            const mockCount = getBundleMockCount(normalizedSubBundle);
-
-                            return (
-                                <Pressable
-                                    key={String(getBundleId(normalizedSubBundle) || index)}
-                                    style={styles.quizCard}
-                                    onPress={() => handleSubBundlePress(normalizedSubBundle)}
-                                >
-                                    {/* No SUB-BUNDLE badge displayed */}
-
-                                    <Text style={styles.quizCardTitle}>{normalizedSubBundle?.title || normalizedSubBundle?.name || `Sub Bundle ${index + 1}`}</Text>
-
-                                    <View style={styles.quizMetaRow}>
-                                        <View style={styles.quizMetaItem}>
-                                            <Feather name="layers" size={normalize(14)} color="#667085" />
-                                            <Text style={styles.quizMetaText}>{mockCount} Mock Test{mockCount === 1 ? '' : 's'}</Text>
-                                        </View>
-                                    </View>
-
-                                    <View style={styles.quizActionButton}>
-                                        <Text style={styles.quizActionText}>Explore Curriculum</Text>
-                                        <Feather name="chevron-right" size={normalize(14)} color="#FFFFFF" />
-                                    </View>
-                                </Pressable>
-                            );
-                        })}
+                        {subBundleItems.map((subBundle: any, index: number) => (
+                            <SubBundleCard
+                                key={String(getBundleId(getBundlePayload(subBundle)) || index)}
+                                subBundle={subBundle}
+                                index={index}
+                                handleSubBundlePress={handleSubBundlePress}
+                                colors={colors}
+                                isDarkTheme={isDarkTheme}
+                                styles={styles}
+                            />
+                        ))}
                     </View>
                 </View>
             );
@@ -1454,46 +1782,17 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
                                 <View style={styles.quizCardsWrap}>
                                     {group.quizzes.map((quiz: any, quizIndex: number) => (
-                                        <View key={String(quiz.id || quizIndex)} style={styles.quizCard}>
-                                            <View style={styles.quizBadge}>
-                                                <Text style={styles.quizBadgeText}>MOCK</Text>
-                                            </View>
-
-                                            <Text style={styles.quizCardTitle}>{quiz.title}</Text>
-                                            <View style={styles.quizMetaRow}>
-                                                <View style={styles.quizMetaItem}>
-                                                    <Feather name="clock" size={normalize(14)} color="#667085" />
-                                                    <Text style={styles.quizMetaText}>{quiz.durationMinutes || 0}m</Text>
-                                                </View>
-                                                <View style={styles.quizMetaItem}>
-                                                    <Feather name="book-open" size={normalize(14)} color="#667085" />
-                                                    <Text style={styles.quizMetaText}>{quiz.questionCount || 0} Qs</Text>
-                                                </View>
-                                            </View>
-                                            <Text style={styles.quizPriceText}>Rs. {quiz.price || 0}</Text>
-
-                                            {canAttemptMocks ? (
-                                                <Pressable
-                                                    style={[styles.quizActionButton, isEnrollingBundle && styles.quizActionButtonDisabled]}
-                                                    disabled={isEnrollingBundle}
-                                                    onPress={() => handleQuizAction(quiz)}
-                                                >
-                                                    {isEnrollingBundle ? (
-                                                        <ActivityIndicator size="small" color="#FFFFFF" />
-                                                    ) : (
-                                                        <>
-                                                            <Text style={styles.quizActionText}>Attempt</Text>
-                                                            <Feather name="play" size={normalize(14)} color="#FFFFFF" />
-                                                        </>
-                                                    )}
-                                                </Pressable>
-                                            ) : (
-                                                <View style={styles.quizViewOnlyTag}>
-                                                    <Feather name="eye" size={normalize(14)} color="#667085" />
-                                                    <Text style={styles.quizViewOnlyText}>View only</Text>
-                                                </View>
-                                            )}
-                                        </View>
+                                        <QuizCard
+                                            key={String(quiz.id || quizIndex)}
+                                            quiz={quiz}
+                                            index={quizIndex}
+                                            isEnrollingBundle={isEnrollingBundle}
+                                            handleQuizAction={handleQuizAction}
+                                            canAttemptMocks={canAttemptMocks}
+                                            colors={colors}
+                                            isDarkTheme={isDarkTheme}
+                                            styles={styles}
+                                        />
                                     ))}
                                 </View>
                             </View>
@@ -1516,55 +1815,17 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
             return null;
         }
 
-        if (section.key === 'note') {
-            return (
-                <Pressable style={styles.courseCard} onPress={() => handleOpenCourseItem(section.key, item)}>
-                    <View style={styles.courseCardBadge}>
-                        <Text style={styles.courseCardBadgeText}>NOTES</Text>
-                    </View>
-                    <Text style={styles.courseCardTitle}>{getItemTitle(item, 'Note Bank')}</Text>
-                    {getItemDescription(item) ? <Text style={styles.courseCardSubtitle}>{getItemDescription(item)}</Text> : null}
-                    <View style={styles.courseCardFooter}>
-                        <Feather name="book-open" size={normalize(16)} color={Colorpath.Primary} />
-                        <Text style={styles.courseCardFooterText}>Open note pages</Text>
-                    </View>
-                </Pressable>
-            );
-        }
-
-        if (section.key === 'question') {
-            return (
-                <Pressable style={styles.courseCard} onPress={() => handleOpenCourseItem(section.key, item)}>
-                    <View style={styles.courseCardBadge}>
-                        <Text style={styles.courseCardBadgeText}>QUESTION BANK</Text>
-                    </View>
-                    <Text style={styles.courseCardTitle}>{getItemTitle(item, 'Question Bank')}</Text>
-                    {getQuestionBankYear(item) ? <Text style={styles.courseCardSubtitle}>Year: {getQuestionBankYear(item)}</Text> : null}
-                    <View style={styles.courseCardFooter}>
-                        <Feather name="help-circle" size={normalize(16)} color={Colorpath.Primary} />
-                        <Text style={styles.courseCardFooterText}>View questions & answers</Text>
-                    </View>
-                </Pressable>
-            );
-        }
-
         return (
-            <Pressable style={styles.courseCard} onPress={() => handleOpenCourseItem(section.key, item)}>
-                <View style={styles.courseCardBadge}>
-                    <Text style={styles.courseCardBadgeText}>VIDEOLINK BANK</Text>
-                </View>
-                <View style={styles.videoCardTitleRow}>
-                    <Feather name="play-circle" size={normalize(18)} color={Colorpath.Primary} />
-                    <Text style={styles.courseCardTitle}>{getItemTitle(item, 'Video Bank')}</Text>
-                </View>
-                {getItemDescription(item) ? <Text style={styles.courseCardSubtitle}>{getItemDescription(item)}</Text> : <Text style={styles.courseCardSubtitle}>YouTube Video</Text>}
-                <View style={styles.courseCardFooter}>
-                    <Feather name="youtube" size={normalize(16)} color="#FF0000" />
-                    <Text style={[styles.courseCardFooterText, { color: '#FF0000', marginLeft: normalize(4) }]}>Open in YouTube</Text>
-                </View>
-            </Pressable>
+            <CourseMaterialCard
+                item={item}
+                sectionKey={section.key}
+                handleOpenCourseItem={handleOpenCourseItem}
+                colors={colors}
+                isDarkTheme={isDarkTheme}
+                styles={styles}
+            />
         );
-    }, [activeCourseSection, courseSections, handleOpenCourseItem]);
+    }, [activeCourseSection, courseSections, handleOpenCourseItem, colors, isDarkTheme, styles]);
 
     const renderCourseTabContent = () => {
         if (courseSections.length === 0) {
@@ -1746,7 +2007,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     if (detailScreen) {
         return (
             <View style={styles.container}>
-                <StatusBar backgroundColor={Colorpath.Primary} barStyle="light-content" />
+                <StatusBar backgroundColor={colors.statusBg} barStyle={colors.statusBar} />
 
                 <View style={styles.detailHeader}>
                     <SafeAreaView edges={['top']}>
@@ -2355,7 +2616,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
     return (
         <View style={styles.container}>
-            <StatusBar backgroundColor={Colorpath.Primary} barStyle="light-content" />
+            <StatusBar backgroundColor={colors.statusBg} barStyle={colors.statusBar} />
 
             <View style={styles.headerBackground}>
                 <SafeAreaView edges={['top']}>
@@ -2375,11 +2636,11 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
                 <View style={styles.searchContainer}>
-                    <Feather name="search" size={normalize(18)} color="#9CA3AF" style={styles.searchIcon} />
+                    <Feather name="search" size={normalize(18)} color={colors.textSecondary} style={styles.searchIcon} />
                     <TextInput
                         style={styles.searchInput}
                         placeholder="Search courses..."
-                        placeholderTextColor="#9CA3AF"
+                        placeholderTextColor={colors.textSecondary}
                         value={searchQuery}
                         onChangeText={setSearchQuery}
                     />
@@ -2387,7 +2648,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
                 <View style={styles.statsContainer}>
                     <View style={styles.statCard}>
-                        <Text style={[styles.statValue, { color: '#092948' }]}>{bundleItems.length}</Text>
+                        <Text style={[styles.statValue, { color: colors.Primary }]}>{bundleItems.length}</Text>
                         <Text style={styles.statLabel}>Exams</Text>
                     </View>
                     <View style={styles.statCard}>
@@ -2404,22 +2665,18 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                     <Text style={styles.allExamsTitle}>All Courses</Text>
 
                     <View style={styles.gridContainer}>
-                        {filteredExams.map((bundle: any, index: number) => {
-                            const normalizedBundle = getBundlePayload(bundle);
-                            const exam = getExamMetaByTitle(normalizedBundle?.title || normalizedBundle?.name || '');
-                            return (
-                                <Pressable
-                                    key={String(getBundleId(normalizedBundle) || index)}
-                                    style={styles.gridItem}
-                                    onPress={() => handleBundlePress(bundle)}
-                                >
-                                    <View style={[styles.circleContainer, { backgroundColor: exam.bgColor }]}>
-                                        {renderIcon(exam.icon, exam.iconType, normalize(26), exam.iconColor)}
-                                    </View>
-                                    <Text style={styles.examLabel}>{normalizedBundle?.title || normalizedBundle?.name}</Text>
-                                </Pressable>
-                            );
-                        })}
+                        {filteredExams.map((bundle: any, index: number) => (
+                            <ExamCard
+                                key={String(getBundleId(getBundlePayload(bundle)) || index)}
+                                bundle={bundle}
+                                index={index}
+                                onPress={() => handleBundlePress(bundle)}
+                                colors={colors}
+                                isDarkTheme={isDarkTheme}
+                                styles={styles}
+                                renderIcon={renderIcon}
+                            />
+                        ))}
                     </View>
                 </>
 
@@ -2541,13 +2798,13 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FAFBFF',
+        backgroundColor: colors.Background,
     },
     headerBackground: {
-        backgroundColor: Colorpath.Primary,
+        backgroundColor: colors.Primary,
         borderBottomLeftRadius: normalize(24),
         borderBottomRightRadius: normalize(24),
         paddingBottom: verticalScale(12),
@@ -2575,12 +2832,12 @@ const styles = StyleSheet.create({
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.cardBackground,
         borderRadius: normalize(12),
         paddingHorizontal: normalize(14),
         height: verticalScale(48),
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: colors.border,
         marginBottom: verticalScale(20),
     },
     searchIcon: {
@@ -2589,7 +2846,7 @@ const styles = StyleSheet.create({
     searchInput: {
         flex: 1,
         fontSize: normalize(14),
-        color: '#1F2937',
+        color: colors.text,
         height: '100%',
         paddingVertical: 0,
     },
@@ -2600,13 +2857,13 @@ const styles = StyleSheet.create({
     },
     statCard: {
         flex: 1,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.cardBackground,
         borderRadius: normalize(12),
         paddingVertical: verticalScale(12),
         alignItems: 'center',
         marginHorizontal: normalize(4),
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: colors.border,
     },
     statValue: {
         fontSize: normalize(16),
@@ -2614,14 +2871,14 @@ const styles = StyleSheet.create({
     },
     statLabel: {
         fontSize: normalize(11),
-        color: '#6B7280',
+        color: colors.textSecondary,
         fontWeight: '600',
         marginTop: verticalScale(2),
     },
     allExamsTitle: {
         fontSize: normalize(16),
         fontWeight: 'bold',
-        color: '#1F2937',
+        color: colors.text,
         marginBottom: verticalScale(16),
     },
     gridContainer: {
@@ -2631,15 +2888,21 @@ const styles = StyleSheet.create({
         marginHorizontal: -normalize(8),
     },
     gridItem: {
-        width: '33.33%',
         alignItems: 'center',
-        marginBottom: verticalScale(20),
+        justifyContent: 'center',
         paddingHorizontal: normalize(8),
+        paddingVertical: verticalScale(16),
+        borderRadius: normalize(16),
+        borderWidth: 1,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: isDarkTheme ? 0.16 : 0.05,
+        shadowRadius: 10,
+        elevation: 3,
     },
     circleContainer: {
-        width: normalize(72),
-        height: normalize(72),
-        borderRadius: normalize(36),
+        width: normalize(60),
+        height: normalize(60),
+        borderRadius: normalize(30),
         justifyContent: 'center',
         alignItems: 'center',
         shadowColor: '#000',
@@ -2653,13 +2916,12 @@ const styles = StyleSheet.create({
     examLabel: {
         fontSize: normalize(11),
         fontWeight: '700',
-        color: '#374151',
         textAlign: 'center',
         marginTop: verticalScale(8),
         lineHeight: normalize(15),
     },
     detailHeader: {
-        backgroundColor: Colorpath.Primary,
+        backgroundColor: colors.Primary,
         borderBottomLeftRadius: normalize(20),
         borderBottomRightRadius: normalize(20),
     },
@@ -2714,19 +2976,19 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: normalize(16),
         fontWeight: '800',
-        color: '#1F2937',
+        color: colors.text,
         marginBottom: verticalScale(12),
     },
     patternCard: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.cardBackground,
         borderRadius: normalize(18),
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: colors.border,
         padding: normalize(16),
         marginBottom: verticalScale(20),
-        shadowColor: '#101828',
+        shadowColor: isDarkTheme ? colors.accent : '#101828',
         shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.05,
+        shadowOpacity: isDarkTheme ? 0.12 : 0.05,
         shadowRadius: 20,
         elevation: 3,
     },
@@ -2757,13 +3019,13 @@ const styles = StyleSheet.create({
     },
     patternLabel: {
         fontSize: normalize(11),
-        color: '#111827',
+        color: colors.text,
         fontWeight: '800',
         lineHeight: normalize(16),
     },
     subjectSubtitle: {
         fontSize: normalize(12),
-        color: '#6B7280',
+        color: colors.textSecondary,
         marginTop: -verticalScale(8),
         marginBottom: verticalScale(12),
     },
@@ -2778,11 +3040,11 @@ const styles = StyleSheet.create({
     dynamicTabText: {
         fontSize: normalize(14),
         fontWeight: '800',
-        color: '#667085',
+        color: colors.textSecondary,
         letterSpacing: 0.2,
     },
     dynamicTabTextActive: {
-        color: Colorpath.Primary,
+        color: colors.accent,
     },
     dynamicTabIndicator: {
         height: verticalScale(4),
@@ -2791,7 +3053,7 @@ const styles = StyleSheet.create({
         marginTop: verticalScale(8),
     },
     dynamicTabIndicatorActive: {
-        backgroundColor: '#F0A335',
+        backgroundColor: colors.accent,
     },
     subjectList: {
         marginBottom: verticalScale(20),
@@ -2808,13 +3070,13 @@ const styles = StyleSheet.create({
         width: normalize(10),
         height: normalize(10),
         borderRadius: normalize(5),
-        backgroundColor: '#9AE6B4',
+        backgroundColor: colors.accent,
         marginRight: normalize(10),
     },
     topicTitle: {
         fontSize: normalize(14),
         fontWeight: '800',
-        color: '#475467',
+        color: colors.text,
     },
     quizCardsWrap: {
         flexDirection: 'row',
@@ -2823,16 +3085,13 @@ const styles = StyleSheet.create({
         gap: normalize(12),
     },
     quizCard: {
-        width: '48%',
+        width: '100%',
         minWidth: normalize(140),
-        backgroundColor: '#FFFFFF',
         borderRadius: normalize(18),
         padding: normalize(14),
         borderWidth: 1,
-        borderColor: '#E5E7EB',
-        shadowColor: '#000',
         shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.08,
+        shadowOpacity: isDarkTheme ? 0.16 : 0.08,
         shadowRadius: 18,
         elevation: 4,
     },
@@ -2842,23 +3101,20 @@ const styles = StyleSheet.create({
         paddingVertical: verticalScale(4),
         borderRadius: normalize(999),
         borderWidth: 1,
-        borderColor: '#CBD5E1',
         marginBottom: verticalScale(12),
     },
     quizBadgeText: {
         fontSize: normalize(10),
         fontWeight: '800',
-        color: '#667085',
     },
     quizCardTitle: {
         fontSize: normalize(16),
         fontWeight: '800',
-        color: '#1D2939',
         marginBottom: verticalScale(14),
     },
     resourceCardSubtitle: {
         fontSize: normalize(12),
-        color: '#667085',
+        color: colors.textSecondary,
         lineHeight: normalize(18),
         marginBottom: verticalScale(14),
     },
@@ -2875,19 +3131,16 @@ const styles = StyleSheet.create({
     },
     quizMetaText: {
         fontSize: normalize(12),
-        color: '#667085',
         marginLeft: normalize(6),
         fontWeight: '600',
     },
     quizPriceText: {
         fontSize: normalize(12),
         fontWeight: '800',
-        color: '#344054',
     },
     quizActionButton: {
         height: verticalScale(46),
         borderRadius: normalize(12),
-        backgroundColor: '#0D9F6E',
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
@@ -2904,16 +3157,13 @@ const styles = StyleSheet.create({
     quizViewOnlyTag: {
         height: verticalScale(46),
         borderRadius: normalize(12),
-        backgroundColor: '#F8FAFC',
         borderWidth: 1,
-        borderColor: '#E2E8F0',
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         gap: normalize(8),
     },
     quizViewOnlyText: {
-        color: '#667085',
         fontSize: normalize(13),
         fontWeight: '700',
     },
@@ -2929,31 +3179,31 @@ const styles = StyleSheet.create({
     },
     modalCard: {
         width: '100%',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.cardBackground,
         borderRadius: normalize(20),
         padding: normalize(22),
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: colors.border,
     },
     modalLabel: {
         fontSize: normalize(11),
         fontWeight: '800',
-        color: '#64748B',
+        color: colors.textSecondary,
         letterSpacing: 1,
         marginBottom: verticalScale(8),
     },
     modalTitle: {
         fontSize: normalize(20),
         fontWeight: '800',
-        color: '#0F172A',
+        color: colors.text,
         marginBottom: verticalScale(8),
     },
     noteViewerContainer: {
         flex: 1,
-        backgroundColor: '#F8FAFC',
+        backgroundColor: colors.Background,
     },
     noteViewerSafeArea: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.cardBackground,
     },
     noteViewerHeader: {
         flexDirection: 'row',
@@ -2961,8 +3211,8 @@ const styles = StyleSheet.create({
         paddingHorizontal: normalize(20),
         paddingVertical: verticalScale(14),
         borderBottomWidth: 1,
-        borderBottomColor: '#E2E8F0',
-        backgroundColor: '#FFFFFF',
+        borderBottomColor: colors.border,
+        backgroundColor: colors.cardBackground,
     },
     noteViewerCloseBtn: {
         width: normalize(40),
@@ -2978,9 +3228,9 @@ const styles = StyleSheet.create({
         alignSelf: 'flex-start',
         borderRadius: normalize(999),
         borderWidth: 1,
-        borderColor: '#99F6E4',
-        backgroundColor: '#F0FDFA',
-        color: Colorpath.Primary,
+        borderColor: colors.border,
+        backgroundColor: colors.tagCyan,
+        color: colors.tagCyanText,
         fontSize: normalize(10),
         fontWeight: '800',
         letterSpacing: 1,
@@ -2991,12 +3241,12 @@ const styles = StyleSheet.create({
     noteViewerTitle: {
         fontSize: normalize(20),
         fontWeight: '800',
-        color: '#0F172A',
+        color: colors.text,
         marginBottom: verticalScale(2),
     },
     noteViewerSubtitle: {
         fontSize: normalize(12),
-        color: '#64748B',
+        color: colors.textSecondary,
     },
     noteViewerScrollContent: {
         paddingHorizontal: normalize(20),
@@ -3006,16 +3256,16 @@ const styles = StyleSheet.create({
         minHeight: verticalScale(220),
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.cardBackground,
         borderRadius: normalize(18),
         borderWidth: 1,
-        borderColor: '#E2E8F0',
+        borderColor: colors.border,
         paddingHorizontal: normalize(16),
     },
     noteViewerStateText: {
         marginTop: verticalScale(12),
         fontSize: normalize(13),
-        color: '#64748B',
+        color: colors.textSecondary,
         textAlign: 'center',
     },
     noteViewerLayout: {
@@ -3025,20 +3275,20 @@ const styles = StyleSheet.create({
     },
     noteViewerLeftPanel: {
         width: '35%',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.cardBackground,
         borderRightWidth: 1,
-        borderRightColor: '#E5E7EB',
+        borderRightColor: colors.border,
         padding: normalize(18),
     },
     noteViewerRightPanel: {
         width: '65%',
         padding: normalize(18),
-        backgroundColor: '#F8FAFC',
+        backgroundColor: colors.Background,
     },
     noteViewerPanelLabel: {
         fontSize: normalize(12),
         fontWeight: '800',
-        color: '#667085',
+        color: colors.textSecondary,
         letterSpacing: 2,
         marginBottom: verticalScale(14),
     },
@@ -3049,8 +3299,8 @@ const styles = StyleSheet.create({
         minHeight: verticalScale(60),
         borderRadius: normalize(18),
         borderWidth: 1,
-        borderColor: '#E5E7EB',
-        backgroundColor: '#FFFFFF',
+        borderColor: colors.border,
+        backgroundColor: colors.cardBackground,
         paddingHorizontal: normalize(14),
         paddingVertical: verticalScale(14),
         flexDirection: 'row',
@@ -3058,13 +3308,13 @@ const styles = StyleSheet.create({
         gap: normalize(10),
     },
     noteViewerListItemActive: {
-        backgroundColor: Colorpath.Primary,
-        borderColor: Colorpath.Primary,
+        backgroundColor: colors.Primary,
+        borderColor: colors.Primary,
     },
     noteViewerListIndex: {
         fontSize: normalize(14),
         fontWeight: '800',
-        color: '#98A2B3',
+        color: colors.textSecondary,
         width: normalize(22),
     },
     noteViewerListIndexActive: {
@@ -3074,7 +3324,7 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: normalize(14),
         fontWeight: '700',
-        color: '#344054',
+        color: colors.text,
     },
     noteViewerListTextActive: {
         color: '#FFFFFF',
@@ -3083,14 +3333,14 @@ const styles = StyleSheet.create({
         paddingBottom: verticalScale(24),
     },
     noteViewerDetailCard: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.cardBackground,
         borderRadius: normalize(22),
         borderWidth: 1,
-        borderColor: '#D0D5DD',
+        borderColor: colors.border,
         padding: normalize(20),
-        shadowColor: '#101828',
+        shadowColor: isDarkTheme ? colors.accent : '#101828',
         shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.06,
+        shadowOpacity: isDarkTheme ? 0.12 : 0.06,
         shadowRadius: 20,
         elevation: 3,
     },
@@ -3105,8 +3355,8 @@ const styles = StyleSheet.create({
         paddingHorizontal: normalize(12),
         paddingVertical: verticalScale(5),
         borderRadius: normalize(999),
-        backgroundColor: '#F0FDFA',
-        color: Colorpath.Primary,
+        backgroundColor: colors.tagCyan,
+        color: colors.tagCyanText,
         fontSize: normalize(10),
         fontWeight: '800',
         letterSpacing: 0.6,
@@ -3115,23 +3365,23 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: normalize(20),
         fontWeight: '800',
-        color: '#101828',
+        color: colors.text,
     },
     noteViewerDetailBody: {
         fontSize: normalize(14),
-        color: '#334155',
+        color: colors.text,
         lineHeight: normalize(22),
     },
     noteViewerDetailHint: {
         marginTop: verticalScale(12),
         fontSize: normalize(12),
-        color: '#64748B',
+        color: colors.textSecondary,
         fontWeight: '600',
     },
     noteViewerViewButton: {
         alignSelf: 'flex-start',
         marginTop: verticalScale(18),
-        backgroundColor: Colorpath.Primary,
+        backgroundColor: colors.accent,
         borderRadius: normalize(12),
         paddingHorizontal: normalize(16),
         height: verticalScale(44),
@@ -3146,10 +3396,10 @@ const styles = StyleSheet.create({
     },
     notePageViewerContainer: {
         flex: 1,
-        backgroundColor: '#F8FAFC',
+        backgroundColor: colors.Background,
     },
     notePageViewerSafeArea: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.cardBackground,
     },
     notePageViewerHeader: {
         flexDirection: 'row',
@@ -3158,7 +3408,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: normalize(20),
         paddingVertical: verticalScale(16),
         borderBottomWidth: 1,
-        borderBottomColor: '#E2E8F0',
+        borderBottomColor: colors.border,
     },
     notePageViewerHeaderText: {
         flex: 1,
@@ -3167,9 +3417,9 @@ const styles = StyleSheet.create({
         alignSelf: 'flex-start',
         borderRadius: normalize(999),
         borderWidth: 1,
-        borderColor: '#99F6E4',
-        backgroundColor: '#F0FDFA',
-        color: Colorpath.Primary,
+        borderColor: colors.border,
+        backgroundColor: colors.tagCyan,
+        color: colors.tagCyanText,
         fontSize: normalize(10),
         fontWeight: '800',
         letterSpacing: 1,
@@ -3180,7 +3430,7 @@ const styles = StyleSheet.create({
     notePageViewerTitle: {
         fontSize: normalize(22),
         fontWeight: '800',
-        color: '#0F172A',
+        color: colors.text,
     },
     notePageViewerCloseBtn: {
         width: normalize(40),
@@ -3188,50 +3438,50 @@ const styles = StyleSheet.create({
         borderRadius: normalize(20),
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#F1F5F9',
+        backgroundColor: colors.border,
     },
     notePageViewerScrollContent: {
         padding: normalize(18),
     },
     notePageViewerCard: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.cardBackground,
         borderRadius: normalize(22),
         borderWidth: 1,
-        borderColor: '#D0D5DD',
+        borderColor: colors.border,
         padding: normalize(20),
-        shadowColor: '#101828',
+        shadowColor: isDarkTheme ? colors.accent : '#101828',
         shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.06,
+        shadowOpacity: isDarkTheme ? 0.12 : 0.06,
         shadowRadius: 20,
         elevation: 3,
     },
     notePageViewerBody: {
         fontSize: normalize(14),
-        color: '#334155',
+        color: colors.text,
         lineHeight: normalize(22),
     },
     notePageCard: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.cardBackground,
         borderRadius: normalize(18),
         borderWidth: 1,
-        borderColor: '#E2E8F0',
+        borderColor: colors.border,
         padding: normalize(16),
         marginBottom: verticalScale(14),
     },
     notePageTitle: {
         fontSize: normalize(17),
         fontWeight: '800',
-        color: '#0F172A',
+        color: colors.text,
         marginBottom: verticalScale(10),
     },
     notePageBody: {
         fontSize: normalize(13),
-        color: '#334155',
+        color: colors.text,
         lineHeight: normalize(20),
     },
     modalDescription: {
         fontSize: normalize(13),
-        color: '#475569',
+        color: colors.textSecondary,
         lineHeight: normalize(20),
         marginBottom: verticalScale(18),
     },
@@ -3244,24 +3494,24 @@ const styles = StyleSheet.create({
     courseLeftPanel: {
         width: '30%',
         minWidth: normalize(180),
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.cardBackground,
         borderRadius: normalize(18),
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: colors.border,
         padding: normalize(14),
     },
     courseRightPanel: {
         flex: 1,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.cardBackground,
         borderRadius: normalize(18),
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: colors.border,
         padding: normalize(14),
     },
     coursePanelLabel: {
         fontSize: normalize(11),
         fontWeight: '800',
-        color: '#667085',
+        color: colors.textSecondary,
         letterSpacing: 1.2,
         textTransform: 'uppercase',
         marginBottom: verticalScale(12),
@@ -3271,21 +3521,21 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderRadius: normalize(16),
         borderWidth: 1,
-        borderColor: '#E5E7EB',
-        backgroundColor: '#F8FAFC',
+        borderColor: colors.border,
+        backgroundColor: colors.Background,
         paddingHorizontal: normalize(14),
         paddingVertical: verticalScale(14),
         minHeight: verticalScale(58),
     },
     courseSectionItemActive: {
-        backgroundColor: Colorpath.Primary,
-        borderColor: Colorpath.Primary,
+        backgroundColor: colors.Primary,
+        borderColor: colors.Primary,
     },
     courseSectionText: {
         flex: 1,
         fontSize: normalize(14),
         fontWeight: '700',
-        color: '#344054',
+        color: colors.text,
     },
     courseSectionTextActive: {
         color: '#FFFFFF',
@@ -3293,14 +3543,14 @@ const styles = StyleSheet.create({
     courseCard: {
         width: '100%',
         minHeight: verticalScale(150),
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.cardBackground,
         borderRadius: normalize(18),
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: colors.border,
         padding: normalize(16),
-        shadowColor: '#000',
+        shadowColor: isDarkTheme ? colors.accent : '#000000',
         shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.06,
+        shadowOpacity: isDarkTheme ? 0.12 : 0.06,
         shadowRadius: 18,
         elevation: 3,
         justifyContent: 'space-between',
@@ -3310,26 +3560,23 @@ const styles = StyleSheet.create({
         paddingHorizontal: normalize(10),
         paddingVertical: verticalScale(4),
         borderRadius: normalize(999),
-        backgroundColor: '#F0FDFA',
         borderWidth: 1,
-        borderColor: '#99F6E4',
         marginBottom: verticalScale(10),
     },
     courseCardBadgeText: {
         fontSize: normalize(10),
         fontWeight: '800',
-        color: Colorpath.Primary,
         letterSpacing: 0.6,
     },
     courseCardTitle: {
         fontSize: normalize(16),
         fontWeight: '800',
-        color: '#101828',
+        color: colors.text,
         marginBottom: verticalScale(6),
     },
     courseCardSubtitle: {
         fontSize: normalize(12),
-        color: '#667085',
+        color: colors.textSecondary,
         lineHeight: normalize(18),
         marginBottom: verticalScale(12),
     },
@@ -3343,7 +3590,7 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: normalize(12),
         fontWeight: '700',
-        color: '#475467',
+        color: colors.textSecondary,
     },
     videoCardTitleRow: {
         flexDirection: 'row',
@@ -3355,8 +3602,8 @@ const styles = StyleSheet.create({
         minHeight: verticalScale(220),
         borderRadius: normalize(18),
         borderWidth: 1,
-        borderColor: '#E5E7EB',
-        backgroundColor: '#F8FAFC',
+        borderColor: colors.border,
+        backgroundColor: colors.Background,
         alignItems: 'center',
         justifyContent: 'center',
         paddingHorizontal: normalize(16),
@@ -3364,16 +3611,16 @@ const styles = StyleSheet.create({
     emptyStateText: {
         marginTop: verticalScale(10),
         fontSize: normalize(13),
-        color: '#667085',
+        color: colors.textSecondary,
         fontWeight: '600',
         textAlign: 'center',
     },
     questionBankContainer: {
         flex: 1,
-        backgroundColor: '#F8FAFC',
+        backgroundColor: colors.Background,
     },
     questionBankSafeArea: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.cardBackground,
     },
     questionBankHeader: {
         flexDirection: 'row',
@@ -3381,7 +3628,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: normalize(20),
         paddingVertical: verticalScale(16),
         borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
+        borderBottomColor: colors.border,
         gap: normalize(14),
     },
     questionBankCloseBtn: {
@@ -3398,9 +3645,9 @@ const styles = StyleSheet.create({
         alignSelf: 'flex-start',
         borderRadius: normalize(999),
         borderWidth: 1,
-        borderColor: '#99F6E4',
-        backgroundColor: '#F0FDFA',
-        color: Colorpath.Primary,
+        borderColor: colors.border,
+        backgroundColor: colors.tagPurple,
+        color: colors.tagPurpleText,
         fontSize: normalize(10),
         fontWeight: '800',
         letterSpacing: 1,
@@ -3411,12 +3658,12 @@ const styles = StyleSheet.create({
     questionBankTitle: {
         fontSize: normalize(22),
         fontWeight: '800',
-        color: '#101828',
+        color: colors.text,
         marginBottom: verticalScale(4),
     },
     questionBankSubtitle: {
         fontSize: normalize(12),
-        color: '#667085',
+        color: colors.textSecondary,
         fontWeight: '600',
         textTransform: 'uppercase',
     },
@@ -3428,7 +3675,7 @@ const styles = StyleSheet.create({
     },
     questionBankLoadingText: {
         fontSize: normalize(13),
-        color: '#667085',
+        color: colors.textSecondary,
         fontWeight: '600',
     },
     questionBankEmptyState: {
@@ -3440,7 +3687,7 @@ const styles = StyleSheet.create({
     questionBankEmptyText: {
         marginTop: verticalScale(10),
         fontSize: normalize(13),
-        color: '#667085',
+        color: colors.textSecondary,
         fontWeight: '600',
         textAlign: 'center',
     },
@@ -3452,20 +3699,20 @@ const styles = StyleSheet.create({
     questionBankLeftPanel: {
         width: '30%',
         minWidth: normalize(180),
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.cardBackground,
         borderRightWidth: 1,
-        borderRightColor: '#E5E7EB',
+        borderRightColor: colors.border,
         padding: normalize(18),
     },
     questionBankRightPanel: {
         flex: 1,
         padding: normalize(18),
-        backgroundColor: '#F8FAFC',
+        backgroundColor: colors.Background,
     },
     questionBankPanelLabel: {
         fontSize: normalize(12),
         fontWeight: '800',
-        color: '#667085',
+        color: colors.textSecondary,
         letterSpacing: 2,
         marginBottom: verticalScale(14),
     },
@@ -3476,8 +3723,8 @@ const styles = StyleSheet.create({
         minHeight: verticalScale(60),
         borderRadius: normalize(18),
         borderWidth: 1,
-        borderColor: '#E5E7EB',
-        backgroundColor: '#FFFFFF',
+        borderColor: colors.border,
+        backgroundColor: colors.cardBackground,
         paddingHorizontal: normalize(14),
         paddingVertical: verticalScale(14),
         flexDirection: 'row',
@@ -3485,8 +3732,8 @@ const styles = StyleSheet.create({
         gap: normalize(10),
     },
     questionBankListItemActive: {
-        backgroundColor: Colorpath.Primary,
-        borderColor: Colorpath.Primary,
+        backgroundColor: colors.Primary,
+        borderColor: colors.Primary,
     },
     questionBankListItemInactive: {
         backgroundColor: 'transparent',
@@ -3498,7 +3745,7 @@ const styles = StyleSheet.create({
     questionBankListIndex: {
         fontSize: normalize(14),
         fontWeight: '800',
-        color: '#98A2B3',
+        color: colors.textSecondary,
         width: normalize(22),
     },
     questionBankListIndexActive: {
@@ -3508,7 +3755,7 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: normalize(14),
         fontWeight: '700',
-        color: '#344054',
+        color: colors.text,
     },
     questionBankListTextActive: {
         color: '#FFFFFF',
@@ -3517,14 +3764,14 @@ const styles = StyleSheet.create({
         paddingBottom: verticalScale(24),
     },
     questionBankDetailCard: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.cardBackground,
         borderRadius: normalize(22),
         borderWidth: 1,
-        borderColor: '#D0D5DD',
+        borderColor: colors.border,
         padding: normalize(20),
-        shadowColor: '#101828',
+        shadowColor: isDarkTheme ? colors.accent : '#101828',
         shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.06,
+        shadowOpacity: isDarkTheme ? 0.12 : 0.06,
         shadowRadius: 20,
         elevation: 3,
     },
@@ -3539,8 +3786,8 @@ const styles = StyleSheet.create({
         paddingHorizontal: normalize(12),
         paddingVertical: verticalScale(5),
         borderRadius: normalize(999),
-        backgroundColor: '#F0FDFA',
-        color: Colorpath.Primary,
+        backgroundColor: colors.tagPurple,
+        color: colors.tagPurpleText,
         fontSize: normalize(10),
         fontWeight: '800',
         letterSpacing: 0.6,
@@ -3549,11 +3796,11 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: normalize(20),
         fontWeight: '800',
-        color: '#101828',
+        color: colors.text,
     },
     questionBankYearText: {
         fontSize: normalize(12),
-        color: '#667085',
+        color: colors.textSecondary,
         fontWeight: '600',
         marginBottom: verticalScale(16),
     },
@@ -3571,13 +3818,13 @@ const styles = StyleSheet.create({
         width: normalize(10),
         height: normalize(10),
         borderRadius: normalize(5),
-        backgroundColor: Colorpath.Primary,
+        backgroundColor: colors.accent,
         marginTop: verticalScale(5),
     },
     questionBankOptionText: {
         flex: 1,
         fontSize: normalize(14),
-        color: '#344054',
+        color: colors.text,
         lineHeight: normalize(22),
     },
     questionBankToggleBtn: {
@@ -3587,7 +3834,7 @@ const styles = StyleSheet.create({
         gap: normalize(8),
         borderRadius: normalize(999),
         borderWidth: 1,
-        borderColor: '#99F6E4',
+        borderColor: colors.border,
         paddingHorizontal: normalize(16),
         paddingVertical: verticalScale(10),
         marginBottom: verticalScale(18),
@@ -3595,40 +3842,40 @@ const styles = StyleSheet.create({
     questionBankToggleText: {
         fontSize: normalize(13),
         fontWeight: '800',
-        color: Colorpath.Primary,
+        color: colors.accent,
     },
     questionBankAnswerCard: {
         borderRadius: normalize(20),
         borderWidth: 1,
-        borderColor: '#99F6E4',
-        backgroundColor: '#F0FDFA',
+        borderColor: colors.border,
+        backgroundColor: colors.tagGreen,
         padding: normalize(18),
     },
     questionBankAnswerLabel: {
         fontSize: normalize(11),
         fontWeight: '800',
-        color: Colorpath.Primary,
+        color: colors.tagGreenText,
         letterSpacing: 1,
         marginBottom: verticalScale(12),
     },
     questionBankAnswerText: {
         fontSize: normalize(14),
         fontWeight: '700',
-        color: '#0F172A',
+        color: colors.text,
         lineHeight: normalize(22),
         marginBottom: verticalScale(10),
     },
     questionBankExplanationText: {
         fontSize: normalize(14),
-        color: '#334155',
+        color: colors.textSecondary,
         lineHeight: normalize(22),
     },
     questionAnswerContainer: {
         flex: 1,
-        backgroundColor: '#F8FAFC',
+        backgroundColor: colors.Background,
     },
     questionAnswerSafeArea: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.cardBackground,
     },
     questionAnswerHeader: {
         flexDirection: 'row',
@@ -3637,7 +3884,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: normalize(20),
         paddingVertical: verticalScale(16),
         borderBottomWidth: 1,
-        borderBottomColor: '#E2E8F0',
+        borderBottomColor: colors.border,
     },
     questionAnswerHeaderText: {
         flex: 1,
@@ -3646,9 +3893,9 @@ const styles = StyleSheet.create({
         alignSelf: 'flex-start',
         borderRadius: normalize(999),
         borderWidth: 1,
-        borderColor: '#99F6E4',
-        backgroundColor: '#F0FDFA',
-        color: Colorpath.Primary,
+        borderColor: colors.border,
+        backgroundColor: colors.tagGreen,
+        color: colors.tagGreenText,
         fontSize: normalize(10),
         fontWeight: '800',
         letterSpacing: 1,
@@ -3659,12 +3906,12 @@ const styles = StyleSheet.create({
     questionAnswerTitle: {
         fontSize: normalize(22),
         fontWeight: '800',
-        color: '#0F172A',
+        color: colors.text,
         marginBottom: verticalScale(4),
     },
     questionAnswerSubtitle: {
         fontSize: normalize(12),
-        color: '#64748B',
+        color: colors.textSecondary,
         fontWeight: '600',
         textTransform: 'uppercase',
     },
@@ -3674,40 +3921,40 @@ const styles = StyleSheet.create({
         borderRadius: normalize(20),
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#F1F5F9',
+        backgroundColor: colors.border,
     },
     questionAnswerScrollContent: {
         padding: normalize(18),
     },
     questionAnswerCard: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.cardBackground,
         borderRadius: normalize(22),
         borderWidth: 1,
-        borderColor: '#D0D5DD',
+        borderColor: colors.border,
         padding: normalize(20),
-        shadowColor: '#101828',
+        shadowColor: isDarkTheme ? colors.accent : '#101828',
         shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.06,
+        shadowOpacity: isDarkTheme ? 0.12 : 0.06,
         shadowRadius: 20,
         elevation: 3,
     },
     questionAnswerBody: {
         fontSize: normalize(14),
-        color: '#334155',
+        color: colors.text,
         lineHeight: normalize(22),
         marginBottom: verticalScale(14),
     },
     questionAnswerExplanation: {
         fontSize: normalize(14),
-        color: '#334155',
+        color: colors.textSecondary,
         lineHeight: normalize(22),
     },
     videoBankContainer: {
         flex: 1,
-        backgroundColor: '#F8FAFC',
+        backgroundColor: colors.Background,
     },
     videoBankSafeArea: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.cardBackground,
     },
     videoBankHeader: {
         flexDirection: 'row',
@@ -3716,7 +3963,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: normalize(20),
         paddingVertical: verticalScale(16),
         borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
+        borderBottomColor: colors.border,
         gap: normalize(14),
     },
     videoBankHeaderText: {
@@ -3726,9 +3973,9 @@ const styles = StyleSheet.create({
         alignSelf: 'flex-start',
         borderRadius: normalize(999),
         borderWidth: 1,
-        borderColor: '#BFDBFE',
-        backgroundColor: '#EFF6FF',
-        color: '#1D4ED8',
+        borderColor: colors.border,
+        backgroundColor: colors.tagOrange,
+        color: colors.tagOrangeText,
         fontSize: normalize(10),
         fontWeight: '800',
         letterSpacing: 1,
@@ -3739,12 +3986,12 @@ const styles = StyleSheet.create({
     videoBankTitle: {
         fontSize: normalize(22),
         fontWeight: '800',
-        color: '#101828',
+        color: colors.text,
         marginBottom: verticalScale(4),
     },
     videoBankSubtitle: {
         fontSize: normalize(12),
-        color: '#667085',
+        color: colors.textSecondary,
         fontWeight: '600',
         textTransform: 'uppercase',
     },
@@ -3752,7 +3999,7 @@ const styles = StyleSheet.create({
         width: normalize(40),
         height: normalize(40),
         borderRadius: normalize(20),
-        backgroundColor: '#F1F5F9',
+        backgroundColor: colors.border,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -3764,7 +4011,7 @@ const styles = StyleSheet.create({
     },
     videoBankLoadingText: {
         fontSize: normalize(13),
-        color: '#667085',
+        color: colors.textSecondary,
         fontWeight: '600',
     },
     videoBankEmptyState: {
@@ -3776,7 +4023,7 @@ const styles = StyleSheet.create({
     videoBankEmptyText: {
         marginTop: verticalScale(10),
         fontSize: normalize(13),
-        color: '#667085',
+        color: colors.textSecondary,
         fontWeight: '600',
         textAlign: 'center',
     },
@@ -3784,14 +4031,14 @@ const styles = StyleSheet.create({
         padding: normalize(18),
     },
     videoBankCard: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.cardBackground,
         borderRadius: normalize(18),
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: colors.border,
         padding: normalize(16),
-        shadowColor: '#000',
+        shadowColor: isDarkTheme ? colors.accent : '#000000',
         shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.06,
+        shadowOpacity: isDarkTheme ? 0.12 : 0.06,
         shadowRadius: 18,
         elevation: 3,
         minHeight: verticalScale(120),
@@ -3806,7 +4053,7 @@ const styles = StyleSheet.create({
         width: normalize(36),
         height: normalize(36),
         borderRadius: normalize(18),
-        backgroundColor: '#FEF2F2',
+        backgroundColor: colors.tagOrange,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -3816,12 +4063,12 @@ const styles = StyleSheet.create({
     videoBankCardTitle: {
         fontSize: normalize(16),
         fontWeight: '800',
-        color: '#101828',
+        color: colors.text,
         marginBottom: verticalScale(4),
     },
     videoBankCardSubtitle: {
         fontSize: normalize(12),
-        color: '#667085',
+        color: colors.textSecondary,
         lineHeight: normalize(18),
     },
     videoBankCardFooter: {
@@ -3838,9 +4085,9 @@ const styles = StyleSheet.create({
     modalSecondaryButton: {
         height: verticalScale(48),
         borderRadius: normalize(12),
-        backgroundColor: '#F8FAFC',
+        backgroundColor: colors.cardBackground,
         borderWidth: 1,
-        borderColor: '#CBD5E1',
+        borderColor: colors.border,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
@@ -3848,14 +4095,14 @@ const styles = StyleSheet.create({
         marginBottom: verticalScale(12),
     },
     modalSecondaryButtonText: {
-        color: '#0F172A',
+        color: colors.text,
         fontSize: normalize(14),
         fontWeight: '800',
     },
     modalPrimaryButton: {
         height: verticalScale(48),
         borderRadius: normalize(12),
-        backgroundColor: '#0D9F6E',
+        backgroundColor: colors.accent,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
@@ -3871,14 +4118,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         marginVertical: verticalScale(10),
-        backgroundColor: '#F1F5F9',
+        backgroundColor: colors.border,
         paddingVertical: verticalScale(6),
         paddingHorizontal: normalize(12),
         borderRadius: normalize(8),
     },
     modalPriceText: {
         fontSize: normalize(14),
-        color: '#4B5563',
+        color: colors.text,
         fontWeight: '600',
     },
 });

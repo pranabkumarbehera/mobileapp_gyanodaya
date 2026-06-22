@@ -224,3 +224,46 @@ cd android && ./gradlew clean && cd ..
 # Clean iOS build artifacts
 cd ios && rm -rf build DerivedData Pods Podfile.lock && pod install && cd ..
 ```
+
+---
+
+## Docker Containerization Setup
+
+The project includes a complete Docker configuration to develop, build, or serve the React Native Web client inside containers.
+
+### Prerequisites
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running on your system.
+
+### 1. Local Development Mode (with Hot Reloading)
+To run a containerized development server with host volume mounting and hot reloading enabled:
+```bash
+docker compose up web-dev
+```
+- **Access URL**: [http://localhost:3000](http://localhost:3000)
+- **Features**: Maps the project root directory into the container while isolating container-specific `node_modules`. Webpack Dev Server will watch local files and hot-reload changes instantly in your browser.
+
+### 2. Production Build and Nginx Hosting
+To compile the web assets using a multi-stage build and serve them via an optimized Nginx server:
+```bash
+docker compose up web-prod --build
+```
+- **Access URL**: [http://localhost:8080](http://localhost:8080)
+- **Features**: Automatically triggers a production webpack compilation (`npm run build-web`) and places the resulting files into an Nginx container. The Nginx server includes:
+  - SPA routing fallback support (routing all subpaths back to `index.html`).
+  - Gzip compression for faster asset load times.
+  - An API gateway proxy redirecting `/api/*` requests securely to `https://www.gyanodaya.cloud` with SSL verification.
+
+### Docker CLI Reference
+- **Stop and teardown containers**:
+  ```bash
+  docker compose down
+  ```
+- **Rebuild the images from scratch**:
+  ```bash
+  docker compose build --no-cache
+  ```
+- **Inspect container runtime logs**:
+  ```bash
+  docker compose logs -f [service-name]
+  ```
+

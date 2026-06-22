@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -11,6 +11,7 @@ import {
     ScrollView,
     ActivityIndicator,
     Modal,
+    Animated,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { signupRequest } from '../../../Redux/Reducers/AuthReducer';
@@ -21,6 +22,7 @@ import Colorpath from '../../../Themes/Colorpath';
 import { normalize, verticalScale } from '../../../Utils/Helpers/normalize';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../Navigator/StackNav';
+import { useTheme } from '../../../Themes/hooks';
 
 type RegisterScreenProps = StackScreenProps<RootStackParamList, 'Register'>;
 type RegisterErrors = {
@@ -34,8 +36,38 @@ type RegisterErrors = {
 };
 
 const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
+    const { colors, theme } = useTheme();
+    const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
+    const statusBarStyle = isDarkTheme ? 'light-content' : 'dark-content';
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
+    
+    // Focus states for dynamic borders
+    const [firstNameFocused, setFirstNameFocused] = useState(false);
+    const [lastNameFocused, setLastNameFocused] = useState(false);
+    const [emailFocused, setEmailFocused] = useState(false);
+    const [phoneFocused, setPhoneFocused] = useState(false);
+    const [passwordFocused, setPasswordFocused] = useState(false);
+
+    // Spring button scale animation
+    const buttonScale = useRef(new Animated.Value(1)).current;
+    const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+    const handlePressIn = () => {
+        Animated.spring(buttonScale, {
+            toValue: 0.96,
+            useNativeDriver: true,
+        }).start();
+    };
+
+    const handlePressOut = () => {
+        Animated.spring(buttonScale, {
+            toValue: 1,
+            friction: 4,
+            tension: 40,
+            useNativeDriver: true,
+        }).start();
+    };
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
@@ -139,8 +171,8 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
     };
 
     return (
-        <SafeAreaView style={styles.container}>
-            <StatusBar backgroundColor="#FAFBFF" barStyle="dark-content" />
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.Background }]}>
+            <StatusBar backgroundColor={colors.Background} barStyle={statusBarStyle} />
 
             <KeyboardAvoidingView 
                 style={styles.keyboardView}
@@ -149,51 +181,85 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                 <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
                     
                     <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
-                        <Icon name="arrow-left" size={normalize(24)} color="#111827" />
+                        <Icon name="arrow-left" size={normalize(24)} color={colors.text} />
                     </Pressable>
 
                     <View style={styles.headerContainer}>
-                        <Text style={styles.brandTitle}>Create Account</Text>
-                        <Text style={styles.subtitle}>Your success is our motivation.</Text>
+                        <Text style={[styles.brandTitle, { color: colors.Primary }]}>Create Account</Text>
+                        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Your success is our motivation.</Text>
                     </View>
 
                     <View style={styles.formContainer}>
                         
                         <View style={styles.row}>
                             <View style={[styles.fieldWrapper, styles.halfInput]}>
-                                <View style={[styles.inputContainer, touched.firstName && errors.firstName ? styles.inputContainerError : null]}>
-                                    <Icon name="user" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
+                                <View style={[
+                                    styles.inputContainer, 
+                                    { 
+                                        backgroundColor: colors.cardBackground, 
+                                        borderColor: firstNameFocused ? colors.accent : (touched.firstName && errors.firstName ? '#EF4444' : colors.border),
+                                        shadowColor: colors.accent,
+                                        shadowOffset: { width: 0, height: 0 },
+                                        shadowOpacity: firstNameFocused && isDarkTheme ? 0.35 : 0,
+                                        shadowRadius: 8,
+                                        elevation: firstNameFocused ? 2 : 0,
+                                    }
+                                ]}>
+                                    <Icon name="user" size={normalize(18)} color={firstNameFocused ? colors.accent : colors.textSecondary} style={styles.inputIcon} />
                                     <TextInput
-                                        style={styles.input}
+                                        style={[styles.input, { color: colors.text }]}
                                         placeholder="First name"
-                                        placeholderTextColor="#9CA3AF"
+                                        placeholderTextColor={colors.textSecondary}
                                         value={firstName}
-                                    onChangeText={(value) => {
-                                        updateTouched('firstName');
-                                        setFirstName(value);
-                                    }}
-                                    onFocus={() => updateTouched('firstName')}
-                                    onBlur={() => updateTouched('firstName')}
-                                    editable={!isLoading}
+                                        onChangeText={(value) => {
+                                            updateTouched('firstName');
+                                            setFirstName(value);
+                                        }}
+                                        onFocus={() => {
+                                            updateTouched('firstName');
+                                            setFirstNameFocused(true);
+                                        }}
+                                        onBlur={() => {
+                                            updateTouched('firstName');
+                                            setFirstNameFocused(false);
+                                        }}
+                                        editable={!isLoading}
                                     />
                                 </View>
                                 {touched.firstName && errors.firstName ? <Text style={styles.errorText}>{errors.firstName}</Text> : null}
                             </View>
                             <View style={[styles.fieldWrapper, styles.halfInput]}>
-                                <View style={[styles.inputContainer, touched.lastName && errors.lastName ? styles.inputContainerError : null]}>
-                                    <Icon name="user" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
+                                <View style={[
+                                    styles.inputContainer, 
+                                    { 
+                                        backgroundColor: colors.cardBackground, 
+                                        borderColor: lastNameFocused ? colors.accent : (touched.lastName && errors.lastName ? '#EF4444' : colors.border),
+                                        shadowColor: colors.accent,
+                                        shadowOffset: { width: 0, height: 0 },
+                                        shadowOpacity: lastNameFocused && isDarkTheme ? 0.35 : 0,
+                                        shadowRadius: 8,
+                                        elevation: lastNameFocused ? 2 : 0,
+                                    }
+                                ]}>
+                                    <Icon name="user" size={normalize(18)} color={lastNameFocused ? colors.accent : colors.textSecondary} style={styles.inputIcon} />
                                     <TextInput
-                                        style={styles.input}
+                                        style={[styles.input, { color: colors.text }]}
                                         placeholder="Last name"
-                                        placeholderTextColor="#9CA3AF"
+                                        placeholderTextColor={colors.textSecondary}
                                         value={lastName}
-                                    onChangeText={(value) => {
-                                        updateTouched('lastName');
-                                        setLastName(value);
-                                    }}
-                                    onFocus={() => updateTouched('lastName')}
-                                    onBlur={() => updateTouched('lastName')}
-                                    editable={!isLoading}
+                                        onChangeText={(value) => {
+                                            updateTouched('lastName');
+                                            setLastName(value);
+                                        }}
+                                        onFocus={() => {
+                                            updateTouched('lastName');
+                                            setLastNameFocused(true);
+                                        }}
+                                        onBlur={() => {
+                                            updateTouched('lastName');
+                                            setLastNameFocused(false);
+                                        }}
+                                        editable={!isLoading}
                                     />
                                 </View>
                                 {touched.lastName && errors.lastName ? <Text style={styles.errorText}>{errors.lastName}</Text> : null}
@@ -201,19 +267,36 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                         </View>
 
                         <View style={styles.fieldWrapper}>
-                            <View style={[styles.inputContainer, touched.email && errors.email ? styles.inputContainerError : null]}>
-                                <Icon name="mail" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
+                            <View style={[
+                                styles.inputContainer, 
+                                { 
+                                    backgroundColor: colors.cardBackground, 
+                                    borderColor: emailFocused ? colors.accent : (touched.email && errors.email ? '#EF4444' : colors.border),
+                                    shadowColor: colors.accent,
+                                    shadowOffset: { width: 0, height: 0 },
+                                    shadowOpacity: emailFocused && isDarkTheme ? 0.35 : 0,
+                                    shadowRadius: 8,
+                                    elevation: emailFocused ? 2 : 0,
+                                }
+                            ]}>
+                                <Icon name="mail" size={normalize(18)} color={emailFocused ? colors.accent : colors.textSecondary} style={styles.inputIcon} />
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, { color: colors.text }]}
                                     placeholder="Email address"
-                                    placeholderTextColor="#9CA3AF"
+                                    placeholderTextColor={colors.textSecondary}
                                     value={email}
                                     onChangeText={(value) => {
                                         updateTouched('email');
                                         setEmail(value);
                                     }}
-                                    onFocus={() => updateTouched('email')}
-                                    onBlur={() => updateTouched('email')}
+                                    onFocus={() => {
+                                        updateTouched('email');
+                                        setEmailFocused(true);
+                                    }}
+                                    onBlur={() => {
+                                        updateTouched('email');
+                                        setEmailFocused(false);
+                                    }}
                                     keyboardType="email-address"
                                     autoCapitalize="none"
                                     editable={!isLoading}
@@ -223,19 +306,36 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                         </View>
 
                         <View style={styles.fieldWrapper}>
-                            <View style={[styles.inputContainer, touched.phone && errors.phone ? styles.inputContainerError : null]}>
-                                <Icon name="phone" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
+                            <View style={[
+                                styles.inputContainer, 
+                                { 
+                                    backgroundColor: colors.cardBackground, 
+                                    borderColor: phoneFocused ? colors.accent : (touched.phone && errors.phone ? '#EF4444' : colors.border),
+                                    shadowColor: colors.accent,
+                                    shadowOffset: { width: 0, height: 0 },
+                                    shadowOpacity: phoneFocused && isDarkTheme ? 0.35 : 0,
+                                    shadowRadius: 8,
+                                    elevation: phoneFocused ? 2 : 0,
+                                }
+                            ]}>
+                                <Icon name="phone" size={normalize(18)} color={phoneFocused ? colors.accent : colors.textSecondary} style={styles.inputIcon} />
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, { color: colors.text }]}
                                     placeholder="Phone number"
-                                    placeholderTextColor="#9CA3AF"
+                                    placeholderTextColor={colors.textSecondary}
                                     value={phone}
                                     onChangeText={(text) => {
                                         updateTouched('phone');
                                         setPhone(text.replace(/[^0-9]/g, '').slice(0, 10));
                                     }}
-                                    onFocus={() => updateTouched('phone')}
-                                    onBlur={() => updateTouched('phone')}
+                                    onFocus={() => {
+                                        updateTouched('phone');
+                                        setPhoneFocused(true);
+                                    }}
+                                    onBlur={() => {
+                                        updateTouched('phone');
+                                        setPhoneFocused(false);
+                                    }}
                                     keyboardType="phone-pad"
                                     maxLength={10}
                                     editable={!isLoading}
@@ -245,30 +345,47 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                         </View>
 
                         <View style={styles.fieldWrapper}>
-                            <View style={[styles.inputContainer, touched.password && errors.password ? styles.inputContainerError : null]}>
-                                <Icon name="lock" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
+                            <View style={[
+                                styles.inputContainer, 
+                                { 
+                                    backgroundColor: colors.cardBackground, 
+                                    borderColor: passwordFocused ? colors.accent : (touched.password && errors.password ? '#EF4444' : colors.border),
+                                    shadowColor: colors.accent,
+                                    shadowOffset: { width: 0, height: 0 },
+                                    shadowOpacity: passwordFocused && isDarkTheme ? 0.35 : 0,
+                                    shadowRadius: 8,
+                                    elevation: passwordFocused ? 2 : 0,
+                                }
+                            ]}>
+                                <Icon name="lock" size={normalize(18)} color={passwordFocused ? colors.accent : colors.textSecondary} style={styles.inputIcon} />
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, { color: colors.text }]}
                                     placeholder="Create password"
-                                    placeholderTextColor="#9CA3AF"
+                                    placeholderTextColor={colors.textSecondary}
                                     secureTextEntry={secureText}
                                     value={password}
                                     onChangeText={(value) => {
                                         updateTouched('password');
                                         setPassword(value);
                                     }}
-                                    onFocus={() => updateTouched('password')}
-                                    onBlur={() => updateTouched('password')}
+                                    onFocus={() => {
+                                        updateTouched('password');
+                                        setPasswordFocused(true);
+                                    }}
+                                    onBlur={() => {
+                                        updateTouched('password');
+                                        setPasswordFocused(false);
+                                    }}
                                     editable={!isLoading}
                                 />
                                 <Pressable onPress={() => setSecureText(!secureText)} style={styles.eyeIcon} disabled={isLoading}>
-                                    <Icon name={secureText ? "eye-off" : "eye"} size={normalize(18)} color="#9CA3AF" />
+                                    <Icon name={secureText ? "eye-off" : "eye"} size={normalize(18)} color={colors.textSecondary} />
                                 </Pressable>
                             </View>
                             {touched.password && errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
                         </View>
 
-                        <Text style={styles.genderLabel}>Gender</Text>
+                        <Text style={[styles.genderLabel, { color: colors.text }]}>Gender</Text>
                         <View style={[styles.genderContainer, touched.gender && errors.gender ? styles.genderContainerError : null]}>
                             <Pressable 
                                 style={styles.radioOption} 
@@ -278,10 +395,10 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                                 }}
                                 disabled={isLoading}
                             >
-                                <View style={styles.radioCircle}>
-                                    {gender === 'Female' && <View style={styles.radioInnerCircle} />}
+                                <View style={[styles.radioCircle, { borderColor: colors.Primary }]}>
+                                    {gender === 'Female' && <View style={[styles.radioInnerCircle, { backgroundColor: colors.Primary }]} />}
                                 </View>
-                                <Text style={styles.radioText}>Female</Text>
+                                <Text style={[styles.radioText, { color: colors.text }]}>Female</Text>
                             </Pressable>
                             
                             <Pressable 
@@ -292,10 +409,10 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                                 }}
                                 disabled={isLoading}
                             >
-                                <View style={styles.radioCircle}>
-                                    {gender === 'Male' && <View style={styles.radioInnerCircle} />}
+                                <View style={[styles.radioCircle, { borderColor: colors.Primary }]}>
+                                    {gender === 'Male' && <View style={[styles.radioInnerCircle, { backgroundColor: colors.Primary }]} />}
                                 </View>
-                                <Text style={styles.radioText}>Male</Text>
+                                <Text style={[styles.radioText, { color: colors.text }]}>Male</Text>
                             </Pressable>
                         </View>
                         {touched.gender && errors.gender ? <Text style={styles.errorText}>{errors.gender}</Text> : null}
@@ -311,10 +428,10 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                             <Icon
                                 name={acceptedTerms ? 'check-square' : 'square'}
                                 size={normalize(20)}
-                                color={acceptedTerms ? Colorpath.Primary : '#9CA3AF'}
+                                color={acceptedTerms ? colors.Primary : colors.textSecondary}
                                 style={styles.checkboxIcon}
                             />
-                            <Text style={styles.checkboxText}>
+                            <Text style={[styles.checkboxText, { color: colors.text }]}>
                                 I agree with GYANODAYA{' '}
                                 <Text style={styles.termsLinkText} onPress={!isLoading ? () => navigation.navigate('TermsConditions') : undefined}>
                                     Terms & Condition
@@ -327,19 +444,37 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                         </Pressable>
                         {touched.acceptedTerms && errors.acceptedTerms ? <Text style={styles.errorText}>{errors.acceptedTerms}</Text> : null}
 
-                        <Pressable style={styles.createButton} onPress={handleRegister} disabled={isLoading}>
+                        <AnimatedPressable 
+                            style={[
+                                styles.createButton, 
+                                { 
+                                    backgroundColor: colors.Primary,
+                                    borderColor: colors.border,
+                                    borderWidth: isDarkTheme ? 1 : 0,
+                                    transform: [{ scale: buttonScale }],
+                                    shadowColor: isDarkTheme ? colors.accent : '#000000',
+                                    shadowOpacity: isDarkTheme ? 0.25 : 0.1,
+                                    shadowRadius: 8,
+                                    shadowOffset: { width: 0, height: 4 },
+                                }
+                            ]} 
+                            onPress={handleRegister} 
+                            onPressIn={handlePressIn}
+                            onPressOut={handlePressOut}
+                            disabled={isLoading}
+                        >
                             <Text style={styles.createButtonText}>Create Account</Text>
-                        </Pressable>
+                        </AnimatedPressable>
 
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
 
             <Modal visible={isLoading} transparent animationType="fade" statusBarTranslucent onRequestClose={() => {}}>
-                <View style={styles.loadingOverlay} pointerEvents="auto">
-                    <View style={styles.loadingCard}>
-                        <ActivityIndicator size="large" color={Colorpath.Primary} />
-                        <Text style={styles.loadingText}>Creating your account...</Text>
+                <View style={[styles.loadingOverlay, { backgroundColor: isDarkTheme ? 'rgba(5, 5, 8, 0.85)' : 'rgba(250, 251, 255, 0.82)' }]} pointerEvents="auto">
+                    <View style={[styles.loadingCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                        <ActivityIndicator size="large" color={colors.Primary} />
+                        <Text style={[styles.loadingText, { color: colors.text }]}>Creating your account...</Text>
                     </View>
                 </View>
             </Modal>
@@ -350,7 +485,6 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FAFBFF',
     },
     keyboardView: {
         flex: 1,
@@ -371,13 +505,11 @@ const styles = StyleSheet.create({
     brandTitle: {
         fontSize: normalize(28),
         fontWeight: '800',
-        color: Colorpath.Primary,
         lineHeight: normalize(36),
         marginBottom: verticalScale(8),
     },
     subtitle: {
         fontSize: normalize(14),
-        color: '#6B7280',
     },
     formContainer: {
     },
@@ -443,7 +575,7 @@ const styles = StyleSheet.create({
         width: normalize(20),
         borderRadius: normalize(10),
         borderWidth: 2,
-        borderColor: Colorpath.Primary,
+        borderColor: '#092948',
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: normalize(10),
@@ -452,7 +584,7 @@ const styles = StyleSheet.create({
         height: normalize(10),
         width: normalize(10),
         borderRadius: normalize(5),
-        backgroundColor: Colorpath.Primary,
+        backgroundColor: '#092948',
     },
     radioText: {
         fontSize: normalize(15),
@@ -487,13 +619,18 @@ const styles = StyleSheet.create({
         marginLeft: normalize(4),
     },
     createButton: {
-        backgroundColor: Colorpath.Primary,
+        backgroundColor: '#092948',
         borderRadius: normalize(12),
         height: verticalScale(55),
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: verticalScale(24),
         marginBottom: verticalScale(30),
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
     },
     createButtonText: {
         color: '#FFFFFF',
@@ -509,7 +646,7 @@ const styles = StyleSheet.create({
         fontSize: normalize(14),
     },
     footerTextBold: {
-        color: Colorpath.Primary,
+        color: '#092948',
         fontWeight: '700',
     },
     loadingOverlay: {

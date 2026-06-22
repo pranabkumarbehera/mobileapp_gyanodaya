@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -10,6 +10,7 @@ import {
     StatusBar,
     ActivityIndicator,
     Modal,
+    Animated,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDispatch, useSelector } from 'react-redux';
@@ -48,7 +49,7 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
     const { colors, theme } = useTheme();
     const { t } = useTranslation();
 
-    const isDarkTheme = theme === 'neon' || theme === 'sunset';
+    const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
     const statusBarStyle = isDarkTheme ? 'light-content' : 'dark-content';
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -56,18 +57,38 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
     const dispatch = useDispatch();
     const { isLoading, loginResponse } = useSelector((state: RootState) => state.AuthReducer);
 
+    // Spring button scale animation
+    const buttonScale = useRef(new Animated.Value(1)).current;
+    const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+    const handlePressIn = () => {
+        Animated.spring(buttonScale, {
+            toValue: 0.96,
+            useNativeDriver: true,
+        }).start();
+    };
+
+    const handlePressOut = () => {
+        Animated.spring(buttonScale, {
+            toValue: 1,
+            friction: 4,
+            tension: 40,
+            useNativeDriver: true,
+        }).start();
+    };
+
     useEffect(() => {
         if (loginResponse && (loginResponse.accessToken || loginResponse.token || loginResponse.success || loginResponse.message)) {
             const handleSuccess = async () => {
                 try {
                     if (rememberPassword) {
-                        await AsyncStorage.multiSet([
-                            [constants.REMEMBER_PASSWORD, 'true'],
-                            [constants.SAVED_EMAIL, email.trim()],
-                            [constants.SAVED_PASSWORD, password],
-                        ]);
+                        await AsyncStorage.setMany({
+                            [constants.REMEMBER_PASSWORD]: 'true',
+                            [constants.SAVED_EMAIL]: email.trim(),
+                            [constants.SAVED_PASSWORD]: password,
+                        });
                     } else {
-                        await AsyncStorage.multiRemove([
+                        await AsyncStorage.removeMany([
                             constants.SAVED_EMAIL,
                             constants.SAVED_PASSWORD,
                         ]);
@@ -188,7 +209,12 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                             styles.inputContainer,
                             { 
                                 backgroundColor: colors.cardBackground, 
-                                borderColor: emailFocused ? colors.accent : (touched.email && errors.email ? '#EF4444' : colors.border)
+                                borderColor: emailFocused ? colors.accent : (touched.email && errors.email ? '#EF4444' : colors.border),
+                                shadowColor: colors.accent,
+                                shadowOffset: { width: 0, height: 0 },
+                                shadowOpacity: emailFocused && isDarkTheme ? 0.35 : 0,
+                                shadowRadius: 8,
+                                elevation: emailFocused ? 2 : 0,
                             }
                         ]}>
                             <Icon name="mail" size={normalize(18)} color={emailFocused ? colors.accent : colors.textSecondary} style={styles.inputIcon} />
@@ -219,7 +245,12 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                             styles.inputContainer,
                             { 
                                 backgroundColor: colors.cardBackground, 
-                                borderColor: passwordFocused ? colors.accent : (touched.password && errors.password ? '#EF4444' : colors.border)
+                                borderColor: passwordFocused ? colors.accent : (touched.password && errors.password ? '#EF4444' : colors.border),
+                                shadowColor: colors.accent,
+                                shadowOffset: { width: 0, height: 0 },
+                                shadowOpacity: passwordFocused && isDarkTheme ? 0.35 : 0,
+                                shadowRadius: 8,
+                                elevation: passwordFocused ? 2 : 0,
                             }
                         ]}>
                             <Icon name="lock" size={normalize(18)} color={passwordFocused ? colors.accent : colors.textSecondary} style={styles.inputIcon} />
@@ -262,20 +293,27 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                         </Pressable>
                     </View>
 
-                    <Pressable 
+                    <AnimatedPressable 
                         style={[
                             styles.loginButton, 
                             { 
                                 backgroundColor: colors.Primary,
                                 borderColor: colors.border,
-                                borderWidth: isDarkTheme ? 1 : 0
+                                borderWidth: isDarkTheme ? 1 : 0,
+                                transform: [{ scale: buttonScale }],
+                                shadowColor: isDarkTheme ? colors.accent : '#000000',
+                                shadowOpacity: isDarkTheme ? 0.25 : 0.1,
+                                shadowRadius: 8,
+                                shadowOffset: { width: 0, height: 4 },
                             }
                         ]} 
                         onPress={handleLogin} 
+                        onPressIn={handlePressIn}
+                        onPressOut={handlePressOut}
                         disabled={isLoading}
                     >
                         <Text style={styles.loginButtonText}>{t('login.signin')}</Text>
-                    </Pressable>
+                    </AnimatedPressable>
                 </View>
 
                 <Pressable onPress={() => navigation.navigate('Register')} style={styles.footerLink} disabled={isLoading}>

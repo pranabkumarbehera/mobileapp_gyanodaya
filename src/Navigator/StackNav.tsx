@@ -93,7 +93,7 @@ const StackNav = () => {
     const { colors, theme } = useTheme();
     const { t } = useTranslation();
 
-    const isDarkTheme = theme === 'neon' || theme === 'sunset';
+    const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
     const statusBarStyle = isDarkTheme ? 'light-content' : 'dark-content';
 
     useEffect(() => {
@@ -115,9 +115,11 @@ const StackNav = () => {
     }
 
     return (
-        <NavigationContainer ref={navigationRef}>
-            {token ? <AppStack /> : <AuthStack />}
-        </NavigationContainer>
+        <View style={{ flex: 1 }}>
+            <NavigationContainer ref={navigationRef}>
+                {token ? <AppStack /> : <AuthStack />}
+            </NavigationContainer>
+        </View>
     );
 };
 
