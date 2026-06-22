@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import {
     Dimensions,
     FlatList,
@@ -12,11 +12,12 @@ import {
     View,
 } from 'react-native';
 import { StackScreenProps } from '@react-navigation/stack';
-import Colorpath from '../../../Themes/Colorpath';
 import { RootStackParamList } from '../../../Navigator/StackNav';
 import { normalize, verticalScale } from '../../../Utils/Helpers/normalize';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
+import { useTheme, useTranslation } from '../../../Themes/hooks';
+import Fonts from '../../../Themes/Fonts';
 
 const { width } = Dimensions.get('window');
 
@@ -24,56 +25,59 @@ type OnboardingScreenProps = StackScreenProps<RootStackParamList, 'Onboarding'>;
 
 type Slide = {
     id: string;
-    title: string;
-    description: string;
+    titleKey: string;
+    descKey: string;
     icon: string;
 };
 
-const slides: Slide[] = [
+const onboardingSlides: Slide[] = [
     {
         id: 's1',
-        title: 'Study Plans',
-        description: 'Personalized plans tailored for your exams.',
+        titleKey: 'onboarding.slide1_title',
+        descKey: 'onboarding.slide1_desc',
         icon: 'book-open'
     },
     {
         id: 's2',
-        title: 'Expert Teachers',
-        description: 'Learn from the best educators in the country.',
+        titleKey: 'onboarding.slide2_title',
+        descKey: 'onboarding.slide2_desc',
         icon: 'users'
     },
     {
         id: 's3',
-        title: 'Live Tests',
-        description: 'Compete with peers in real-time mock tests.',
+        titleKey: 'onboarding.slide3_title',
+        descKey: 'onboarding.slide3_desc',
         icon: 'award'
     },
     {
         id: 's4',
-        title: 'Analytics',
-        description: 'Detailed insights to improve your performance.',
+        titleKey: 'onboarding.slide4_title',
+        descKey: 'onboarding.slide4_desc',
         icon: 'bar-chart-2'
     },
     {
         id: 's5',
-        title: 'Community',
-        description: 'Join a thriving community of serious learners.',
+        titleKey: 'onboarding.slide5_title',
+        descKey: 'onboarding.slide5_desc',
         icon: 'message-circle'
     },
     {
         id: 's6',
-        title: 'Strictly Protected',
-        description: 'Screenshot, screen record, and video recording are completely prohibited.',
-        icon: 'shield' // or 'video-off'
+        titleKey: 'onboarding.slide6_title',
+        descKey: 'onboarding.slide6_desc',
+        icon: 'shield'
     }
 ];
 
 const OnboardingScreen = ({ navigation }: OnboardingScreenProps) => {
     const flatListRef = useRef<FlatList<Slide>>(null);
     const [currentIndex, setCurrentIndex] = useState(0);
-    const isLastSlide = currentIndex === slides.length - 1;
+    const { colors, theme } = useTheme();
+    const { t } = useTranslation();
+    const isLastSlide = currentIndex === onboardingSlides.length - 1;
 
-    const primaryLabel = 'Continue';
+    const isDarkTheme = theme === 'neon' || theme === 'sunset';
+    const statusBarStyle = isDarkTheme ? 'light-content' : 'dark-content';
 
     const handleMomentumPress = () => {
         if (!isLastSlide) {
@@ -94,30 +98,39 @@ const OnboardingScreen = ({ navigation }: OnboardingScreenProps) => {
 
     const renderItem: ListRenderItem<Slide> = ({ item }) => (
         <View style={styles.slide}>
-            <View style={styles.iconCircle}>
-                <Icon name={item.icon} size={normalize(45)} color={Colorpath.Primary} />
+            <View style={[
+                styles.iconCircle,
+                { 
+                    backgroundColor: theme === 'neon' ? 'rgba(0, 242, 254, 0.08)' : 
+                                     theme === 'sunset' ? 'rgba(249, 115, 22, 0.08)' : 
+                                     colors.tagCyan,
+                    borderColor: colors.border,
+                    borderWidth: isDarkTheme ? 1 : 0
+                }
+            ]}>
+                <Icon name={item.icon} size={normalize(45)} color={colors.accent} />
             </View>
             <View style={styles.textContainer}>
-                <Text style={styles.title}>{item.title}</Text>
-                <Text style={styles.description}>{item.description}</Text>
+                <Text style={[styles.title, { color: colors.text }]}>{t(item.titleKey)}</Text>
+                <Text style={[styles.description, { color: colors.textSecondary }]}>{t(item.descKey)}</Text>
             </View>
         </View>
     );
 
     return (
-        <SafeAreaView style={styles.container}>
-            <StatusBar backgroundColor="#FAFBFF" barStyle="dark-content" />
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.Background }]}>
+            <StatusBar backgroundColor={colors.Background} barStyle={statusBarStyle} />
 
             <View style={styles.header}>
                 <Pressable onPress={handleSkip}>
-                    <Text style={styles.skipText}>Skip</Text>
+                    <Text style={[styles.skipText, { color: colors.textSecondary }]}>{t('common.skip')}</Text>
                 </Pressable>
             </View>
 
             <View style={styles.listWrapper}>
                 <FlatList
                     ref={flatListRef}
-                    data={slides}
+                    data={onboardingSlides}
                     renderItem={renderItem}
                     keyExtractor={item => item.id}
                     horizontal
@@ -130,19 +143,30 @@ const OnboardingScreen = ({ navigation }: OnboardingScreenProps) => {
 
             <View style={styles.bottomContent}>
                 <View style={styles.pagination}>
-                    {slides.map((_, index) => (
+                    {onboardingSlides.map((_, index) => (
                         <View
                             key={index}
                             style={[
                                 styles.paginationDot,
-                                index === currentIndex && styles.paginationDotActive
+                                { backgroundColor: colors.border },
+                                index === currentIndex && [styles.paginationDotActive, { backgroundColor: colors.Secondary }]
                             ]}
                         />
                     ))}
                 </View>
 
-                <Pressable style={styles.primaryButton} onPress={handleMomentumPress}>
-                    <Text style={styles.primaryButtonText}>{primaryLabel}</Text>
+                <Pressable 
+                    style={[
+                        styles.primaryButton, 
+                        { 
+                            backgroundColor: colors.Primary,
+                            borderColor: colors.border,
+                            borderWidth: isDarkTheme ? 1 : 0
+                        }
+                    ]} 
+                    onPress={handleMomentumPress}
+                >
+                    <Text style={styles.primaryButtonText}>{t('common.continue')}</Text>
                     <Icon name="chevron-right" size={normalize(18)} color="#FFFFFF" style={styles.buttonIcon} />
                 </Pressable>
             </View>
@@ -153,7 +177,6 @@ const OnboardingScreen = ({ navigation }: OnboardingScreenProps) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FAFBFF',
     },
     header: {
         flexDirection: 'row',
@@ -164,7 +187,6 @@ const styles = StyleSheet.create({
         paddingBottom: verticalScale(10),
     },
     skipText: {
-        color: '#6B7280',
         fontSize: normalize(14),
         fontWeight: '500',
         padding: normalize(8),
@@ -183,10 +205,13 @@ const styles = StyleSheet.create({
         width: normalize(120),
         height: normalize(120),
         borderRadius: normalize(60),
-        backgroundColor: '#EEF2FF',
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: verticalScale(40),
+        shadowColor: '#00F2FE',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
     },
     textContainer: {
         alignItems: 'center',
@@ -195,13 +220,12 @@ const styles = StyleSheet.create({
     title: {
         fontSize: normalize(22),
         fontWeight: '800',
-        color: Colorpath.Primary,
         marginBottom: verticalScale(12),
         textAlign: 'center',
+        fontFamily: Fonts.InterBold,
     },
     description: {
         fontSize: normalize(14),
-        color: '#6B7280',
         textAlign: 'center',
         lineHeight: normalize(22),
     },
@@ -219,21 +243,23 @@ const styles = StyleSheet.create({
         width: normalize(6),
         height: normalize(6),
         borderRadius: normalize(3),
-        backgroundColor: '#E5E7EB',
     },
     paginationDotActive: {
         width: normalize(20),
-        backgroundColor: Colorpath.Secondary,
     },
     primaryButton: {
         width: '100%',
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        backgroundColor: Colorpath.Primary,
         paddingVertical: verticalScale(16),
         paddingHorizontal: normalize(24),
         borderRadius: normalize(12),
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
     },
     primaryButtonText: {
         color: '#FFFFFF',

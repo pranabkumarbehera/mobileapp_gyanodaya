@@ -1,16 +1,16 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/Feather';
-import Colorpath from '../Themes/Colorpath';
 import { normalize, verticalScale } from '../Utils/Helpers/normalize';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
+import { Pressable } from 'react-native';
+import Fonts from '../Themes/Fonts';
 import HomeScreen from '../Screen/HomeScreen/HomeScreen';
 import MockBankScreen from '../Screen/MockBankScreen/MockBankScreen';
 import CoursesScreen from '../Screen/CoursesScreen/CoursesScreen';
 import ProfileScreen from '../Screen/ProfileScreen/ProfileScreen';
-import { Pressable } from 'react-native';
-import Fonts from '../Themes/Fonts';
+import { useTheme, useTranslation } from '../Themes/hooks';
+
 export type TabParamList = {
   Home: undefined;
   Test: undefined;
@@ -23,6 +23,25 @@ const Tab = createBottomTabNavigator<TabParamList>();
 const TabNav = () => {
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, verticalScale(8));
+  
+  const { colors, theme } = useTheme();
+  const { t, language } = useTranslation();
+
+  const getTabLabel = (routeName: string) => {
+    if (routeName === 'Home') {
+      return language === 'hi' ? 'मुख्य' : language === 'or' ? 'ମୁଖ୍ୟ' : 'Home';
+    }
+    if (routeName === 'Test') {
+      return language === 'hi' ? 'मॉक टेस्ट' : language === 'or' ? 'ମକ୍ ଟେଷ୍ଟ୍' : 'Mock Tests';
+    }
+    if (routeName === 'Courses') {
+      return language === 'hi' ? 'कोर्स' : language === 'or' ? 'କୋର୍ସ' : 'Courses';
+    }
+    if (routeName === 'Profile') {
+      return t('profile.title');
+    }
+    return routeName;
+  };
 
   return (
     <Tab.Navigator
@@ -40,7 +59,7 @@ const TabNav = () => {
                 rest.style,
                 {
                   opacity: 1,
-                  backgroundColor: '#FFFFFF',
+                  backgroundColor: colors.tabBg,
                 },
               ]}
             />
@@ -58,21 +77,21 @@ const TabNav = () => {
           return <Icon name={iconName} size={normalize(26)} color={color} />;
         },
 
-        tabBarActiveTintColor: Colorpath.Primary,
-        tabBarInactiveTintColor: '#9CA3AF',
-        tabBarActiveBackgroundColor: '#FFFFFF',
-        tabBarInactiveBackgroundColor: '#FFFFFF',
+        tabBarActiveTintColor: colors.tabActive,
+        tabBarInactiveTintColor: colors.tabInactive,
+        tabBarActiveBackgroundColor: colors.tabBg,
+        tabBarInactiveBackgroundColor: colors.tabBg,
 
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
+          backgroundColor: colors.tabBg,
           borderTopWidth: 1,
-          borderTopColor: '#b3c7ef',
+          borderTopColor: colors.border,
           height: verticalScale(64) + bottomInset,
           paddingBottom: bottomInset,
           paddingTop: verticalScale(10),
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.05,
+          shadowOpacity: theme === 'classic' ? 0.05 : 0.25,
           shadowRadius: 10,
           elevation: 10,
         },
@@ -85,10 +104,26 @@ const TabNav = () => {
         },
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Test" component={MockBankScreen} />
-      <Tab.Screen name="Courses" component={CoursesScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen 
+        name="Home" 
+        component={HomeScreen} 
+        options={{ tabBarLabel: getTabLabel('Home') }}
+      />
+      <Tab.Screen 
+        name="Test" 
+        component={MockBankScreen} 
+        options={{ tabBarLabel: getTabLabel('Test') }}
+      />
+      <Tab.Screen 
+        name="Courses" 
+        component={CoursesScreen} 
+        options={{ tabBarLabel: getTabLabel('Courses') }}
+      />
+      <Tab.Screen 
+        name="Profile" 
+        component={ProfileScreen} 
+        options={{ tabBarLabel: getTabLabel('Profile') }}
+      />
     </Tab.Navigator>
   );
 };

@@ -5,6 +5,7 @@ import AuthReducer from './Reducers/AuthReducer';
 import ProfileReducer from './Reducers/ProfileReducer';
 import MockTestReducer from './Reducers/MockTestReducer';
 import HomeReducer from './Reducers/HomeReducer';
+import UiPreferenceReducer from './Reducers/UiPreferenceReducer';
 import RootSaga from './Saga/RootSaga';
 
 const sagaMiddleware = createSagaMiddleware();
@@ -15,6 +16,7 @@ const store = configureStore({
         ProfileReducer: ProfileReducer,
         MockTestReducer: MockTestReducer,
         HomeReducer: HomeReducer,
+        UiReducer: UiPreferenceReducer,
     },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({ 

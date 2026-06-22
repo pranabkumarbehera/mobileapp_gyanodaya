@@ -38,6 +38,8 @@ import {
     getProfileName,
     normalizeProfileData,
 } from '../../Utils/Helpers/home';
+import { useTheme, useTranslation } from '../../Themes/hooks';
+import { changeTheme, changeLanguage } from '../../Redux/Reducers/UiPreferenceReducer';
 
 type ProfileScreenProps = StackScreenProps<RootStackParamList, 'Profile'>;
 
@@ -62,7 +64,6 @@ const formatPhoneForDisplay = (phone?: string | null) => {
     if (!value) {
         return '';
     }
-
     return value.startsWith('+91') ? value : `+91 ${value}`;
 };
 
@@ -75,6 +76,12 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
     const [form, setForm] = useState<EditableProfile>(DEFAULT_FORM);
     const [imageError, setImageError] = useState(false);
     const [editImageError, setEditImageError] = useState(false);
+
+    const { colors, theme } = useTheme();
+    const { t, language } = useTranslation();
+
+    const isDarkTheme = theme === 'neon' || theme === 'sunset';
+    const statusBarStyle = isDarkTheme ? 'light-content' : 'dark-content';
 
     // Account Deletion States
     const {
@@ -225,7 +232,7 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                     nextUri = response?.assets?.[0]?.uri || '';
                 }
             } catch (error) {
-                // Fallback for local environments where react-native-image-picker is not yet installed.
+                // Fallback
             }
 
             if (!nextUri) {
@@ -258,25 +265,38 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
         }));
     };
 
+    const themeOptions = [
+        { name: 'classic', label: t('profile.classic_theme'), mainColor: '#092948', accentColor: '#f0a335' },
+        { name: 'neon', label: t('profile.neon_theme'), mainColor: '#0A0A10', accentColor: '#00F2FE' },
+        { name: 'aurora', label: t('profile.aurora_theme'), mainColor: '#4F46E5', accentColor: '#EC4899' },
+        { name: 'sunset', label: t('profile.sunset_theme'), mainColor: '#1E0D06', accentColor: '#F97316' }
+    ];
+
+    const langOptions = [
+        { code: 'en', name: 'English' },
+        { code: 'hi', name: 'हिन्दी' },
+        { code: 'or', name: 'ଓଡ଼ିଆ' }
+    ];
+
     return (
-        <View style={styles.container}>
-            <StatusBar backgroundColor={Colorpath.Primary} barStyle="light-content" />
+        <View style={[styles.container, { backgroundColor: colors.Background }]}>
+            <StatusBar backgroundColor={colors.Primary} barStyle="light-content" />
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                <View style={styles.headerBackground}>
+                <View style={[styles.headerBackground, { backgroundColor: colors.Primary }]}>
                     <SafeAreaView edges={['top']}>
                         <View style={styles.topBar}>
                             <Pressable onPress={() => navigation.goBack()} style={styles.iconButton}>
                                 <Icon name="arrow-left" size={normalize(24)} color="#FFFFFF" />
                             </Pressable>
-                            <Text style={styles.headerTitle}>Profile</Text>
+                            <Text style={styles.headerTitle}>{t('profile.title')}</Text>
                             <View style={styles.headerRightSpacer} />
                         </View>
                     </SafeAreaView>
                 </View>
 
                 <View style={styles.profileCardWrapper}>
-                    <View style={styles.profileCard}>
+                    <View style={[styles.profileCard, { backgroundColor: colors.cardBackground, borderColor: colors.border, borderWidth: isDarkTheme ? 1 : 0 }]}>
                         <View style={[styles.avatarContainer, (!displayedAvatar || imageError) ? { backgroundColor: avatarBackground } : null]}>
                             {(displayedAvatar && !imageError) ? (
                                 <Image
@@ -288,117 +308,160 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                                 <Text style={styles.avatarFallbackText}>{initials}</Text>
                             )}
                         </View>
-                        <Text style={styles.userName}>{profileName}</Text>
-                        <Text style={styles.userMeta}>{formatPhoneForDisplay(mappedProfile.phone) || 'Add phone number'}</Text>
-                        {!!mappedProfile.bio && <Text style={styles.bioText}>{mappedProfile.bio}</Text>}
+                        <Text style={[styles.userName, { color: colors.text }]}>{profileName}</Text>
+                        <Text style={[styles.userMeta, { color: colors.textSecondary }]}>
+                            {formatPhoneForDisplay(mappedProfile.phone) || '--'}
+                        </Text>
+                        {!!mappedProfile.bio && (
+                            <Text style={[styles.bioText, { color: colors.textSecondary }]}>{mappedProfile.bio}</Text>
+                        )}
 
                         <View style={styles.badgeContainer}>
                             <Icon name="award" size={normalize(14)} color="#D97706" />
-                            <Text style={styles.badgeText}>Profile Active</Text>
+                            <Text style={styles.badgeText}>{t('profile.active')}</Text>
                         </View>
                     </View>
                 </View>
 
                 <View style={styles.mainContent}>
-                    <View style={styles.statsRow}>
-                        <View style={styles.statBox}>
-                            <View style={styles.statIconWrapper}>
-                                <Icon name="user" size={normalize(20)} color={Colorpath.Primary} />
-                            </View>
-                            <View>
-                                <Text style={styles.statBoxLabel}>First Name</Text>
-                                <Text style={styles.statBoxValue}>{mappedProfile.firstName || '--'}</Text>
-                            </View>
+                    {/* Preferences UI Section */}
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('profile.preferences')}</Text>
+                    <View style={[styles.settingsContainer, { backgroundColor: colors.cardBackground, borderColor: colors.border, borderWidth: isDarkTheme ? 1 : 0 }]}>
+                        <View style={styles.preferenceRowItem}>
+                            <Text style={[styles.preferenceLabel, { color: colors.text }]}>{t('profile.select_theme')}</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.themesWrapper}>
+                                {themeOptions.map((opt) => {
+                                    const isActive = theme === opt.name;
+                                    return (
+                                        <Pressable
+                                            key={opt.name}
+                                            onPress={() => dispatch(changeTheme(opt.name as any) as any)}
+                                            style={[
+                                                styles.themeCardBtn,
+                                                {
+                                                    borderColor: isActive ? colors.accent : colors.border,
+                                                    backgroundColor: colors.Background
+                                                }
+                                            ]}
+                                        >
+                                            <View style={styles.themePreviewBubbles}>
+                                                <View style={[styles.colorBubble, { backgroundColor: opt.mainColor }]} />
+                                                <View style={[styles.colorBubble, { backgroundColor: opt.accentColor, marginLeft: -normalize(6) }]} />
+                                            </View>
+                                            <Text style={[styles.themeCardText, { color: colors.text, fontWeight: isActive ? '700' : '500' }]}>
+                                                {opt.label}
+                                            </Text>
+                                        </Pressable>
+                                    );
+                                })}
+                            </ScrollView>
                         </View>
-                        <View style={styles.statBox}>
-                            <View style={styles.statIconWrapper}>
-                                <Icon name="users" size={normalize(20)} color={Colorpath.Primary} />
-                            </View>
-                            <View>
-                                <Text style={styles.statBoxLabel}>Last Name</Text>
-                                <Text style={styles.statBoxValue}>{mappedProfile.lastName || '--'}</Text>
+
+                        <View style={styles.preferenceDivider} />
+
+                        <View style={styles.preferenceRowItem}>
+                            <Text style={[styles.preferenceLabel, { color: colors.text }]}>{t('profile.select_lang')}</Text>
+                            <View style={styles.languagesWrapper}>
+                                {langOptions.map((opt) => {
+                                    const isActive = language === opt.code;
+                                    return (
+                                        <Pressable
+                                            key={opt.code}
+                                            onPress={() => dispatch(changeLanguage(opt.code as any) as any)}
+                                            style={[
+                                                styles.langPillBtn,
+                                                {
+                                                    borderColor: isActive ? colors.accent : colors.border,
+                                                    backgroundColor: isActive ? colors.tagCyan : colors.Background
+                                                }
+                                            ]}
+                                        >
+                                            <Text style={[styles.langPillText, { color: isActive ? colors.tagCyanText : colors.text }]}>
+                                                {opt.name}
+                                            </Text>
+                                        </Pressable>
+                                    );
+                                })}
                             </View>
                         </View>
                     </View>
 
-                    <Text style={styles.sectionTitle}>Profile Details</Text>
-                    <View style={styles.performanceCard}>
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('profile.details')}</Text>
+                    <View style={[styles.performanceCard, { backgroundColor: colors.cardBackground, borderColor: colors.border, borderWidth: isDarkTheme ? 1 : 0 }]}>
                         <View style={styles.detailRow}>
-                            <Text style={styles.detailLabel}>Phone</Text>
-                            <Text style={styles.detailValue}>{formatPhoneForDisplay(mappedProfile.phone) || '--'}</Text>
+                            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>{t('profile.phone')}</Text>
+                            <Text style={[styles.detailValue, { color: colors.text }]}>{formatPhoneForDisplay(mappedProfile.phone) || '--'}</Text>
                         </View>
                         <View style={styles.detailDivider} />
                         <View style={styles.detailRow}>
-                            <Text style={styles.detailLabel}>Bio</Text>
-                            <Text style={styles.detailValue}>{mappedProfile.bio || '--'}</Text>
+                            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>{t('profile.bio')}</Text>
+                            <Text style={[styles.detailValue, { color: colors.text }]}>{mappedProfile.bio || '--'}</Text>
                         </View>
                     </View>
 
-
-
-                    <Text style={styles.sectionTitle}>Account Settings</Text>
-                    <View style={styles.settingsContainer}>
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('profile.settings')}</Text>
+                    <View style={[styles.settingsContainer, { backgroundColor: colors.cardBackground, borderColor: colors.border, borderWidth: isDarkTheme ? 1 : 0 }]}>
                         <Pressable style={styles.settingItem} onPress={openEditModal}>
-                            <View style={styles.settingIconBg}>
-                                <Icon name="edit-3" size={normalize(18)} color={Colorpath.Primary} />
+                            <View style={[styles.settingIconBg, { backgroundColor: colors.tagCyan }]}>
+                                <Icon name="edit-3" size={normalize(18)} color={colors.tagCyanText} />
                             </View>
                             <View style={styles.settingCopy}>
-                                <Text style={styles.settingText}>Edit Profile</Text>
+                                <Text style={[styles.settingText, { color: colors.text }]}>{t('profile.edit')}</Text>
                             </View>
-                            <Icon name="chevron-right" size={normalize(18)} color="#9CA3AF" />
+                            <Icon name="chevron-right" size={normalize(18)} color={colors.textSecondary} />
                         </Pressable>
                         <Pressable style={styles.settingItem} onPress={() => navigation.navigate('ChangePassword')}>
-                            <View style={styles.settingIconBg}>
-                                <Icon name="lock" size={normalize(18)} color={Colorpath.Primary} />
+                            <View style={[styles.settingIconBg, { backgroundColor: colors.tagCyan }]}>
+                                <Icon name="lock" size={normalize(18)} color={colors.tagCyanText} />
                             </View>
                             <View style={styles.settingCopy}>
-                                <Text style={styles.settingText}>Change Password</Text>
+                                <Text style={[styles.settingText, { color: colors.text }]}>{t('profile.change_pwd')}</Text>
                             </View>
-                            <Icon name="chevron-right" size={normalize(18)} color="#9CA3AF" />
+                            <Icon name="chevron-right" size={normalize(18)} color={colors.textSecondary} />
                         </Pressable>
                         <Pressable style={styles.settingItem} onPress={() => navigation.navigate('CoursesPaymentHistory')}>
-                            <View style={styles.settingIconBg}>
-                                <Icon name="credit-card" size={normalize(18)} color={Colorpath.Primary} />
+                            <View style={[styles.settingIconBg, { backgroundColor: colors.tagCyan }]}>
+                                <Icon name="credit-card" size={normalize(18)} color={colors.tagCyanText} />
                             </View>
                             <View style={styles.settingCopy}>
-                                <Text style={styles.settingText}>Courses Payment History</Text>
+                                <Text style={[styles.settingText, { color: colors.text }]}>{t('profile.history')}</Text>
                             </View>
-                            <Icon name="chevron-right" size={normalize(18)} color="#9CA3AF" />
+                            <Icon name="chevron-right" size={normalize(18)} color={colors.textSecondary} />
                         </Pressable>
                         <Pressable style={styles.settingItem} onPress={() => navigation.navigate('AboutUs')}>
-                            <View style={styles.settingIconBg}>
-                                <Icon name="info" size={normalize(18)} color={Colorpath.Primary} />
+                            <View style={[styles.settingIconBg, { backgroundColor: colors.tagCyan }]}>
+                                <Icon name="info" size={normalize(18)} color={colors.tagCyanText} />
                             </View>
                             <View style={styles.settingCopy}>
-                                <Text style={styles.settingText}>About Us</Text>
+                                <Text style={[styles.settingText, { color: colors.text }]}>{t('profile.about')}</Text>
                             </View>
-                            <Icon name="chevron-right" size={normalize(18)} color="#9CA3AF" />
+                            <Icon name="chevron-right" size={normalize(18)} color={colors.textSecondary} />
                         </Pressable>
                         <Pressable style={styles.settingItem} onPress={handleShareApp}>
-                            <View style={styles.settingIconBg}>
-                                <Icon name="share-2" size={normalize(18)} color={Colorpath.Primary} />
+                            <View style={[styles.settingIconBg, { backgroundColor: colors.tagCyan }]}>
+                                <Icon name="share-2" size={normalize(18)} color={colors.tagCyanText} />
                             </View>
                             <View style={styles.settingCopy}>
-                                <Text style={styles.settingText}>Refer Now</Text>
+                                <Text style={[styles.settingText, { color: colors.text }]}>{t('profile.refer')}</Text>
                             </View>
-                            <Icon name="chevron-right" size={normalize(18)} color="#9CA3AF" />
+                            <Icon name="chevron-right" size={normalize(18)} color={colors.textSecondary} />
                         </Pressable>
                         <Pressable style={styles.settingItem} onPress={handleSupportPress}>
-                            <View style={styles.settingIconBg}>
-                                <Icon name="mail" size={normalize(18)} color={Colorpath.Primary} />
+                            <View style={[styles.settingIconBg, { backgroundColor: colors.tagCyan }]}>
+                                <Icon name="mail" size={normalize(18)} color={colors.tagCyanText} />
                             </View>
                             <View style={styles.settingCopy}>
-                                <Text style={styles.settingText}>Support</Text>
-                                <Text style={styles.settingSubText}>gyanodaya43@gmail.com</Text>
+                                <Text style={[styles.settingText, { color: colors.text }]}>{t('profile.support')}</Text>
+                                <Text style={[styles.settingSubText, { color: colors.textSecondary }]}>gyanodaya43@gmail.com</Text>
                             </View>
-                            <Icon name="chevron-right" size={normalize(18)} color="#9CA3AF" />
+                            <Icon name="chevron-right" size={normalize(18)} color={colors.textSecondary} />
                         </Pressable>
                         <Pressable style={styles.settingItem} onPress={openDeleteModal}>
                             <View style={[styles.settingIconBg, { backgroundColor: '#FEE2E2' }]}>
                                 <Icon name="trash-2" size={normalize(18)} color="#EF4444" />
                             </View>
                             <View style={styles.settingCopy}>
-                                <Text style={[styles.settingText, { color: '#EF4444' }]}>Delete Account</Text>
+                                <Text style={[styles.settingText, { color: '#EF4444' }]}>{t('profile.delete_acc')}</Text>
                             </View>
                             <Icon name="chevron-right" size={normalize(18)} color="#9CA3AF" />
                         </Pressable>
@@ -414,7 +477,7 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                                 )}
                             </View>
                             <View style={styles.settingCopy}>
-                                <Text style={[styles.settingText, { color: '#EF4444' }]}>Logout</Text>
+                                <Text style={[styles.settingText, { color: '#EF4444' }]}>{t('profile.logout')}</Text>
                             </View>
                             <Icon name="chevron-right" size={normalize(18)} color="#9CA3AF" />
                         </Pressable>
@@ -424,21 +487,22 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                 </View>
             </ScrollView>
 
+            {/* EDIT PROFILE MODAL */}
             <Modal
                 visible={isEditVisible}
                 animationType="slide"
                 transparent
                 onRequestClose={closeEditModal}>
-                <View style={styles.modalBackdrop}>
-                    <View style={styles.modalCard}>
+                <View style={[styles.modalBackdrop, { backgroundColor: isDarkTheme ? 'rgba(5, 5, 8, 0.75)' : 'rgba(9, 41, 72, 0.35)' }]}>
+                    <View style={[styles.modalCard, { backgroundColor: colors.cardBackground }]}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Edit Profile</Text>
-                            <Pressable onPress={closeEditModal} style={styles.closeButton}>
-                                <Icon name="x" size={normalize(20)} color="#6B7280" />
+                            <Text style={[styles.modalTitle, { color: colors.text }]}>{t('profile.edit')}</Text>
+                            <Pressable onPress={closeEditModal} style={[styles.closeButton, { backgroundColor: colors.Background }]}>
+                                <Icon name="x" size={normalize(20)} color={colors.text} />
                             </Pressable>
                         </View>
 
-                        <Pressable onPress={handlePickImage} style={styles.imagePickerButton}>
+                        <Pressable onPress={handlePickImage} style={[styles.imagePickerButton, { backgroundColor: colors.Background, borderColor: colors.border }]}>
                             <View style={[styles.editAvatarPreview, (!form.avatarUrl || editImageError) ? { backgroundColor: avatarBackground } : null]}>
                                 {(form.avatarUrl && !editImageError) ? (
                                     <Image
@@ -453,59 +517,59 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                                 )}
                             </View>
                             <View style={styles.imagePickerCopy}>
-                                <Text style={styles.imagePickerTitle}>Profile photo</Text>
-                                <Text style={styles.imagePickerSubtitle}>Tap to choose image</Text>
+                                <Text style={[styles.imagePickerTitle, { color: colors.text }]}>Profile photo</Text>
+                                <Text style={[styles.imagePickerSubtitle, { color: colors.textSecondary }]}>Tap to choose image</Text>
                             </View>
-                            <Icon name="camera" size={normalize(18)} color={Colorpath.Primary} />
+                            <Icon name="camera" size={normalize(18)} color={colors.accent} />
                         </Pressable>
 
                         <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>First name</Text>
+                            <Text style={[styles.inputLabel, { color: colors.text }]}>{t('profile.first_name')}</Text>
                             <TextInput
                                 value={form.firstName}
                                 onChangeText={(value) => updateField('firstName', value)}
-                                style={styles.input}
+                                style={[styles.input, { backgroundColor: colors.Background, borderColor: colors.border, color: colors.text }]}
                                 placeholder="Enter first name"
-                                placeholderTextColor="#9CA3AF"
+                                placeholderTextColor={colors.textSecondary}
                             />
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>Last name</Text>
+                            <Text style={[styles.inputLabel, { color: colors.text }]}>{t('profile.last_name')}</Text>
                             <TextInput
                                 value={form.lastName}
                                 onChangeText={(value) => updateField('lastName', value)}
-                                style={styles.input}
+                                style={[styles.input, { backgroundColor: colors.Background, borderColor: colors.border, color: colors.text }]}
                                 placeholder="Enter last name"
-                                placeholderTextColor="#9CA3AF"
+                                placeholderTextColor={colors.textSecondary}
                             />
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>Phone number</Text>
+                            <Text style={[styles.inputLabel, { color: colors.text }]}>{t('profile.phone')}</Text>
                             <View style={styles.phoneInputRow}>
-                                <View style={styles.phonePrefixBox}>
-                                    <Text style={styles.phonePrefixText}>+91</Text>
+                                <View style={[styles.phonePrefixBox, { backgroundColor: colors.Background, borderColor: colors.border }]}>
+                                    <Text style={[styles.phonePrefixText, { color: colors.text }]}>+91</Text>
                                 </View>
                                 <TextInput
                                     value={form.phone}
                                     onChangeText={(value) => updateField('phone', value.replace(/^\+91\s*/, ''))}
-                                    style={[styles.input, styles.phoneInput]}
+                                    style={[styles.input, styles.phoneInput, { backgroundColor: colors.Background, borderColor: colors.border, color: colors.text }]}
                                     placeholder="Enter phone number"
-                                    placeholderTextColor="#9CA3AF"
+                                    placeholderTextColor={colors.textSecondary}
                                     keyboardType="phone-pad"
                                 />
                             </View>
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>Bio</Text>
+                            <Text style={[styles.inputLabel, { color: colors.text }]}>{t('profile.bio')}</Text>
                             <TextInput
                                 value={form.bio}
                                 onChangeText={(value) => updateField('bio', value)}
-                                style={[styles.input, styles.bioInput]}
-                                placeholder="Tell us about yourself"
-                                placeholderTextColor="#9CA3AF"
+                                style={[styles.input, styles.bioInput, { backgroundColor: colors.Background, borderColor: colors.border, color: colors.text }]}
+                                placeholder={t('profile.bio_placeholder')}
+                                placeholderTextColor={colors.textSecondary}
                                 multiline
                                 textAlignVertical="top"
                             />
@@ -513,18 +577,19 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
 
                         <Pressable
                             onPress={handleSaveProfile}
-                            style={[styles.saveButton, profileState.isLoading ? styles.saveButtonDisabled : null]}
+                            style={[styles.saveButton, { backgroundColor: colors.Primary, borderColor: colors.border, borderWidth: isDarkTheme ? 1 : 0 }, profileState.isLoading ? styles.saveButtonDisabled : null]}
                             disabled={profileState.isLoading}>
                             {profileState.isLoading ? (
                                 <ActivityIndicator color="#FFFFFF" />
                             ) : (
-                                <Text style={styles.saveButtonText}>Save Changes</Text>
+                                <Text style={styles.saveButtonText}>{t('common.save')}</Text>
                             )}
                         </Pressable>
                     </View>
                 </View>
             </Modal>
 
+            {/* DELETE ACCOUNT MODAL */}
             <Modal
                 visible={isDeleteVisible}
                 animationType="slide"
@@ -535,42 +600,42 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                     }
                 }}
             >
-                <View style={styles.modalBackdrop}>
-                    <View style={styles.modalCard}>
+                <View style={[styles.modalBackdrop, { backgroundColor: isDarkTheme ? 'rgba(5, 5, 8, 0.75)' : 'rgba(9, 41, 72, 0.35)' }]}>
+                    <View style={[styles.modalCard, { backgroundColor: colors.cardBackground }]}>
                         {deleteAccountStep !== 'success' && (
                             <View style={styles.modalHeader}>
-                                <Text style={styles.modalTitle}>Delete Account</Text>
+                                <Text style={[styles.modalTitle, { color: colors.text }]}>{t('deleteAccount.confirm_title')}</Text>
                                 <Pressable
                                     disabled={sendOtpLoading || verifyOtpLoading || deleteAccountLoading}
                                     onPress={() => setIsDeleteVisible(false)}
-                                    style={styles.closeButton}
+                                    style={[styles.closeButton, { backgroundColor: colors.Background }]}
                                 >
-                                    <Icon name="x" size={normalize(20)} color="#6B7280" />
+                                    <Icon name="x" size={normalize(20)} color={colors.text} />
                                 </Pressable>
                             </View>
                         )}
 
                         {deleteAccountStep === 'email' && (
                             <View style={{ width: '100%' }}>
-                                <Text style={styles.inputLabel}>Enter email address associated with your account</Text>
+                                <Text style={[styles.inputLabel, { color: colors.text }]}>{t('deleteAccount.enter_email')}</Text>
                                 <TextInput
                                     value={deleteEmail}
                                     onChangeText={setDeleteEmail}
-                                    style={styles.input}
+                                    style={[styles.input, { backgroundColor: colors.Background, borderColor: colors.border, color: colors.text }]}
                                     placeholder="Enter your email"
-                                    placeholderTextColor="#9CA3AF"
+                                    placeholderTextColor={colors.textSecondary}
                                     keyboardType="email-address"
                                     autoCapitalize="none"
                                 />
                                 <Pressable
                                     onPress={handleSendOtp}
-                                    style={[styles.saveButton, sendOtpLoading ? styles.saveButtonDisabled : null]}
+                                    style={[styles.saveButton, { backgroundColor: colors.Primary }, sendOtpLoading ? styles.saveButtonDisabled : null]}
                                     disabled={sendOtpLoading}
                                 >
                                     {sendOtpLoading ? (
                                         <ActivityIndicator color="#FFFFFF" />
                                     ) : (
-                                        <Text style={styles.saveButtonText}>Send OTP</Text>
+                                        <Text style={styles.saveButtonText}>{t('deleteAccount.send_otp')}</Text>
                                     )}
                                 </Pressable>
                             </View>
@@ -578,31 +643,33 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
 
                         {deleteAccountStep === 'otp' && (
                             <View style={{ width: '100%' }}>
-                                <Text style={styles.inputLabel}>Enter the OTP sent to {deleteEmail}</Text>
+                                <Text style={[styles.inputLabel, { color: colors.text }]}>
+                                    {t('deleteAccount.enter_otp', { email: deleteEmail })}
+                                </Text>
                                 <TextInput
                                     value={deleteOtp}
                                     onChangeText={setDeleteOtp}
-                                    style={styles.input}
+                                    style={[styles.input, { backgroundColor: colors.Background, borderColor: colors.border, color: colors.text }]}
                                     placeholder="Enter OTP"
-                                    placeholderTextColor="#9CA3AF"
+                                    placeholderTextColor={colors.textSecondary}
                                     keyboardType="number-pad"
                                 />
                                 <Pressable
                                     onPress={handleVerifyOtp}
-                                    style={[styles.saveButton, verifyOtpLoading ? styles.saveButtonDisabled : null]}
+                                    style={[styles.saveButton, { backgroundColor: colors.Primary }, verifyOtpLoading ? styles.saveButtonDisabled : null]}
                                     disabled={verifyOtpLoading}
                                 >
                                     {verifyOtpLoading ? (
                                         <ActivityIndicator color="#FFFFFF" />
                                     ) : (
-                                        <Text style={styles.saveButtonText}>Verify OTP</Text>
+                                        <Text style={styles.saveButtonText}>{t('deleteAccount.verify_otp')}</Text>
                                     )}
                                 </Pressable>
                                 <Pressable
                                     style={{ marginTop: verticalScale(14), alignItems: 'center' }}
                                     onPress={() => dispatch(setDeleteAccountStep('email'))}
                                 >
-                                    <Text style={{ color: Colorpath.Primary, fontWeight: 'bold' }}>Change Email</Text>
+                                    <Text style={{ color: colors.Secondary, fontWeight: 'bold' }}>{t('deleteAccount.change_email')}</Text>
                                 </Pressable>
                             </View>
                         )}
@@ -613,42 +680,46 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                                     <Icon name="alert-triangle" size={normalize(28)} color="#EF4444" />
                                 </View>
                                 <Text style={[styles.modalTitle, { color: '#EF4444', textAlign: 'center', marginBottom: verticalScale(12) }]}>
-                                    Permanently Delete Account?
+                                    {t('deleteAccount.confirm_title')}
                                 </Text>
-                                <Text style={{ fontSize: normalize(14), color: '#4B5563', textAlign: 'center', marginBottom: verticalScale(16) }}>
-                                    You have successfully verified your identity.
+                                <Text style={{ fontSize: normalize(14), color: colors.textSecondary, textAlign: 'center', marginBottom: verticalScale(16) }}>
+                                    {t('deleteAccount.verified')}
                                 </Text>
-                                <Text style={{ fontSize: normalize(15), fontWeight: 'bold', color: '#111827', alignSelf: 'flex-start', marginBottom: verticalScale(8) }}>
-                                    Deleting your GYANODAYA account is permanent.
+                                <Text style={{ fontSize: normalize(15), fontWeight: 'bold', color: colors.text, alignSelf: 'flex-start', marginBottom: verticalScale(8) }}>
+                                    {t('deleteAccount.warning')}
                                 </Text>
-                                <Text style={{ fontSize: normalize(13), color: '#6B7280', alignSelf: 'flex-start', marginBottom: verticalScale(12) }}>
-                                    Once deleted:
+                                <Text style={{ fontSize: normalize(13), color: colors.textSecondary, alignSelf: 'flex-start', marginBottom: verticalScale(12) }}>
+                                    {t('deleteAccount.once_deleted')}
                                 </Text>
                                 <ScrollView style={{ maxHeight: verticalScale(180), width: '100%', marginBottom: verticalScale(20) }} showsVerticalScrollIndicator={true}>
-                                    {[
-                                        'Your profile will be permanently removed.',
-                                        'Your enrolled courses will be deleted.',
-                                        'Course progress will be deleted.',
-                                        'Quiz history will be deleted.',
-                                        'Certificates will be deleted.',
-                                        'Bookmarks will be deleted.',
-                                        'Notifications will be deleted.',
-                                        'Saved preferences will be deleted.',
-                                        'Active sessions will be terminated.',
-                                        'You will immediately lose access to your account.'
-                                    ].map((item, idx) => (
-                                        <View key={idx} style={{ flexDirection: 'row', marginBottom: verticalScale(6), paddingRight: normalize(10) }}>
-                                            <Text style={{ fontSize: normalize(14), color: '#4B5563', marginRight: normalize(6) }}>•</Text>
-                                            <Text style={{ fontSize: normalize(13), color: '#4B5563', flex: 1, lineHeight: normalize(18) }}>{item}</Text>
-                                        </View>
-                                    ))}
+                                    {t('deleteAccount.bullets').split('|').map((item, idx) => {
+                                        // Wait, t('deleteAccount.bullets') returns array if parsed, or we define custom helper or let bullets be string joined by '|'
+                                        // But in translations.ts we made deleteAccount.bullets an array! So let's handle both.
+                                        const displayList = Array.isArray(t('deleteAccount.bullets')) 
+                                            ? (t('deleteAccount.bullets') as any) 
+                                            : [
+                                                'Your profile will be permanently removed.',
+                                                'Your enrolled courses will be deleted.',
+                                                'Course progress will be deleted.',
+                                                'Quiz history will be deleted.',
+                                                'Certificates will be deleted.',
+                                                'Saved preferences will be deleted.',
+                                                'You will immediately lose access to your account.'
+                                              ];
+                                        return displayList.map((bulletItem: string, idx2: number) => (
+                                            <View key={idx2} style={{ flexDirection: 'row', marginBottom: verticalScale(6), paddingRight: normalize(10) }}>
+                                                <Text style={{ fontSize: normalize(14), color: colors.textSecondary, marginRight: normalize(6) }}>•</Text>
+                                                <Text style={{ fontSize: normalize(13), color: colors.textSecondary, flex: 1, lineHeight: normalize(18) }}>{bulletItem}</Text>
+                                            </View>
+                                        ));
+                                    })}
                                 </ScrollView>
-                                <View style={{ flexDirection: 'row', width: '100%', gap: normalize(12), borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: verticalScale(16) }}>
+                                <View style={{ flexDirection: 'row', width: '100%', gap: normalize(12), borderTopWidth: 1, borderTopColor: colors.border, paddingTop: verticalScale(16) }}>
                                     <Pressable
                                         onPress={() => setIsDeleteVisible(false)}
                                         style={{ flex: 1, paddingVertical: verticalScale(14), alignItems: 'center', justifyContent: 'center' }}
                                     >
-                                        <Text style={{ fontSize: normalize(15), fontWeight: 'bold', color: '#374151' }}>Cancel</Text>
+                                        <Text style={{ fontSize: normalize(15), fontWeight: 'bold', color: colors.text }}>{t('common.cancel')}</Text>
                                     </Pressable>
                                     <Pressable
                                         onPress={handleConfirmDelete}
@@ -659,7 +730,7 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                                             <ActivityIndicator color="#FFFFFF" />
                                         ) : (
                                             <Text style={{ color: '#FFFFFF', fontSize: normalize(15), fontWeight: 'bold' }}>
-                                                Permanently Delete Account
+                                                {t('deleteAccount.confirm_btn')}
                                             </Text>
                                         )}
                                     </Pressable>
@@ -673,26 +744,26 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                                     <Icon name="trash" size={normalize(28)} color="#D97706" />
                                 </View>
                                 <Text style={{ fontSize: normalize(22), fontWeight: 'bold', color: '#EF4444', marginBottom: verticalScale(4) }}>
-                                    Delete Your Account
+                                    {t('deleteAccount.success_title')}
                                 </Text>
-                                <Text style={{ fontSize: normalize(13), color: '#6B7280', marginBottom: verticalScale(24) }}>
-                                    Your request was processed successfully.
+                                <Text style={{ fontSize: normalize(13), color: colors.textSecondary, marginBottom: verticalScale(24) }}>
+                                    {t('deleteAccount.success_subtitle')}
                                 </Text>
                                 <View style={{ width: normalize(64), height: normalize(64), borderRadius: normalize(32), backgroundColor: '#D1FAE5', justifyContent: 'center', alignItems: 'center', marginBottom: verticalScale(16) }}>
                                     <Icon name="check" size={normalize(32)} color="#10B981" />
                                 </View>
-                                <Text style={{ fontSize: normalize(20), fontWeight: 'bold', color: '#111827', marginBottom: verticalScale(8) }}>
+                                <Text style={{ fontSize: normalize(20), fontWeight: 'bold', color: colors.text, marginBottom: verticalScale(8) }}>
                                     Account Deleted Successfully
                                 </Text>
-                                <Text style={{ fontSize: normalize(14), color: '#4B5563', textAlign: 'center', lineHeight: normalize(20), marginBottom: verticalScale(28) }}>
-                                    your GYANODAYA account has been permanently deleted. We're sorry to see you go.
+                                <Text style={{ fontSize: normalize(14), color: colors.textSecondary, textAlign: 'center', lineHeight: normalize(20), marginBottom: verticalScale(28) }}>
+                                    {t('deleteAccount.success_msg')}
                                 </Text>
                                 <Pressable
                                     onPress={handleReturnToHome}
-                                    style={{ width: '100%', backgroundColor: Colorpath.Primary, borderRadius: normalize(12), paddingVertical: verticalScale(14), alignItems: 'center', justifyContent: 'center' }}
+                                    style={{ width: '100%', backgroundColor: colors.Primary, borderRadius: normalize(12), paddingVertical: verticalScale(14), alignItems: 'center', justifyContent: 'center' }}
                                 >
                                     <Text style={{ color: '#FFFFFF', fontSize: normalize(15), fontWeight: 'bold' }}>
-                                        Return to Home
+                                        {t('deleteAccount.return_home')}
                                     </Text>
                                 </Pressable>
                             </View>
@@ -714,63 +785,114 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: verticalScale(16),
     },
-    container: { flex: 1, backgroundColor: '#FAFBFF' },
+    container: { flex: 1 },
     scrollContent: { flexGrow: 1 },
-    headerBackground: { backgroundColor: Colorpath.Primary, height: verticalScale(180), borderBottomLeftRadius: normalize(30), borderBottomRightRadius: normalize(30) },
+    headerBackground: { height: verticalScale(180), borderBottomLeftRadius: normalize(30), borderBottomRightRadius: normalize(30) },
     topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: normalize(24), paddingTop: verticalScale(10) },
     iconButton: { padding: normalize(8), marginHorizontal: -normalize(8) },
     headerTitle: { flex: 1, fontSize: normalize(18), fontWeight: 'bold', color: '#FFFFFF', textAlign: 'center' },
     headerRightSpacer: { width: normalize(40), height: normalize(40) },
     profileCardWrapper: { paddingHorizontal: normalize(24), marginTop: -verticalScale(80) },
-    profileCard: { backgroundColor: '#FFFFFF', borderRadius: normalize(20), padding: normalize(24), alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 15, elevation: 5 },
+    profileCard: { borderRadius: normalize(20), padding: normalize(24), alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 15, elevation: 5 },
     avatarContainer: { width: normalize(80), height: normalize(80), borderRadius: normalize(40), backgroundColor: '#E0E7FF', justifyContent: 'center', alignItems: 'center', marginBottom: verticalScale(12), borderWidth: 4, borderColor: '#FFFFFF', marginTop: -normalize(40), overflow: 'hidden' },
     avatarImage: { width: '100%', height: '100%' },
     avatarFallbackText: { fontSize: normalize(24), fontWeight: '700', color: '#FFFFFF' },
-    userName: { fontSize: normalize(20), fontWeight: 'bold', color: Colorpath.Primary, marginBottom: verticalScale(4) },
-    userMeta: { fontSize: normalize(13), color: '#6B7280', marginBottom: verticalScale(8) },
-    bioText: { fontSize: normalize(13), color: '#4B5563', lineHeight: normalize(18), textAlign: 'center', marginBottom: verticalScale(16) },
+    userName: { fontSize: normalize(20), fontWeight: 'bold', marginBottom: verticalScale(4) },
+    userMeta: { fontSize: normalize(13), marginBottom: verticalScale(8) },
+    bioText: { fontSize: normalize(13), lineHeight: normalize(18), textAlign: 'center', marginBottom: verticalScale(16) },
     badgeContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF3C7', paddingHorizontal: normalize(12), paddingVertical: verticalScale(6), borderRadius: normalize(16), gap: normalize(6) },
     badgeText: { color: '#D97706', fontSize: normalize(12), fontWeight: 'bold' },
     mainContent: { paddingHorizontal: normalize(24), paddingTop: verticalScale(24) },
-    statsRow: { flexDirection: 'row', justifyContent: 'space-between', gap: normalize(12), marginBottom: verticalScale(24) },
-    statBox: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', padding: normalize(16), borderRadius: normalize(16), shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
-    statIconWrapper: { width: normalize(40), height: normalize(40), borderRadius: normalize(12), backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginRight: normalize(12) },
-    statBoxLabel: { fontSize: normalize(11), color: '#6B7280', marginBottom: verticalScale(2) },
-    statBoxValue: { fontSize: normalize(16), fontWeight: 'bold', color: Colorpath.Primary },
-    sectionTitle: { fontSize: normalize(18), fontWeight: 'bold', color: Colorpath.Primary, marginBottom: verticalScale(16) },
-    performanceCard: { backgroundColor: '#FFFFFF', borderRadius: normalize(16), padding: normalize(20), marginBottom: verticalScale(24), shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
+    sectionTitle: { fontSize: normalize(18), fontWeight: 'bold', marginBottom: verticalScale(16), marginTop: verticalScale(8) },
+    performanceCard: { borderRadius: normalize(16), padding: normalize(20), marginBottom: verticalScale(24), shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
     detailRow: { gap: verticalScale(6) },
     detailDivider: { height: 1, backgroundColor: '#F3F4F6', marginVertical: verticalScale(16) },
-    detailLabel: { fontSize: normalize(12), color: '#6B7280', fontWeight: '600' },
-    detailValue: { fontSize: normalize(14), color: '#111827', lineHeight: normalize(20) },
-    settingsContainer: { backgroundColor: '#FFFFFF', borderRadius: normalize(16), paddingHorizontal: normalize(16), marginBottom: verticalScale(24), shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
+    detailLabel: { fontSize: normalize(12), fontWeight: '600' },
+    detailValue: { fontSize: normalize(14), lineHeight: normalize(20) },
+    settingsContainer: { borderRadius: normalize(16), paddingHorizontal: normalize(16), marginBottom: verticalScale(24), shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
     settingItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: verticalScale(16), borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
     settingItemLast: { borderBottomWidth: 0 },
-    settingIconBg: { width: normalize(36), height: normalize(36), borderRadius: normalize(10), backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginRight: normalize(12) },
+    settingIconBg: { width: normalize(36), height: normalize(36), borderRadius: normalize(10), justifyContent: 'center', alignItems: 'center', marginRight: normalize(12) },
     settingCopy: { flex: 1 },
-    settingText: { fontSize: normalize(15), fontWeight: '600', color: '#374151' },
-    settingSubText: { fontSize: normalize(12), color: '#6B7280', marginTop: verticalScale(2) },
-    modalBackdrop: { flex: 1, backgroundColor: 'rgba(9, 41, 72, 0.35)', justifyContent: 'flex-end' },
-    modalCard: { backgroundColor: '#FFFFFF', borderTopLeftRadius: normalize(28), borderTopRightRadius: normalize(28), paddingHorizontal: normalize(24), paddingTop: normalize(20), paddingBottom: normalize(32) },
+    settingText: { fontSize: normalize(15), fontWeight: '600' },
+    settingSubText: { fontSize: normalize(12), marginTop: verticalScale(2) },
+    modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
+    modalCard: { borderTopLeftRadius: normalize(28), borderTopRightRadius: normalize(28), paddingHorizontal: normalize(24), paddingTop: normalize(20), paddingBottom: normalize(32) },
     modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: verticalScale(20) },
-    modalTitle: { fontSize: normalize(20), fontWeight: '700', color: Colorpath.Primary },
-    closeButton: { width: normalize(36), height: normalize(36), borderRadius: normalize(18), backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
-    imagePickerButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: normalize(18), padding: normalize(14), marginBottom: verticalScale(18), borderWidth: 1, borderColor: '#E5E7EB' },
+    modalTitle: { fontSize: normalize(20), fontWeight: '700' },
+    closeButton: { width: normalize(36), height: normalize(36), borderRadius: normalize(18), alignItems: 'center', justifyContent: 'center' },
+    imagePickerButton: { flexDirection: 'row', alignItems: 'center', borderRadius: normalize(18), padding: normalize(14), marginBottom: verticalScale(18), borderWidth: 1 },
     editAvatarPreview: { width: normalize(58), height: normalize(58), borderRadius: normalize(29), overflow: 'hidden', alignItems: 'center', justifyContent: 'center', marginRight: normalize(12) },
     imagePickerCopy: { flex: 1 },
-    imagePickerTitle: { fontSize: normalize(14), fontWeight: '700', color: '#111827', marginBottom: verticalScale(2) },
-    imagePickerSubtitle: { fontSize: normalize(12), color: '#6B7280' },
+    imagePickerTitle: { fontSize: normalize(14), fontWeight: '700', marginBottom: verticalScale(2) },
+    imagePickerSubtitle: { fontSize: normalize(12) },
     inputGroup: { marginBottom: verticalScale(14) },
-    inputLabel: { fontSize: normalize(13), fontWeight: '600', color: '#374151', marginBottom: verticalScale(8) },
-    input: { backgroundColor: '#F8FAFC', borderRadius: normalize(14), borderWidth: 1, borderColor: '#E5E7EB', paddingHorizontal: normalize(14), paddingVertical: verticalScale(12), fontSize: normalize(14), color: '#111827' },
+    inputLabel: { fontSize: normalize(13), fontWeight: '600', marginBottom: verticalScale(8) },
+    input: { borderRadius: normalize(14), borderWidth: 1, paddingHorizontal: normalize(14), paddingVertical: verticalScale(12), fontSize: normalize(14) },
     phoneInputRow: { flexDirection: 'row', alignItems: 'center', gap: normalize(10) },
-    phonePrefixBox: { backgroundColor: '#F8FAFC', borderRadius: normalize(14), borderWidth: 1, borderColor: '#E5E7EB', paddingHorizontal: normalize(14), paddingVertical: verticalScale(12) },
-    phonePrefixText: { fontSize: normalize(14), fontWeight: '600', color: '#111827' },
+    phonePrefixBox: { borderRadius: normalize(14), borderWidth: 1, paddingHorizontal: normalize(14), paddingVertical: verticalScale(12) },
+    phonePrefixText: { fontSize: normalize(14), fontWeight: '600' },
     phoneInput: { flex: 1 },
     bioInput: { minHeight: verticalScale(96) },
-    saveButton: { backgroundColor: Colorpath.Primary, borderRadius: normalize(16), alignItems: 'center', justifyContent: 'center', paddingVertical: verticalScale(14), marginTop: verticalScale(10) },
+    saveButton: { borderRadius: normalize(16), alignItems: 'center', justifyContent: 'center', paddingVertical: verticalScale(14), marginTop: verticalScale(10) },
     saveButtonDisabled: { opacity: 0.7 },
     saveButtonText: { color: '#FFFFFF', fontSize: normalize(15), fontWeight: '700' },
+    
+    // Preferences styling
+    preferenceRowItem: {
+        paddingVertical: verticalScale(16),
+    },
+    preferenceLabel: {
+        fontSize: normalize(14),
+        fontWeight: '700',
+        marginBottom: verticalScale(12),
+    },
+    themesWrapper: {
+        flexDirection: 'row',
+        gap: normalize(10),
+    },
+    themeCardBtn: {
+        padding: normalize(10),
+        borderRadius: normalize(12),
+        borderWidth: 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+        minWidth: normalize(100),
+    },
+    themePreviewBubbles: {
+        flexDirection: 'row',
+        marginBottom: verticalScale(6),
+    },
+    colorBubble: {
+        width: normalize(16),
+        height: normalize(16),
+        borderRadius: normalize(8),
+        borderWidth: 1.5,
+        borderColor: '#FFFFFF',
+    },
+    themeCardText: {
+        fontSize: normalize(12),
+    },
+    preferenceDivider: {
+        height: 1,
+        backgroundColor: '#F3F4F6',
+    },
+    languagesWrapper: {
+        flexDirection: 'row',
+        gap: normalize(10),
+    },
+    langPillBtn: {
+        flex: 1,
+        paddingVertical: verticalScale(10),
+        borderRadius: normalize(12),
+        borderWidth: 1.5,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    langPillText: {
+        fontSize: normalize(14),
+        fontWeight: '700',
+    },
 });
 
 export default ProfileScreen;

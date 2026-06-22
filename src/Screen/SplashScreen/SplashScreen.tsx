@@ -8,6 +8,7 @@ import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
 import Fonts from '../../Themes/Fonts';
 import { tokenRequest, tokenFailure, tokenSuccess } from '../../Redux/Reducers/AuthReducer';
 import { RootState } from '../../Redux/Store';
+import { loadPreferences } from '../../Redux/Reducers/UiPreferenceReducer';
 
 const { width, height } = Dimensions.get('window');
 
@@ -49,6 +50,7 @@ const SplashScreen = ({ navigation }: SplashScreenProps) => {
     }))).current;
 
     useEffect(() => {
+        dispatch(loadPreferences() as any);
         dispatch(tokenRequest({}));
 
         // 1. Logo fades in and scales up to a LARGE size

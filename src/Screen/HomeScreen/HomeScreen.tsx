@@ -22,6 +22,7 @@ import { clearTestResult, getTestResultRequest } from '../../Redux/Reducers/Mock
 import { getProfileRequest } from '../../Redux/Reducers/ProfileReducer';
 import { RootState } from '../../Redux/Store';
 import Colorpath from '../../Themes/Colorpath';
+import { useTheme, useTranslation } from '../../Themes/hooks';
 import {
     formatDisplayDate,
     formatPercent,
@@ -53,70 +54,107 @@ type RecentItemCardProps = {
     onPress: (item: any) => void;
 };
 
-const StatCard = memo(({ label, value }: StatCardProps) => (
-    <View
-        style={[
-            styles.statCard,
-            {
-                backgroundColor:
-                    label === 'Purchased Exams' ? '#FFF7ED' :
-                    label === 'Tests Completed' ? '#ECFDF5' :
-                    label === 'Avg. Accuracy' ? '#EFF6FF' :
-                    '#F5F3FF',
-            },
-        ]}
-    >
-        <Text style={styles.statLabel}>{label}</Text>
-        <Text style={styles.statValue}>{value}</Text>
-    </View>
-));
+const StatCard = memo(({ label, value }: StatCardProps) => {
+    const { colors, theme } = useTheme();
+    const { t } = useTranslation();
 
-const RecentItemCard = memo(({ item, isLoading, onPress }: RecentItemCardProps) => (
-    <View style={styles.resultCard}>
-        <View style={styles.resultTopRow}>
-            <View style={styles.resultMetaRow}>
-                <View style={styles.resultTypeBadge}>
-                    <Text style={styles.resultTypeText}>{item.type}</Text>
-                </View>
-                <View style={styles.resultPriceBadge}>
-                    <Text style={styles.resultPriceText}>{Number(item.price) > 0 ? `Rs. ${item.price}` : 'Free'}</Text>
-                </View>
-                <View style={styles.resultStatusBadge}>
-                    <Text style={styles.resultStatusText}>{item.status}</Text>
-                </View>
-            </View>
-            <Text style={styles.resultDateText}>{formatDisplayDate(item.date)}</Text>
-        </View>
+    let displayLabel = label;
+    let cardBg = '#FFFFFF';
+    let labelColor = colors.textSecondary;
+    let valueColor = colors.text;
 
-        <Text style={styles.resultTitle}>{item.title}</Text>
+    if (label === 'Purchased Exams') {
+        displayLabel = t('home.purchased');
+        cardBg = colors.tagOrange;
+        labelColor = colors.tagOrangeText;
+    } else if (label === 'Tests Completed') {
+        displayLabel = t('home.completed');
+        cardBg = colors.tagGreen;
+        labelColor = colors.tagGreenText;
+    } else if (label === 'Avg. Accuracy') {
+        displayLabel = t('home.accuracy');
+        cardBg = colors.tagCyan;
+        labelColor = colors.tagCyanText;
+    } else if (label === 'Day Streak') {
+        displayLabel = t('home.streak');
+        cardBg = colors.tagPurple;
+        labelColor = colors.tagPurpleText;
+    }
 
-        <View style={styles.resultMetricsRow}>
-            <View style={styles.metricChip}>
-                <Text style={styles.metricLabel}>Score</Text>
-                <Text style={styles.metricValue}>{formatScore(item.score)}</Text>
-            </View>
-            <View style={styles.metricChip}>
-                <Text style={styles.metricLabel}>Accuracy</Text>
-                <Text style={styles.metricValue}>{formatPercent(item.accuracy)}</Text>
-            </View>
-        </View>
-
-        <Pressable
-            style={[styles.detailsButton, (isLoading || !item.attemptId) && styles.detailsButtonDisabled]}
-            onPress={() => onPress(item)}
-            disabled={isLoading || !item.attemptId}
+    return (
+        <View
+            style={[
+                styles.statCard,
+                {
+                    backgroundColor: cardBg,
+                    borderColor: colors.border,
+                    borderWidth: theme === 'classic' ? 0 : 1,
+                },
+            ]}
         >
-            {isLoading ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-                <>
-                    <Text style={styles.detailsButtonText}>View Details</Text>
-                    <Icon name="arrow-up-right" size={normalize(14)} color="#FFFFFF" />
-                </>
-            )}
-        </Pressable>
-    </View>
-));
+            <Text style={[styles.statLabel, { color: labelColor }]}>{displayLabel}</Text>
+            <Text style={[styles.statValue, { color: valueColor }]}>{value}</Text>
+        </View>
+    );
+});
+
+const RecentItemCard = memo(({ item, isLoading, onPress }: RecentItemCardProps) => {
+    const { colors, theme } = useTheme();
+    const { t } = useTranslation();
+
+    const isDark = theme === 'neon' || theme === 'sunset';
+
+    return (
+        <View style={[styles.resultCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+            <View style={styles.resultTopRow}>
+                <View style={styles.resultMetaRow}>
+                    <View style={[styles.resultTypeBadge, { backgroundColor: colors.tagCyan }]}>
+                        <Text style={[styles.resultTypeText, { color: colors.tagCyanText }]}>{item.type}</Text>
+                    </View>
+                    <View style={[styles.resultPriceBadge, { backgroundColor: colors.tagGreen }]}>
+                        <Text style={[styles.resultPriceText, { color: colors.tagGreenText }]}>{Number(item.price) > 0 ? `Rs. ${item.price}` : 'Free'}</Text>
+                    </View>
+                    <View style={[styles.resultStatusBadge, { backgroundColor: colors.tagOrange }]}>
+                        <Text style={[styles.resultStatusText, { color: colors.tagOrangeText }]}>{item.status}</Text>
+                    </View>
+                </View>
+                <Text style={[styles.resultDateText, { color: colors.textSecondary }]}>{formatDisplayDate(item.date)}</Text>
+            </View>
+
+            <Text style={[styles.resultTitle, { color: colors.text }]}>{item.title}</Text>
+
+            <View style={styles.resultMetricsRow}>
+                <View style={[styles.metricChip, { backgroundColor: colors.Background, borderColor: colors.border }]}>
+                    <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Score</Text>
+                    <Text style={[styles.metricValue, { color: colors.text }]}>{formatScore(item.score)}</Text>
+                </View>
+                <View style={[styles.metricChip, { backgroundColor: colors.Background, borderColor: colors.border }]}>
+                    <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Accuracy</Text>
+                    <Text style={[styles.metricValue, { color: colors.text }]}>{formatPercent(item.accuracy)}</Text>
+                </View>
+            </View>
+
+            <Pressable
+                style={[
+                    styles.detailsButton,
+                    { backgroundColor: colors.Primary, borderColor: colors.border, borderWidth: isDark ? 1 : 0 },
+                    (isLoading || !item.attemptId) && styles.detailsButtonDisabled
+                ]}
+                onPress={() => onPress(item)}
+                disabled={isLoading || !item.attemptId}
+            >
+                {isLoading ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                    <>
+                        <Text style={styles.detailsButtonText}>{t('home.view_details')}</Text>
+                        <Icon name="arrow-up-right" size={normalize(14)} color="#FFFFFF" />
+                    </>
+                )}
+            </Pressable>
+        </View>
+    );
+});
 
 const HomeScreen = ({ navigation }: HomeScreenProps) => {
     const dispatch = useDispatch();
@@ -159,10 +197,18 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
         ?? homeState.dashboardData?.summary?.dayStreak
         ?? 0;
     const recentItems = useMemo(() => normalizeRecentItems(homeState.dashboardData), [homeState.dashboardData]);
+    const { colors, theme } = useTheme();
+    const { t } = useTranslation();
+
+    const isDarkTheme = theme === 'neon' || theme === 'sunset';
+    const statusBarStyle = isDarkTheme ? 'light-content' : 'dark-content';
+
     const recentSectionTitle = useMemo(
         () => getDashboardHeadline(homeState.dashboardData, recentItems),
         [homeState.dashboardData, recentItems],
     );
+
+    const translatedHeadline = recentSectionTitle === 'Recent Activity' ? t('home.recent_title') : recentSectionTitle;
 
     useEffect(() => {
         if (!homeState.dashboardData && !homeState.isBootstrapping) {
@@ -214,9 +260,9 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
     };
 
     const renderLoading = () => (
-        <View style={styles.container}>
-            <StatusBar backgroundColor={Colorpath.Primary} barStyle="light-content" />
-            <View style={styles.headerBackground}>
+        <View style={[styles.container, { backgroundColor: colors.Background }]}>
+            <StatusBar backgroundColor={colors.Primary} barStyle={statusBarStyle} />
+            <View style={[styles.headerBackground, { backgroundColor: colors.Primary }]}>
                 <SafeAreaView edges={['top']}>
                     <View style={styles.topBar}>
                         <View style={styles.profileRow}>
@@ -245,24 +291,20 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
 
     const header = (
         <>
-            <View style={styles.headerBackground}>
+            <View style={[styles.headerBackground, { backgroundColor: colors.Primary }]}>
                 <SafeAreaView edges={['top']}>
                     <View style={styles.topBar}>
                         <View style={styles.profileRow}>
-                            <Pressable onPress={() => navigation.navigate('Profile')} style={styles.avatarFrame}>
+                            <Pressable onPress={() => navigation.navigate('Profile')} style={[styles.avatarFrame, { borderColor: colors.border }]}>
                                 <Avatar imageUri={profileImage} name={profileName} size={normalize(52)} />
                             </Pressable>
                             <View style={styles.profileCopy}>
-                                <Text style={styles.welcomeText}>Ready to improve today?</Text>
+                                <Text style={[styles.welcomeText, { color: theme === 'neon' ? 'rgba(0, 242, 254, 0.8)' : 'rgba(255,255,255,0.78)' }]}>{t('home.greetings')}</Text>
                                 <Pressable onPress={() => navigation.navigate('Profile')}>
                                     <Text style={styles.userName}>{profileName}</Text>
                                 </Pressable>
                             </View>
                         </View>
-                        {/* <View style={styles.liveBadge}>
-                            <View style={styles.liveDot} />
-                            <Text style={styles.liveBadgeText}>Dashboard</Text>
-                        </View> */}
                     </View>
 
                     <View style={styles.statsRow}>
@@ -300,8 +342,8 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
 
             <View style={styles.sectionHeader}>
                 <View>
-                    <Text style={styles.sectionTitle}>{recentSectionTitle}</Text>
-                    <Text style={styles.sectionSubtitle}>Fresh from your dashboard activity</Text>
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>{translatedHeadline}</Text>
+                    <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>{t('home.recent_sub')}</Text>
                 </View>
             </View>
         </>
@@ -312,8 +354,8 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
     }
 
     return (
-        <View style={styles.container}>
-            <StatusBar backgroundColor={Colorpath.Primary} barStyle="light-content" />
+        <View style={[styles.container, { backgroundColor: colors.Background }]}>
+            <StatusBar backgroundColor={colors.Primary} barStyle="light-content" />
 
             <FlatList
                 data={recentItems}
@@ -333,13 +375,13 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
                 ListEmptyComponent={
                     <View style={styles.emptyWrap}>
                         <EmptyState
-                            title={homeState.error ? 'Unable to load dashboard' : 'No recent activity yet'}
+                            title={homeState.error ? t('common.error') : t('home.no_activity')}
                             message={
                                 homeState.error
                                     ? "We couldn't fetch your latest dashboard data. Please try again."
-                                    : 'Your latest mock tests or course progress will appear here as soon as the dashboard has data.'
+                                    : t('home.no_activity_desc')
                             }
-                            actionLabel="Retry"
+                            actionLabel={t('common.retry')}
                             onAction={onRefresh}
                             icon={homeState.error ? 'wifi-off' : 'bar-chart-2'}
                         />
@@ -351,7 +393,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
                     <RefreshControl
                         refreshing={homeState.isRefreshing}
                         onRefresh={onRefresh}
-                        tintColor={Colorpath.Primary}
+                        tintColor={colors.accent}
                     />
                 }
             />

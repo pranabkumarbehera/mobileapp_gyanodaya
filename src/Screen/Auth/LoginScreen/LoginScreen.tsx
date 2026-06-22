@@ -17,12 +17,12 @@ import { loginRequest } from '../../../Redux/Reducers/AuthReducer';
 import { RootState } from '../../../Redux/Store';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
-import Colorpath from '../../../Themes/Colorpath';
 import { normalize, verticalScale } from '../../../Utils/Helpers/normalize';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../Navigator/StackNav';
 import constants from '../../../Utils/Helpers/constants';
 import { useIsFocused } from '@react-navigation/native';
+import { useTheme, useTranslation } from '../../../Themes/hooks';
 
 type LoginScreenProps = StackScreenProps<RootStackParamList, 'Login'>;
 type LoginErrors = {
@@ -40,6 +40,16 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
         email: false,
         password: false,
     });
+    
+    // Focus states for futuristic UI feel
+    const [emailFocused, setEmailFocused] = useState(false);
+    const [passwordFocused, setPasswordFocused] = useState(false);
+
+    const { colors, theme } = useTheme();
+    const { t } = useTranslation();
+
+    const isDarkTheme = theme === 'neon' || theme === 'sunset';
+    const statusBarStyle = isDarkTheme ? 'light-content' : 'dark-content';
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -160,30 +170,42 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
     };
 
     return (
-        <SafeAreaView style={styles.container}>
-            <StatusBar backgroundColor="#FAFBFF" barStyle="dark-content" />
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.Background }]}>
+            <StatusBar backgroundColor={colors.Background} barStyle={statusBarStyle} />
 
             <KeyboardAvoidingView 
                 style={styles.keyboardView}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             >
                 <View style={styles.headerContainer}>
-                    <Text style={styles.brandTitle}>Welcome{'\n'}Back!</Text>
-                    <Text style={styles.subtitle}>Sign in to continue your preparation.</Text>
+                    <Text style={[styles.brandTitle, { color: colors.text }]}>{t('login.welcome')}</Text>
+                    <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t('login.subtitle')}</Text>
                 </View>
 
                 <View style={styles.formContainer}>
                     <View style={styles.fieldWrapper}>
-                        <View style={[styles.inputContainer, touched.email && errors.email ? styles.inputContainerError : null]}>
-                            <Icon name="mail" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
+                        <View style={[
+                            styles.inputContainer,
+                            { 
+                                backgroundColor: colors.cardBackground, 
+                                borderColor: emailFocused ? colors.accent : (touched.email && errors.email ? '#EF4444' : colors.border)
+                            }
+                        ]}>
+                            <Icon name="mail" size={normalize(18)} color={emailFocused ? colors.accent : colors.textSecondary} style={styles.inputIcon} />
                             <TextInput
-                                style={styles.input}
-                                placeholder="Email address"
-                                placeholderTextColor="#9CA3AF"
+                                style={[styles.input, { color: colors.text }]}
+                                placeholder={t('login.email')}
+                                placeholderTextColor={colors.textSecondary}
                                 value={email}
                                 onChangeText={(value) => updateField('email', value)}
-                                onFocus={() => setTouched((prev) => ({ ...prev, email: true }))}
-                                onBlur={() => setTouched((prev) => ({ ...prev, email: true }))}
+                                onFocus={() => {
+                                    setEmailFocused(true);
+                                    setTouched((prev) => ({ ...prev, email: true }));
+                                }}
+                                onBlur={() => {
+                                    setEmailFocused(false);
+                                    setTouched((prev) => ({ ...prev, email: true }));
+                                }}
                                 keyboardType="email-address"
                                 autoCapitalize="none"
                                 editable={!isLoading}
@@ -193,21 +215,33 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                     </View>
 
                     <View style={styles.fieldWrapper}>
-                        <View style={[styles.inputContainer, touched.password && errors.password ? styles.inputContainerError : null]}>
-                            <Icon name="lock" size={normalize(18)} color="#9CA3AF" style={styles.inputIcon} />
+                        <View style={[
+                            styles.inputContainer,
+                            { 
+                                backgroundColor: colors.cardBackground, 
+                                borderColor: passwordFocused ? colors.accent : (touched.password && errors.password ? '#EF4444' : colors.border)
+                            }
+                        ]}>
+                            <Icon name="lock" size={normalize(18)} color={passwordFocused ? colors.accent : colors.textSecondary} style={styles.inputIcon} />
                             <TextInput
-                                style={styles.input}
-                                placeholder="Password"
-                                placeholderTextColor="#9CA3AF"
+                                style={[styles.input, { color: colors.text }]}
+                                placeholder={t('login.password')}
+                                placeholderTextColor={colors.textSecondary}
                                 secureTextEntry={secureText}
                                 value={password}
                                 onChangeText={(value) => updateField('password', value)}
-                                onFocus={() => setTouched((prev) => ({ ...prev, password: true }))}
-                                onBlur={() => setTouched((prev) => ({ ...prev, password: true }))}
+                                onFocus={() => {
+                                    setPasswordFocused(true);
+                                    setTouched((prev) => ({ ...prev, password: true }));
+                                }}
+                                onBlur={() => {
+                                    setPasswordFocused(false);
+                                    setTouched((prev) => ({ ...prev, password: true }));
+                                }}
                                 editable={!isLoading}
                             />
                             <Pressable onPress={() => setSecureText(!secureText)} style={styles.eyeIcon} disabled={isLoading}>
-                                <Icon name={secureText ? "eye-off" : "eye"} size={normalize(18)} color="#9CA3AF" />
+                                <Icon name={secureText ? "eye-off" : "eye"} size={normalize(18)} color={colors.textSecondary} />
                             </Pressable>
                         </View>
                         {touched.password && errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
@@ -218,31 +252,45 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                             <Icon
                                 name={rememberPassword ? 'check-square' : 'square'}
                                 size={normalize(18)}
-                                color={rememberPassword ? Colorpath.Primary : '#9CA3AF'}
+                                color={rememberPassword ? colors.accent : colors.textSecondary}
                             />
-                            <Text style={styles.rememberText}>Remember the password</Text>
+                            <Text style={[styles.rememberText, { color: colors.text }]}>{t('login.remember')}</Text>
                         </Pressable>
 
                         <Pressable onPress={() => navigation.navigate('ForgotPassword')} style={styles.forgotPasswordContainer} disabled={isLoading}>
-                            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                            <Text style={[styles.forgotPasswordText, { color: colors.Secondary }]}>{t('login.forgot')}</Text>
                         </Pressable>
                     </View>
 
-                    <Pressable style={styles.loginButton} onPress={handleLogin} disabled={isLoading}>
-                        <Text style={styles.loginButtonText}>Sign In</Text>
+                    <Pressable 
+                        style={[
+                            styles.loginButton, 
+                            { 
+                                backgroundColor: colors.Primary,
+                                borderColor: colors.border,
+                                borderWidth: isDarkTheme ? 1 : 0
+                            }
+                        ]} 
+                        onPress={handleLogin} 
+                        disabled={isLoading}
+                    >
+                        <Text style={styles.loginButtonText}>{t('login.signin')}</Text>
                     </Pressable>
                 </View>
 
                 <Pressable onPress={() => navigation.navigate('Register')} style={styles.footerLink} disabled={isLoading}>
-                    <Text style={styles.footerText}>Don't have an account? <Text style={styles.footerTextBold}>Register</Text></Text>
+                    <Text style={[styles.footerText, { color: colors.textSecondary }]}>
+                        {t('login.no_account')}{' '}
+                        <Text style={[styles.footerTextBold, { color: colors.Secondary }]}>{t('login.register')}</Text>
+                    </Text>
                 </Pressable>
             </KeyboardAvoidingView>
 
             <Modal visible={isLoading} transparent animationType="fade" statusBarTranslucent onRequestClose={() => {}}>
-                <View style={styles.loadingOverlay}>
-                    <View style={styles.loadingCard}>
-                        <ActivityIndicator size="large" color={Colorpath.Primary} />
-                        <Text style={styles.loadingText}>Signing you in...</Text>
+                <View style={[styles.loadingOverlay, { backgroundColor: isDarkTheme ? 'rgba(5, 5, 8, 0.85)' : 'rgba(250, 251, 255, 0.82)' }]}>
+                    <View style={[styles.loadingCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                        <ActivityIndicator size="large" color={colors.accent} />
+                        <Text style={[styles.loadingText, { color: colors.text }]}>{t('login.signing_in')}</Text>
                     </View>
                 </View>
             </Modal>
@@ -253,7 +301,6 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FAFBFF',
     },
     keyboardView: {
         flex: 1,
@@ -267,13 +314,11 @@ const styles = StyleSheet.create({
     brandTitle: {
         fontSize: normalize(28),
         fontWeight: '800',
-        color: Colorpath.Primary,
         lineHeight: normalize(36),
         marginBottom: verticalScale(10),
     },
     subtitle: {
         fontSize: normalize(14),
-        color: '#6B7280',
     },
     formContainer: {
     },
@@ -283,22 +328,16 @@ const styles = StyleSheet.create({
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
         borderRadius: normalize(12),
         borderWidth: 1,
-        borderColor: '#E5E7EB',
         height: verticalScale(55),
         paddingHorizontal: normalize(16),
-    },
-    inputContainerError: {
-        borderColor: '#EF4444',
     },
     inputIcon: {
         marginRight: normalize(12),
     },
     input: {
         flex: 1,
-        color: '#111827',
         fontSize: normalize(15),
     },
     eyeIcon: {
@@ -322,7 +361,6 @@ const styles = StyleSheet.create({
         gap: normalize(10),
     },
     rememberText: {
-        color: '#374151',
         fontSize: normalize(13),
         fontWeight: '500',
     },
@@ -330,17 +368,20 @@ const styles = StyleSheet.create({
         alignItems: 'flex-end',
     },
     forgotPasswordText: {
-        color: Colorpath.Secondary,
         fontSize: normalize(13),
         fontWeight: '600',
     },
     loginButton: {
-        backgroundColor: Colorpath.Primary,
         borderRadius: normalize(12),
         height: verticalScale(55),
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: verticalScale(30),
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
     },
     loginButtonText: {
         color: '#FFFFFF',
@@ -352,33 +393,27 @@ const styles = StyleSheet.create({
         paddingVertical: verticalScale(10),
     },
     footerText: {
-        color: '#6B7280',
         fontSize: normalize(14),
     },
     footerTextBold: {
-        color: Colorpath.Primary,
         fontWeight: '700',
     },
     loadingOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(250, 251, 255, 0.82)',
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 1000,
     },
     loadingCard: {
         minWidth: normalize(180),
-        backgroundColor: '#FFFFFF',
         borderRadius: normalize(16),
         paddingHorizontal: normalize(24),
         paddingVertical: verticalScale(22),
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#E5E7EB',
     },
     loadingText: {
         marginTop: verticalScale(12),
-        color: '#111827',
         fontSize: normalize(14),
         fontWeight: '600',
     },
