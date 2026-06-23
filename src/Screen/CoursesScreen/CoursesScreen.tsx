@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, ActivityIndicator, Modal, Linking, FlatList, Animated, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, ActivityIndicator, Modal, Linking, FlatList, Animated, RefreshControl, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from 'react-native-vector-icons/Feather';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
@@ -567,6 +567,8 @@ const htmlToPlainText = (html: string = '') => {
     }
 
     return html
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
         .replace(/<\s*\/\s*(p|div|h[1-6]|li|tr|table|tbody|thead|pre|blockquote|ul|ol)\s*>/gi, '\n')
         .replace(/<\s*br\s*\/?\s*>/gi, '\n')
         .replace(/<[^>]+>/g, '')
@@ -1196,7 +1198,7 @@ const SubBundleCard = ({ subBundle, index, handleSubBundlePress, colors, isDarkT
     );
 };
 
-const CourseMaterialCard = ({ item, sectionKey, handleOpenCourseItem, colors, isDarkTheme, styles }: any) => {
+const CourseMaterialCard = ({ item, sectionKey, handleOpenCourseItem, colors, isDarkTheme, styles, tokens }: any) => {
     const scale = useRef(new Animated.Value(1)).current;
 
     const handlePressIn = () => {
@@ -1217,18 +1219,18 @@ const CourseMaterialCard = ({ item, sectionKey, handleOpenCourseItem, colors, is
 
     if (sectionKey === 'note') {
         return (
-            <Animated.View style={{ transform: [{ scale }] }}>
+            <Animated.View style={[{ flex: 1, marginBottom: normalize(12) }, { transform: [{ scale }] }]}>
                 <Pressable
                     onPressIn={handlePressIn}
                     onPressOut={handlePressOut}
-                    style={[styles.courseCard, { backgroundColor: colors.cardBackground, borderColor: colors.border, shadowColor: isDarkTheme ? colors.accent : '#000000' }]}
+                    style={[styles.courseCard, { backgroundColor: tokens.glassSurface, borderColor: tokens.glassBorder, borderRadius: normalize(tokens.radius.xl), shadowColor: tokens.shadow, shadowOpacity: tokens.shadowOpacity }]}
                     onPress={() => handleOpenCourseItem(sectionKey, item)}
                 >
-                    <View style={[styles.courseCardBadge, { backgroundColor: colors.tagGreen, borderColor: colors.border }]}>
+                    <View style={[styles.courseCardBadge, { backgroundColor: colors.tagGreen, borderColor: tokens.glassBorder, borderRadius: normalize(tokens.radius.pill) }]}>
                         <Text style={[styles.courseCardBadgeText, { color: colors.tagGreenText }]}>NOTES</Text>
                     </View>
-                    <Text style={[styles.courseCardTitle, { color: colors.text }]}>{getItemTitle(item, 'Note Bank')}</Text>
-                    {getItemDescription(item) ? <Text style={[styles.courseCardSubtitle, { color: colors.textSecondary }]}>{getItemDescription(item)}</Text> : null}
+                    <Text style={[styles.courseCardTitle, { color: colors.text }]} numberOfLines={2}>{getItemTitle(item, 'Note Bank')}</Text>
+                    {getItemDescription(item) ? <Text style={[styles.courseCardSubtitle, { color: colors.textSecondary }]} numberOfLines={3}>{toDisplayText(getItemDescription(item))}</Text> : null}
                     <View style={styles.courseCardFooter}>
                         <Feather name="book-open" size={normalize(14)} color={colors.accent} />
                         <Text style={[styles.courseCardFooterText, { color: colors.textSecondary, marginLeft: normalize(6) }]}>Open note pages</Text>
@@ -1240,18 +1242,19 @@ const CourseMaterialCard = ({ item, sectionKey, handleOpenCourseItem, colors, is
 
     if (sectionKey === 'question') {
         return (
-            <Animated.View style={{ transform: [{ scale }] }}>
+            <Animated.View style={[{ flex: 1, marginBottom: normalize(12) }, { transform: [{ scale }] }]}>
                 <Pressable
                     onPressIn={handlePressIn}
                     onPressOut={handlePressOut}
-                    style={[styles.courseCard, { backgroundColor: colors.cardBackground, borderColor: colors.border, shadowColor: isDarkTheme ? colors.accent : '#000000' }]}
+                    style={[styles.courseCard, { backgroundColor: tokens.glassSurface, borderColor: tokens.glassBorder, borderRadius: normalize(tokens.radius.xl), shadowColor: tokens.shadow, shadowOpacity: tokens.shadowOpacity }]}
                     onPress={() => handleOpenCourseItem(sectionKey, item)}
                 >
-                    <View style={[styles.courseCardBadge, { backgroundColor: colors.tagPurple, borderColor: colors.border }]}>
+                    <View style={[styles.courseCardBadge, { backgroundColor: colors.tagPurple, borderColor: tokens.glassBorder, borderRadius: normalize(tokens.radius.pill) }]}>
                         <Text style={[styles.courseCardBadgeText, { color: colors.tagPurpleText }]}>QUESTION BANK</Text>
                     </View>
-                    <Text style={[styles.courseCardTitle, { color: colors.text }]}>{getItemTitle(item, 'Question Bank')}</Text>
-                    {getQuestionBankYear(item) ? <Text style={[styles.courseCardSubtitle, { color: colors.textSecondary }]}>Year: {getQuestionBankYear(item)}</Text> : null}
+                    <Text style={[styles.courseCardTitle, { color: colors.text }]} numberOfLines={2}>{getItemTitle(item, 'Question Bank')}</Text>
+                    {getQuestionBankYear(item) ? <Text style={[styles.courseCardSubtitle, { color: colors.textSecondary }]} numberOfLines={1}>Year: {getQuestionBankYear(item)}</Text> : null}
+                    {getItemDescription(item) ? <Text style={[styles.courseCardSubtitle, { color: colors.textSecondary }]} numberOfLines={3}>{toDisplayText(getItemDescription(item))}</Text> : null}
                     <View style={styles.courseCardFooter}>
                         <Feather name="help-circle" size={normalize(14)} color={colors.accent} />
                         <Text style={[styles.courseCardFooterText, { color: colors.textSecondary, marginLeft: normalize(6) }]}>View questions & answers</Text>
@@ -1262,21 +1265,21 @@ const CourseMaterialCard = ({ item, sectionKey, handleOpenCourseItem, colors, is
     }
 
     return (
-        <Animated.View style={{ transform: [{ scale }] }}>
+        <Animated.View style={[{ flex: 1, marginBottom: normalize(12) }, { transform: [{ scale }] }]}>
             <Pressable
                 onPressIn={handlePressIn}
                 onPressOut={handlePressOut}
-                style={[styles.courseCard, { backgroundColor: colors.cardBackground, borderColor: colors.border, shadowColor: isDarkTheme ? colors.accent : '#000000' }]}
+                style={[styles.courseCard, { backgroundColor: tokens.glassSurface, borderColor: tokens.glassBorder, borderRadius: normalize(tokens.radius.xl), shadowColor: tokens.shadow, shadowOpacity: tokens.shadowOpacity }]}
                 onPress={() => handleOpenCourseItem(sectionKey, item)}
             >
-                <View style={[styles.courseCardBadge, { backgroundColor: colors.tagOrange, borderColor: colors.border }]}>
+                <View style={[styles.courseCardBadge, { backgroundColor: colors.tagOrange, borderColor: tokens.glassBorder, borderRadius: normalize(tokens.radius.pill) }]}>
                     <Text style={[styles.courseCardBadgeText, { color: colors.tagOrangeText }]}>VIDEOLINK BANK</Text>
                 </View>
                 <View style={styles.videoCardTitleRow}>
                     <Feather name="play-circle" size={normalize(16)} color={colors.accent} />
-                    <Text style={[styles.courseCardTitle, { color: colors.text }]}>{getItemTitle(item, 'Video Bank')}</Text>
+                    <Text style={[styles.courseCardTitle, { color: colors.text, flex: 1 }]} numberOfLines={2}>{getItemTitle(item, 'Video Bank')}</Text>
                 </View>
-                {getItemDescription(item) ? <Text style={[styles.courseCardSubtitle, { color: colors.textSecondary }]}>{getItemDescription(item)}</Text> : <Text style={[styles.courseCardSubtitle, { color: colors.textSecondary }]}>YouTube Video</Text>}
+                {getItemDescription(item) ? <Text style={[styles.courseCardSubtitle, { color: colors.textSecondary }]} numberOfLines={3}>{toDisplayText(getItemDescription(item))}</Text> : <Text style={[styles.courseCardSubtitle, { color: colors.textSecondary }]}>YouTube Video</Text>}
                 <View style={styles.courseCardFooter}>
                     <Feather name="youtube" size={normalize(14)} color={colors.tagOrangeText} />
                     <Text style={[styles.courseCardFooterText, { color: colors.tagOrangeText, marginLeft: normalize(6) }]}>Open video lesson</Text>
@@ -1293,6 +1296,8 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     const { t } = useTranslation();
     const isDarkTheme = tokens.isDark;
     const styles = useMemo(() => getStyles(colors, tokens), [colors, tokens]);
+    const { width: screenWidth } = useWindowDimensions();
+    const dynamicNumColumns = screenWidth >= 1024 ? 4 : screenWidth >= 768 ? 3 : 2;
     const {
         bundleList,
         studentModules,
@@ -1916,9 +1921,10 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                 colors={colors}
                 isDarkTheme={isDarkTheme}
                 styles={styles}
+                tokens={tokens}
             />
         );
-    }, [activeCourseSection, courseSections, handleOpenCourseItem, colors, isDarkTheme, styles]);
+    }, [activeCourseSection, courseSections, handleOpenCourseItem, colors, isDarkTheme, styles, tokens]);
 
     const renderCourseTabContent = () => {
         if (courseSections.length === 0) {
@@ -1939,6 +1945,10 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                     <FlatList
                         data={courseSections}
                         keyExtractor={(item) => item.key}
+                        initialNumToRender={5}
+                        maxToRenderPerBatch={5}
+                        windowSize={5}
+                        removeClippedSubviews={true}
                         scrollEnabled={false}
                         ItemSeparatorComponent={() => <View style={{ height: verticalScale(10) }} />}
                         renderItem={({ item }) => (
@@ -1967,6 +1977,11 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                     <FlatList
                         data={activeSection?.items || []}
                         keyExtractor={(item: any, index: number) => String(getItemId(item) || index)}
+                        initialNumToRender={5}
+                        maxToRenderPerBatch={5}
+                        windowSize={5}
+                        removeClippedSubviews={true}
+                        scrollEnabled={false}
                         renderItem={renderCourseSectionItem}
                         ItemSeparatorComponent={() => <View style={{ height: verticalScale(12) }} />}
                         ListEmptyComponent={(
@@ -1975,7 +1990,6 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                 <Text style={styles.emptyStateText}>No Data Available</Text>
                             </View>
                         )}
-                        scrollEnabled={false}
                     />
                 </View>
             </View>
@@ -2322,6 +2336,10 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                             <FlatList
                                 data={selectedNotePages}
                                 keyExtractor={(page: any, index: number) => `${page?._id || page?.id || index}`}
+                                initialNumToRender={5}
+                                maxToRenderPerBatch={5}
+                                windowSize={5}
+                                removeClippedSubviews={true}
                                 showsVerticalScrollIndicator={false}
                                 contentContainerStyle={styles.noteListScrollContainer}
                                 renderItem={({ item, index }) => {
@@ -2408,6 +2426,10 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                             <FlatList
                                 data={selectedQuestionBankQuestions}
                                 keyExtractor={(item: any, index: number) => `${item?._id || item?.id || index}`}
+                                initialNumToRender={5}
+                                maxToRenderPerBatch={5}
+                                windowSize={5}
+                                removeClippedSubviews={true}
                                 showsVerticalScrollIndicator={false}
                                 contentContainerStyle={styles.questionListScrollContainer}
                                 renderItem={({ item, index }) => {
@@ -2600,6 +2622,10 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                             <FlatList
                                 data={selectedVideoBankItems}
                                 keyExtractor={(videoItem: any, index: number) => `${videoItem?._id || videoItem?.id || index}`}
+                                initialNumToRender={5}
+                                maxToRenderPerBatch={5}
+                                windowSize={5}
+                                removeClippedSubviews={true}
                                 contentContainerStyle={styles.videoBankListContent}
                                 ItemSeparatorComponent={() => <View style={{ height: verticalScale(12) }} />}
                                 renderItem={({ item, index }) => {
@@ -2696,9 +2722,14 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
             </View>
 
             <FlatList
+                key={`catalog-grid-${dynamicNumColumns}`}
                 data={filteredExams}
-                numColumns={2}
+                numColumns={dynamicNumColumns}
                 keyExtractor={(bundle: any, index: number) => String(getBundleId(getBundlePayload(bundle)) || index)}
+                initialNumToRender={5}
+                maxToRenderPerBatch={5}
+                windowSize={5}
+                removeClippedSubviews={true}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
                 contentContainerStyle={styles.catalogContent}

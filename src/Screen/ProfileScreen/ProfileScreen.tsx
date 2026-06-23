@@ -101,7 +101,7 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     const openDeleteModal = () => {
-        setDeleteEmail('');
+        setDeleteEmail(profileData?.email || '');
         setDeleteOtp('');
         dispatch(setDeleteAccountStep('email'));
         setIsDeleteVisible(true);
@@ -640,11 +640,12 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                                 <TextInput
                                     value={deleteEmail}
                                     onChangeText={setDeleteEmail}
-                                    style={[styles.input, { backgroundColor: colors.Background, borderColor: colors.border, color: colors.text }]}
+                                    style={[styles.input, { backgroundColor: tokens.surfaceMuted, borderColor: colors.border, color: colors.textSecondary }]}
                                     placeholder="Enter your email"
                                     placeholderTextColor={colors.textSecondary}
                                     keyboardType="email-address"
                                     autoCapitalize="none"
+                                    editable={false}
                                 />
                                 <Pressable
                                     onPress={handleSendOtp}

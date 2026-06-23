@@ -82,10 +82,10 @@ export const createDesignTokens = (colors: ThemeColors, theme: string): DesignTo
         danger: '#EF4444',
         info: '#38BDF8',
         video: '#FF3B30',
-        radius: { sm: 10, md: 14, lg: 18, xl: 24, pill: 999 },
-        space: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 },
-        shadowOpacity: isGlass ? 0.28 : isDark ? 0.16 : 0.08,
-        blurStrength: isGlass ? 22 : 0,
+        radius: { sm: 12, md: 16, lg: 20, xl: 28, pill: 999 },
+        space: { xs: 6, sm: 10, md: 16, lg: 20, xl: 32 },
+        shadowOpacity: isGlass ? 0.35 : isDark ? 0.25 : 0.1,
+        blurStrength: isGlass ? 24 : 0,
     };
 };
 

@@ -66,8 +66,8 @@ const CourseCatalogCard = memo(
     const animateTo = (value: number) => {
       Animated.spring(scale, {
         toValue: value,
-        friction: 7,
-        tension: 90,
+        friction: 6,
+        tension: 40,
         useNativeDriver: true,
       }).start();
     };
@@ -78,9 +78,9 @@ const CourseCatalogCard = memo(
           accessibilityRole="button"
           accessibilityLabel={`Open ${title}`}
           onPress={onPress}
-          onPressIn={() => animateTo(0.97)}
+          onPressIn={() => animateTo(0.96)}
           onPressOut={() => animateTo(1)}
-          style={[
+          style={({ pressed }) => [
             styles.courseCard,
             {
               backgroundColor: tokens.glassSurface,
@@ -88,6 +88,7 @@ const CourseCatalogCard = memo(
               borderRadius: normalize(tokens.radius.xl),
               shadowColor: tokens.shadow,
               shadowOpacity: tokens.shadowOpacity,
+              opacity: pressed ? 0.95 : 1,
             },
           ]}
         >
@@ -106,13 +107,13 @@ const CourseCatalogCard = memo(
               {icon.type === 'FontAwesome5' ? (
                 <FontAwesome5
                   name={icon.name}
-                  size={normalize(20)}
+                  size={normalize(22)}
                   color={tokens.isDark ? colors.accent : icon.color}
                 />
               ) : (
                 <Feather
                   name={icon.name}
-                  size={normalize(21)}
+                  size={normalize(22)}
                   color={tokens.isDark ? colors.accent : icon.color}
                 />
               )}
@@ -123,8 +124,12 @@ const CourseCatalogCard = memo(
                 {
                   backgroundColor: isEnrolled
                     ? colors.tagGreen
-                    : colors.tagCyan,
+                    : price > 0
+                      ? colors.tagCyan
+                      : colors.tagOrange,
                   borderRadius: normalize(tokens.radius.pill),
+                  borderColor: tokens.glassBorder,
+                  borderWidth: 1,
                 },
               ]}
             >
@@ -134,7 +139,9 @@ const CourseCatalogCard = memo(
                   {
                     color: isEnrolled
                       ? colors.tagGreenText
-                      : colors.tagCyanText,
+                      : price > 0
+                        ? colors.tagCyanText
+                        : colors.tagOrangeText,
                   },
                 ]}
               >
@@ -153,7 +160,7 @@ const CourseCatalogCard = memo(
           <View style={styles.metaRow}>
             <Feather
               name="layers"
-              size={normalize(13)}
+              size={normalize(14)}
               color={colors.textSecondary}
             />
             <Text style={[styles.metaText, { color: colors.textSecondary }]}>
@@ -182,13 +189,13 @@ const CourseCatalogCard = memo(
                 styles.arrowButton,
                 {
                   backgroundColor: colors.accent,
-                  borderRadius: normalize(tokens.radius.sm),
+                  borderRadius: normalize(tokens.radius.md),
                 },
               ]}
             >
               <Feather
-                name="arrow-up-right"
-                size={normalize(15)}
+                name="arrow-right"
+                size={normalize(16)}
                 color={tokens.onAccent}
               />
             </View>
@@ -336,61 +343,63 @@ const CatalogState = ({
 const styles = StyleSheet.create({
   cardShell: {
     flex: 1,
-    maxWidth: '50%',
-    paddingHorizontal: normalize(6),
-    marginBottom: verticalScale(12),
+    paddingHorizontal: normalize(8),
+    marginBottom: verticalScale(16),
   },
   courseCard: {
-    minHeight: verticalScale(220),
+    minHeight: verticalScale(230),
     borderWidth: 1,
-    padding: normalize(14),
-    shadowOffset: { width: 0, height: 8 },
-    shadowRadius: 16,
-    elevation: 3,
+    padding: normalize(16),
+    shadowOffset: { width: 0, height: 12 },
+    shadowRadius: 20,
+    elevation: 4,
+    display: 'flex',
+    flexDirection: 'column',
   },
   cardTopRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: verticalScale(14),
+    marginBottom: verticalScale(16),
   },
   iconWrap: {
-    width: normalize(44),
-    height: normalize(44),
+    width: normalize(48),
+    height: normalize(48),
     alignItems: 'center',
     justifyContent: 'center',
   },
   statusBadge: {
-    paddingHorizontal: normalize(7),
-    paddingVertical: verticalScale(4),
+    paddingHorizontal: normalize(8),
+    paddingVertical: verticalScale(5),
     maxWidth: '58%',
   },
   statusText: {
-    fontSize: normalize(8),
+    fontSize: normalize(9),
     fontWeight: '800',
-    letterSpacing: 0.4,
+    letterSpacing: 0.5,
   },
   courseTitle: {
-    minHeight: normalize(42),
-    fontSize: normalize(14),
+    minHeight: normalize(44),
+    fontSize: normalize(15),
     fontWeight: '800',
-    lineHeight: normalize(20),
-    marginBottom: verticalScale(10),
+    lineHeight: normalize(22),
+    marginBottom: verticalScale(12),
+    letterSpacing: 0.2,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: normalize(6),
+    gap: normalize(8),
   },
   metaText: {
     flex: 1,
-    fontSize: normalize(11),
+    fontSize: normalize(12),
     fontWeight: '600',
   },
   cardFooter: {
     marginTop: 'auto',
-    paddingTop: verticalScale(12),
-    borderTopWidth: 1,
+    paddingTop: verticalScale(14),
+    borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -400,22 +409,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
-    gap: normalize(5),
+    gap: normalize(6),
   },
   priceText: {
-    fontSize: normalize(13),
+    fontSize: normalize(14),
     fontWeight: '800',
   },
   originalPrice: {
-    fontSize: normalize(10),
+    fontSize: normalize(11),
     fontWeight: '600',
     textDecorationLine: 'line-through',
   },
   arrowButton: {
-    width: normalize(30),
-    height: normalize(30),
+    width: normalize(32),
+    height: normalize(32),
     alignItems: 'center',
     justifyContent: 'center',
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 6,
+    shadowOpacity: 0.25,
+    elevation: 2,
   },
   searchContainer: {
     height: verticalScale(52),
