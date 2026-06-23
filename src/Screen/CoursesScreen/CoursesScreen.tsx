@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, ActivityIndicator, Modal, Linking, FlatList, Animated, RefreshControl, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, ActivityIndicator, Modal, Linking, FlatList, Animated, RefreshControl, useWindowDimensions, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from 'react-native-vector-icons/Feather';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
@@ -2062,10 +2062,17 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                             (bundleId ? enrolledBundleIds.includes(String(bundleId)) : false) ||
                                             (bundleId ? enrolledBundleOverrides.has(String(bundleId)) : false));
                                 
-                                        setSelectedBundle({
+                                        const finalBundle = {
                                             ...normalizedBundle,
                                             isEnrolled: hasEnrolledAccess,
-                                        });
+                                        };
+
+                                        if (hasEnrolledAccess) {
+                                            openBundleDetails(finalBundle, 'view');
+                                            return;
+                                        }
+
+                                        setSelectedBundle(finalBundle);
                                         setShowBundleActionModal(true);
                                     };
 
@@ -3284,20 +3291,23 @@ const getStyles = (colors: any, tokens: any) => StyleSheet.create({
     },
     modalOverlay: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: normalize(24),
+        justifyContent: 'flex-end',
     },
     modalBackdrop: {
-        ...StyleSheet.absoluteFill,
+        ...StyleSheet.absoluteFill as any,
         backgroundColor: tokens.overlay,
     },
     modalCard: {
         width: '100%',
         backgroundColor: colors.cardBackground,
-        borderRadius: normalize(tokens.radius.xl),
-        padding: normalize(22),
-        borderWidth: 1,
+        borderTopLeftRadius: normalize(tokens.radius.xl),
+        borderTopRightRadius: normalize(tokens.radius.xl),
+        paddingHorizontal: normalize(24),
+        paddingTop: normalize(24),
+        paddingBottom: Platform.OS === 'ios' ? normalize(44) : normalize(24),
+        borderTopWidth: 1,
+        borderLeftWidth: 1,
+        borderRightWidth: 1,
         borderColor: colors.border,
     },
     modalLabel: {
