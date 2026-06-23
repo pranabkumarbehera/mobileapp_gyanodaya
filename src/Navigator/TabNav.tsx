@@ -86,11 +86,11 @@ const TabNav = () => {
                     height: normalize(5),
                     borderRadius: normalize(2.5),
                     backgroundColor: colors.tabActive,
-                    shadowColor: colors.tabActive,
-                    shadowOffset: { width: 0, height: 1 },
-                    shadowOpacity: 0.8,
-                    shadowRadius: 3,
-                    elevation: 2,
+                    
+                    
+                    
+                    
+                    
                   }} 
                 />
               )}
@@ -115,11 +115,11 @@ const TabNav = () => {
           height: verticalScale(64),
           paddingBottom: verticalScale(8),
           paddingTop: verticalScale(8),
-          shadowColor: tokens.shadow,
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: tokens.shadowOpacity,
-          shadowRadius: 16,
-          elevation: 6,
+          
+          
+          
+          
+          
         },
 
         tabBarLabelStyle: {

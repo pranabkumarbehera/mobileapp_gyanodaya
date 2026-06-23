@@ -211,10 +211,10 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: verticalScale(40),
-        shadowColor: '#00F2FE',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
+        
+        
+        
+        
     },
     textContainer: {
         alignItems: 'center',
@@ -258,11 +258,11 @@ const styles = StyleSheet.create({
         paddingVertical: verticalScale(16),
         paddingHorizontal: normalize(24),
         borderRadius: normalize(12),
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 6,
+        
+        
+        
+        
+        
     },
     primaryButtonText: {
         color: '#FFFFFF',

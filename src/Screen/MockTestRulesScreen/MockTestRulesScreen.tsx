@@ -264,11 +264,11 @@ const getStyles = (colors: any, tokens: any) => StyleSheet.create({
         borderColor: tokens.glassBorder,
         padding: normalize(20),
         marginBottom: verticalScale(18),
-        shadowColor: tokens.shadow,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: tokens.shadowOpacity,
-        shadowRadius: 8,
-        elevation: 2,
+        
+        
+        
+        
+        
     },
     titleRow: {
         flexDirection: 'row',
@@ -334,11 +334,11 @@ const getStyles = (colors: any, tokens: any) => StyleSheet.create({
         borderColor: tokens.glassBorder,
         padding: normalize(20),
         marginBottom: verticalScale(18),
-        shadowColor: tokens.shadow,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: tokens.shadowOpacity,
-        shadowRadius: 8,
-        elevation: 2,
+        
+        
+        
+        
+        
     },
     rulesTitle: {
         fontSize: normalize(18),

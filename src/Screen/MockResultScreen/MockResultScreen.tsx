@@ -474,7 +474,7 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
         const shimmerColors = isDarkTheme ? [colors.border, colors.Background, colors.border] : ['#E5E7EB', '#F3F4F6', '#E5E7EB'];
         return (
             <View style={styles.container}>
-                <StatusBar backgroundColor={colors.statusBg} barStyle={colors.statusBar} />
+                <StatusBar backgroundColor={colors.Primary} barStyle="light-content" />
                 <View style={styles.headerBackground}>
                     <SafeAreaView edges={['top']}>
                         <View style={styles.topBar}>
@@ -525,7 +525,7 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
 
     return (
         <View style={styles.container}>
-            <StatusBar backgroundColor={colors.statusBg} barStyle={colors.statusBar} />
+            <StatusBar backgroundColor={colors.Primary} barStyle="light-content" />
 
             <FlatList
                 data={visibleReviewItems}
@@ -571,7 +571,7 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
 const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.Background },
     centered: { justifyContent: 'center', alignItems: 'center' },
-    headerBackground: { backgroundColor: colors.statusBg, paddingBottom: verticalScale(20) },
+    headerBackground: { backgroundColor: colors.Primary, paddingBottom: verticalScale(20) },
     topBar: { paddingHorizontal: normalize(24), paddingTop: verticalScale(16) },
     headerSubtitle: { fontSize: normalize(10), fontWeight: '600', color: '#9CA3AF', letterSpacing: 1, marginBottom: verticalScale(4) },
     headerTitle: { fontSize: normalize(22), fontWeight: 'bold', color: '#FFFFFF' },
@@ -580,7 +580,7 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
     loadingText: { marginTop: verticalScale(12), color: colors.textSecondary },
     loadingTitle: { fontSize: normalize(24), fontWeight: '700', color: '#FFFFFF' },
     loadingSubtitle: { marginTop: verticalScale(6), fontSize: normalize(12), lineHeight: normalize(18), color: '#D1D5DB', maxWidth: '84%' },
-    scoreCard: { backgroundColor: colors.cardBackground, borderRadius: normalize(16), padding: normalize(20), marginBottom: verticalScale(16), shadowColor: isDarkTheme ? colors.accent : '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: isDarkTheme ? 0.16 : 0.05, shadowRadius: 10, elevation: 5, borderWidth: 1, borderColor: colors.border },
+    scoreCard: { backgroundColor: colors.cardBackground, borderRadius: normalize(16), padding: normalize(20), marginBottom: verticalScale(16),      borderWidth: 1, borderColor: colors.border },
     scoreTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: verticalScale(20) },
     finalScoreLabel: { fontSize: normalize(11), fontWeight: 'bold', color: colors.textSecondary, letterSpacing: 0.5, marginBottom: verticalScale(4) },
     scoreValueRow: { flexDirection: 'row', alignItems: 'baseline' },
@@ -608,7 +608,7 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
     reviewHeader: { marginBottom: verticalScale(14) },
     reviewTitle: { fontSize: normalize(18), fontWeight: 'bold', color: colors.text, marginBottom: verticalScale(4) },
     reviewSubtitle: { fontSize: normalize(12), color: colors.textSecondary },
-    reviewCard: { backgroundColor: colors.cardBackground, borderRadius: normalize(14), padding: normalize(16), marginHorizontal: normalize(20), marginBottom: verticalScale(14), borderWidth: 1, borderColor: colors.border, shadowColor: isDarkTheme ? colors.accent : '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: isDarkTheme ? 0.12 : 0.03, shadowRadius: 6, elevation: 2 },
+    reviewCard: { backgroundColor: colors.cardBackground, borderRadius: normalize(14), padding: normalize(16), marginHorizontal: normalize(20), marginBottom: verticalScale(14), borderWidth: 1, borderColor: colors.border,     },
     reviewCardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: verticalScale(10) },
     reviewQNum: { fontSize: normalize(13), fontWeight: '700', color: colors.Primary },
     reviewMeta: { fontSize: normalize(11), color: colors.textSecondary, marginTop: verticalScale(4) },
@@ -636,7 +636,7 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
     footerSpace: { paddingHorizontal: normalize(20), paddingBottom: verticalScale(16) },
     loadMoreBtn: { alignSelf: 'center', backgroundColor: colors.tagCyan, paddingHorizontal: normalize(18), paddingVertical: verticalScale(10), borderRadius: normalize(999), borderWidth: 1, borderColor: colors.border },
     loadMoreText: { color: colors.tagCyanText, fontSize: normalize(13), fontWeight: '700' },
-    bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: normalize(20), paddingVertical: verticalScale(16), backgroundColor: colors.cardBackground, borderTopWidth: 1, borderTopColor: colors.border, gap: normalize(12), shadowColor: isDarkTheme ? colors.accent : '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: isDarkTheme ? 0.16 : 0.05, shadowRadius: 10, elevation: 10 },
+    bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: normalize(20), paddingVertical: verticalScale(16), backgroundColor: colors.cardBackground, borderTopWidth: 1, borderTopColor: colors.border, gap: normalize(12),     },
     retryBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: verticalScale(12), borderRadius: normalize(10), borderWidth: 1, borderColor: colors.border, backgroundColor: colors.Background },
     retryBtnText: { color: colors.text, fontSize: normalize(15), fontWeight: '600' },
     homeBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.Primary, paddingVertical: verticalScale(12), paddingHorizontal: normalize(14), borderRadius: normalize(10) },

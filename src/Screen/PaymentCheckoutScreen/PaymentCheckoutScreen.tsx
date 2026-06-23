@@ -6,6 +6,8 @@ import {
     StyleSheet,
     Text,
     View,
+    Linking,
+    Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StackScreenProps } from '@react-navigation/stack';
@@ -93,6 +95,36 @@ const PaymentCheckoutScreen = ({ navigation, route }: Props) => {
         completeCheckout(false);
     };
 
+    const handleShouldStartLoadWithRequest = (request: any) => {
+        const reqUrl = request.url;
+        if (
+            reqUrl.startsWith('intent://') ||
+            reqUrl.startsWith('upi://') ||
+            reqUrl.startsWith('tez://') ||
+            reqUrl.startsWith('phonepe://') ||
+            reqUrl.startsWith('paytmmp://') ||
+            reqUrl.startsWith('gpay://')
+        ) {
+            Linking.canOpenURL(reqUrl)
+                .then((supported) => {
+                    if (supported) {
+                        Linking.openURL(reqUrl);
+                    } else {
+                        Toast.show({ type: 'error', text1: 'UPI App not installed on your device.' });
+                    }
+                })
+                .catch((err) => {
+                    console.log('Error opening URI: ', err);
+                });
+            return false;
+        }
+        return true;
+    };
+
+    const customUserAgent = Platform.OS === 'android'
+        ? 'Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36'
+        : 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1';
+
     return (
         <View style={[styles.container, { backgroundColor: colors.Background }]}>
             <StatusBar backgroundColor={colors.statusBg} barStyle={colors.statusBar} />
@@ -120,6 +152,9 @@ const PaymentCheckoutScreen = ({ navigation, route }: Props) => {
             <EmbeddedWebView
                 ref={webViewRef}
                 source={{ uri: url }}
+                userAgent={customUserAgent}
+                originWhitelist={['*']}
+                onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
                 onNavigationStateChange={handleNavigationChange}
                 onLoadStart={() => setIsLoading(true)}
                 onLoadEnd={() => setIsLoading(false)}

@@ -171,7 +171,7 @@ const CoursesPaymentHistoryScreen = ({ navigation }: CoursesPaymentHistoryScreen
 
     return (
         <View style={styles.container}>
-            <StatusBar backgroundColor={colors.statusBg} barStyle={colors.statusBar} />
+            <StatusBar backgroundColor={colors.Primary} barStyle="light-content" />
 
             <View style={styles.headerBackground}>
                 <SafeAreaView edges={['top']}>
@@ -329,12 +329,12 @@ const CoursesPaymentHistoryScreen = ({ navigation }: CoursesPaymentHistoryScreen
 
 const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.Background },
-    headerBackground: { backgroundColor: colors.statusBg, paddingBottom: verticalScale(16) },
+    headerBackground: { backgroundColor: colors.Primary, paddingBottom: verticalScale(16) },
     topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: normalize(20), paddingTop: verticalScale(10) },
     iconButton: { padding: normalize(8), width: normalize(40) },
     headerTitle: { fontSize: normalize(18), fontWeight: 'bold', color: '#FFFFFF' },
     scrollContent: { paddingHorizontal: normalize(16), paddingVertical: verticalScale(16) },
-    cardContainer: { backgroundColor: colors.cardBackground, borderRadius: normalize(16), shadowColor: isDarkTheme ? colors.accent : '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: isDarkTheme ? 0.16 : 0.05, shadowRadius: 10, elevation: 3, borderWidth: 1, borderColor: colors.border, paddingBottom: verticalScale(10) },
+    cardContainer: { backgroundColor: colors.cardBackground, borderRadius: normalize(16),      borderWidth: 1, borderColor: colors.border, paddingBottom: verticalScale(10) },
     titleBlock: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: normalize(20), paddingVertical: verticalScale(16) },
     receiptIconBg: { width: normalize(44), height: normalize(44), borderRadius: normalize(10), backgroundColor: colors.Background, justifyContent: 'center', alignItems: 'center', marginRight: normalize(14), borderWidth: 1, borderColor: colors.border },
     titleInfo: { flex: 1 },

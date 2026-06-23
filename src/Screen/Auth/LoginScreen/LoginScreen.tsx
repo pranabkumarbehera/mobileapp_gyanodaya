@@ -210,11 +210,11 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                             { 
                                 backgroundColor: tokens.glassSurface,
                                 borderColor: emailFocused ? colors.accent : (touched.email && errors.email ? tokens.danger : tokens.glassBorder),
-                                shadowColor: colors.accent,
-                                shadowOffset: { width: 0, height: 0 },
-                                shadowOpacity: emailFocused && isDarkTheme ? 0.35 : 0,
-                                shadowRadius: 8,
-                                elevation: emailFocused ? 2 : 0,
+                                
+                                
+                                
+                                
+                                
                             }
                         ]}>
                             <Icon name="mail" size={normalize(18)} color={emailFocused ? colors.accent : colors.textSecondary} style={styles.inputIcon} />
@@ -246,11 +246,11 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                             { 
                                 backgroundColor: tokens.glassSurface,
                                 borderColor: passwordFocused ? colors.accent : (touched.password && errors.password ? tokens.danger : tokens.glassBorder),
-                                shadowColor: colors.accent,
-                                shadowOffset: { width: 0, height: 0 },
-                                shadowOpacity: passwordFocused && isDarkTheme ? 0.35 : 0,
-                                shadowRadius: 8,
-                                elevation: passwordFocused ? 2 : 0,
+                                
+                                
+                                
+                                
+                                
                             }
                         ]}>
                             <Icon name="lock" size={normalize(18)} color={passwordFocused ? colors.accent : colors.textSecondary} style={styles.inputIcon} />
@@ -301,10 +301,10 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                                 borderColor: tokens.glassBorder,
                                 borderWidth: 1,
                                 transform: [{ scale: buttonScale }],
-                                shadowColor: tokens.shadow,
-                                shadowOpacity: tokens.shadowOpacity,
-                                shadowRadius: 8,
-                                shadowOffset: { width: 0, height: 4 },
+                                
+                                
+                                
+                                
                             }
                         ]} 
                         onPress={handleLogin} 
@@ -414,11 +414,11 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: verticalScale(30),
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 6,
+        
+        
+        
+        
+        
     },
     loginButtonText: {
         fontSize: normalize(16),

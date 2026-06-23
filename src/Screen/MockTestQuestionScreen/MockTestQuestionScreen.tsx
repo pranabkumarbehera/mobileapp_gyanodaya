@@ -575,7 +575,7 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
     if (isSubmittingExam) {
         return (
             <View style={styles.container}>
-                <StatusBar backgroundColor={colors.statusBg} barStyle={colors.statusBar} />
+                <StatusBar backgroundColor={colors.Primary} barStyle="light-content" />
                 <View style={styles.headerBackground}>
                     <SafeAreaView edges={['top']}>
                         <View style={styles.topBar}>
@@ -609,7 +609,7 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
 
     return (
         <View style={styles.container}>
-            <StatusBar backgroundColor={colors.statusBg} barStyle={colors.statusBar} />
+            <StatusBar backgroundColor={colors.Primary} barStyle="light-content" />
 
             <View style={styles.headerBackground}>
                 <SafeAreaView edges={['top']}>
@@ -639,7 +639,7 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
                                 ]}>
                                 Jump
                             </Animated.Text>
-                            <Icon name="grid" size={normalize(22)} color="#FFFFFF" />
+                            <Icon name="grid" size={normalize(22)} color="#EF4444" />
                         </Pressable>
                     </View>
                 </SafeAreaView>
@@ -846,11 +846,11 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
 
 const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.Background },
-    headerBackground: { backgroundColor: colors.statusBg },
+    headerBackground: { backgroundColor: colors.Primary },
     topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: normalize(24), paddingTop: verticalScale(10), paddingBottom: verticalScale(16) },
     iconButton: { padding: normalize(4) },
     jumpButton: { flexDirection: 'row', alignItems: 'center', padding: normalize(4) },
-    jumpButtonText: { color: '#FFFFFF', fontSize: normalize(14), fontWeight: '800', marginRight: normalize(8) },
+    jumpButtonText: { color: '#EF4444', fontSize: normalize(14), fontWeight: '800', marginRight: normalize(8) },
     headerTitle: { fontSize: normalize(18), fontWeight: 'bold', color: '#FFFFFF', flex: 1, textAlign: 'center', marginHorizontal: normalize(8) },
     subHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: normalize(24), paddingVertical: verticalScale(16), backgroundColor: colors.cardBackground, borderBottomWidth: 1, borderBottomColor: colors.border },
     qCountBadge: { paddingHorizontal: normalize(12), paddingVertical: verticalScale(6), backgroundColor: colors.Background, borderRadius: normalize(12), borderWidth: 1, borderColor: colors.border },
@@ -874,13 +874,13 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
     questionText: { fontSize: normalize(16), color: colors.text, fontWeight: '600', lineHeight: normalize(24) },
     optionsContainer: { gap: verticalScale(12) },
     optionContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: normalize(16), paddingVertical: verticalScale(12), borderRadius: normalize(8), borderWidth: 1, borderColor: colors.border, borderLeftWidth: normalize(6), borderLeftColor: colors.border, backgroundColor: colors.cardBackground },
-    optionSelected: { borderColor: colors.Primary, borderLeftColor: colors.Primary, shadowColor: colors.Primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
+    optionSelected: { borderColor: colors.Primary, borderLeftColor: colors.Primary,     },
     radioCircle: { width: normalize(20), height: normalize(20), borderRadius: normalize(10), borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginRight: normalize(12) },
     radioCircleSelected: { borderColor: colors.accent },
     radioDot: { width: normalize(10), height: normalize(10), borderRadius: normalize(5), backgroundColor: colors.Primary },
     optionLetter: { fontSize: normalize(15), color: colors.text, fontWeight: '600', marginRight: normalize(8) },
     optionText: { fontSize: normalize(15), color: colors.text, flex: 1 },
-    bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: normalize(20), paddingVertical: verticalScale(16), backgroundColor: colors.cardBackground, borderTopWidth: 1, borderTopColor: colors.border, shadowColor: isDarkTheme ? colors.accent : '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: isDarkTheme ? 0.16 : 0.05, shadowRadius: 10, elevation: 10 },
+    bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: normalize(20), paddingVertical: verticalScale(16), backgroundColor: colors.cardBackground, borderTopWidth: 1, borderTopColor: colors.border,     },
     prevButton: { flexDirection: 'row', alignItems: 'center', paddingVertical: verticalScale(10), paddingHorizontal: normalize(12) },
     prevButtonText: { color: colors.textSecondary, fontSize: normalize(15), fontWeight: '600', marginLeft: normalize(4) },
     reviewButton: { flexDirection: 'row', alignItems: 'center', paddingVertical: verticalScale(10), paddingHorizontal: normalize(20), borderRadius: normalize(10), borderWidth: 1, borderColor: colors.accent },
@@ -935,11 +935,11 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
         paddingHorizontal: normalize(32),
         paddingVertical: verticalScale(32),
         alignItems: 'center',
-        shadowColor: isDarkTheme ? colors.accent : '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.1,
-        shadowRadius: 20,
-        elevation: 10,
+        
+        
+        
+        
+        
         width: '80%',
         borderWidth: 1,
         borderColor: colors.border,

@@ -86,8 +86,8 @@ const CourseCatalogCard = memo(
               backgroundColor: tokens.glassSurface,
               borderColor: tokens.glassBorder,
               borderRadius: normalize(tokens.radius.xl),
-              shadowColor: tokens.shadow,
-              shadowOpacity: tokens.shadowOpacity,
+              
+              
               opacity: pressed ? 0.95 : 1,
             },
           ]}
@@ -215,8 +215,8 @@ const CatalogSearch = memo(
           backgroundColor: tokens.glassSurface,
           borderColor: tokens.glassBorder,
           borderRadius: normalize(tokens.radius.lg),
-          shadowColor: tokens.shadow,
-          shadowOpacity: tokens.shadowOpacity * 0.45,
+          
+          
         },
       ]}
     >
@@ -350,9 +350,9 @@ const styles = StyleSheet.create({
     minHeight: verticalScale(230),
     borderWidth: 1,
     padding: normalize(16),
-    shadowOffset: { width: 0, height: 12 },
-    shadowRadius: 20,
-    elevation: 4,
+    
+    
+    
     display: 'flex',
     flexDirection: 'column',
   },
@@ -425,10 +425,10 @@ const styles = StyleSheet.create({
     height: normalize(32),
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 6,
-    shadowOpacity: 0.25,
-    elevation: 2,
+    
+    
+    
+    
   },
   searchContainer: {
     height: verticalScale(52),
@@ -437,9 +437,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: normalize(10),
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
-    elevation: 2,
+    
+    
+    
   },
   searchInput: {
     flex: 1,

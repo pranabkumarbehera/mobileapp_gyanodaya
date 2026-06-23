@@ -50,7 +50,7 @@ export const themes: Record<string, ThemeColors> = {
         border: '#0E3254',
         accent: '#f0a335',
         statusBar: 'light-content',
-        statusBg: '#04111F',
+        statusBg: '#0379f7ff',
         tabBg: '#071E34',
         tabActive: '#f0a335',
         tabInactive: '#2D5172',

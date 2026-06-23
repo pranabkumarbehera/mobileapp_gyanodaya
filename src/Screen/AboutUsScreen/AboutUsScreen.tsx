@@ -16,7 +16,7 @@ const AboutUsScreen = ({ navigation }: AboutUsScreenProps) => {
 
     return (
         <View style={styles.container}>
-            <StatusBar backgroundColor={colors.statusBg} barStyle={colors.statusBar} />
+            <StatusBar backgroundColor={colors.Primary} barStyle="light-content" />
 
             <View style={styles.headerBackground}>
                 <SafeAreaView edges={['top']}>
@@ -106,12 +106,12 @@ const AboutUsScreen = ({ navigation }: AboutUsScreenProps) => {
 
 const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.Background },
-    headerBackground: { backgroundColor: colors.statusBg, paddingBottom: verticalScale(16) },
+    headerBackground: { backgroundColor: colors.Primary, paddingBottom: verticalScale(16) },
     topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: normalize(20), paddingTop: verticalScale(10) },
     iconButton: { padding: normalize(8), width: normalize(40) },
     headerTitle: { fontSize: normalize(18), fontWeight: 'bold', color: '#FFFFFF' },
     scrollContent: { paddingHorizontal: normalize(20), paddingVertical: verticalScale(24), paddingBottom: verticalScale(40) },
-    contentCard: { backgroundColor: colors.cardBackground, borderRadius: normalize(16), padding: normalize(20), shadowColor: isDarkTheme ? colors.accent : '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: isDarkTheme ? 0.16 : 0.05, shadowRadius: 10, elevation: 3, borderWidth: 1, borderColor: colors.border },
+    contentCard: { backgroundColor: colors.cardBackground, borderRadius: normalize(16), padding: normalize(20),      borderWidth: 1, borderColor: colors.border },
     introText: { fontSize: normalize(14), color: colors.textSecondary, lineHeight: normalize(22), marginBottom: verticalScale(20) },
     highlightText: { fontWeight: 'bold', color: colors.Primary, fontSize: normalize(15) },
     sectionHeading: { fontSize: normalize(15), fontWeight: 'bold', color: colors.text, marginBottom: verticalScale(12), marginTop: verticalScale(8) },

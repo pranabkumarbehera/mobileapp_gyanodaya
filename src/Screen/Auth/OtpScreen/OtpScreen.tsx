@@ -177,11 +177,11 @@ const OtpScreen = ({ route, navigation }: OtpScreenProps) => {
                                         digit ? { borderColor: colors.accent, backgroundColor: colors.Background } : null,
                                         focusedIndex === index ? { borderColor: colors.accent, borderWidth: 2 } : null,
                                         focusedIndex === index && isDarkTheme ? {
-                                            shadowColor: colors.accent,
-                                            shadowOffset: { width: 0, height: 0 },
-                                            shadowOpacity: 0.35,
-                                            shadowRadius: 8,
-                                            elevation: 2,
+                                            
+                                            
+                                            
+                                            
+                                            
                                         } : null
                                     ]}
                                     value={digit}
@@ -208,10 +208,10 @@ const OtpScreen = ({ route, navigation }: OtpScreenProps) => {
                                     borderColor: colors.border,
                                     borderWidth: isDarkTheme ? 1 : 0,
                                     transform: [{ scale: buttonScale }],
-                                    shadowColor: isDarkTheme ? colors.accent : '#000000',
-                                    shadowOpacity: isDarkTheme ? 0.25 : 0.1,
-                                    shadowRadius: 8,
-                                    shadowOffset: { width: 0, height: 4 },
+                                    
+                                    
+                                    
+                                    
                                 },
                                 !isOtpComplete() && styles.submitButtonDisabled
                             ]}
@@ -320,11 +320,11 @@ const styles = StyleSheet.create({
         height: verticalScale(55),
         justifyContent: 'center',
         alignItems: 'center',
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 6,
+        
+        
+        
+        
+        
     },
     submitButtonDisabled: {
         opacity: 0.7,

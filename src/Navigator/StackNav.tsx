@@ -113,7 +113,7 @@ const StackNav = () => {
         return (
             <View style={{ flex: 1, backgroundColor: colors.Background, justifyContent: 'center', alignItems: 'center' }}>
                 <StatusBar backgroundColor={colors.Background} barStyle={statusBarStyle} />
-                <View style={{ backgroundColor: tokens.glassSurface, borderColor: tokens.glassBorder, borderWidth: 1, paddingHorizontal: 28, paddingVertical: 24, borderRadius: tokens.radius.lg, alignItems: 'center', shadowColor: tokens.shadow, shadowOpacity: tokens.shadowOpacity, shadowRadius: 18 }}>
+                <View style={{ backgroundColor: tokens.glassSurface, borderColor: tokens.glassBorder, borderWidth: 1, paddingHorizontal: 28, paddingVertical: 24, borderRadius: tokens.radius.lg, alignItems: 'center',   }}>
                     <ActivityIndicator size="large" color={colors.accent} />
                     <Text style={{ marginTop: 12, color: colors.text, fontSize: 14, fontWeight: '600' }}>{t('home.loading_dashboard')}</Text>
                 </View>

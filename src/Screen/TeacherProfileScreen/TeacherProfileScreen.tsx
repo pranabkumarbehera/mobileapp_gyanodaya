@@ -42,7 +42,7 @@ const TeacherProfileScreen = ({ route, navigation }: TeacherProfileProps) => {
 
     return (
         <View style={styles.container}>
-            <StatusBar backgroundColor={colors.statusBg} barStyle={colors.statusBar} />
+            <StatusBar backgroundColor={colors.Primary} barStyle="light-content" />
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
                 <View style={styles.headerBackground}>
@@ -179,12 +179,12 @@ const TeacherProfileScreen = ({ route, navigation }: TeacherProfileProps) => {
 const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.Background },
     scrollContent: { flexGrow: 1 },
-    headerBackground: { backgroundColor: colors.statusBg, height: verticalScale(180), borderBottomLeftRadius: normalize(30), borderBottomRightRadius: normalize(30) },
+    headerBackground: { backgroundColor: colors.Primary, height: verticalScale(180), borderBottomLeftRadius: normalize(30), borderBottomRightRadius: normalize(30) },
     topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: normalize(24), paddingTop: verticalScale(10) },
     iconButton: { padding: normalize(8), marginHorizontal: -normalize(8) },
     headerTitle: { fontSize: normalize(18), fontWeight: 'bold', color: '#FFFFFF' },
     profileCardWrapper: { paddingHorizontal: normalize(24), marginTop: -verticalScale(80) },
-    profileCard: { backgroundColor: colors.cardBackground, borderRadius: normalize(20), padding: normalize(24), alignItems: 'center', shadowColor: isDarkTheme ? colors.accent : '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: isDarkTheme ? 0.16 : 0.08, shadowRadius: 15, elevation: 5, borderWidth: 1, borderColor: colors.border },
+    profileCard: { backgroundColor: colors.cardBackground, borderRadius: normalize(20), padding: normalize(24), alignItems: 'center',      borderWidth: 1, borderColor: colors.border },
     avatarContainer: { width: normalize(70), height: normalize(70), borderRadius: normalize(35), backgroundColor: colors.tagCyan, justifyContent: 'center', alignItems: 'center', marginBottom: verticalScale(12), borderWidth: 4, borderColor: colors.cardBackground, marginTop: -normalize(40) },
     avatarText: { fontSize: normalize(24), fontWeight: 'bold', color: colors.tagCyanText },
     teacherName: { fontSize: normalize(20), fontWeight: 'bold', color: colors.text, marginBottom: verticalScale(4) },
@@ -210,7 +210,7 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
     subjectScore: { fontSize: normalize(14), color: colors.text, fontWeight: 'bold' },
     progressBarBg: { width: '100%', height: verticalScale(6), backgroundColor: colors.border, borderRadius: normalize(3), overflow: 'hidden' },
     progressBarFill: { height: '100%', borderRadius: normalize(3) },
-    courseCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.cardBackground, borderRadius: normalize(16), padding: normalize(16), marginBottom: verticalScale(12), shadowColor: isDarkTheme ? colors.accent : '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: isDarkTheme ? 0.12 : 0.03, shadowRadius: 10, elevation: 3, borderWidth: 1, borderColor: colors.border },
+    courseCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.cardBackground, borderRadius: normalize(16), padding: normalize(16), marginBottom: verticalScale(12),      borderWidth: 1, borderColor: colors.border },
     courseIconContainer: { width: normalize(48), height: normalize(48), borderRadius: normalize(12), backgroundColor: colors.Background, justifyContent: 'center', alignItems: 'center', marginRight: normalize(16), borderWidth: 1, borderColor: colors.border },
     courseInfo: { flex: 1 },
     courseTitle: { fontSize: normalize(15), fontWeight: 'bold', color: colors.text, marginBottom: verticalScale(4) },

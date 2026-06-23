@@ -272,6 +272,12 @@ function parseHtmlToTipTap(html: string): TipTapNode[] {
 
     html = html.replace(/<style[\s\S]*?<\/style>/gi, '');
     html = html.replace(/<script[\s\S]*?<\/script>/gi, '');
+    
+    // Replace <br> and encoded <br> with newlines, and handle extra spaces/empty paragraphs
+    html = html.replace(/&lt;br\s*\/?&gt;/gi, '\n');
+    html = html.replace(/<br\s*\/?>/gi, '\n');
+    html = html.replace(/&nbsp;/gi, ' ');
+    html = html.replace(/<p>\s*<\/p>/gi, '');
 
     const blockRegex = /<(p|h[1-6]|blockquote|pre|ul|ol|table|div)[^>]*>([\s\S]*?)<\/\1>/gi;
     const blocks: TipTapNode[] = [];
@@ -1119,11 +1125,11 @@ const styles = StyleSheet.create({
         borderRadius: normalize(10),
         borderWidth: 1,
         overflow: 'hidden',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 4,
-        elevation: 2,
+        
+        
+        
+        
+        
     },
     videoPreviewWrap: {
         height: normalize(160),
@@ -1154,11 +1160,11 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(239, 68, 68, 0.95)',
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 5,
-        elevation: 6,
+        
+        
+        
+        
+        
     },
     videoFooter: {
         flexDirection: 'row',

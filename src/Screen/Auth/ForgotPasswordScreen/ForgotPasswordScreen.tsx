@@ -113,11 +113,11 @@ const ForgotPasswordScreen = ({ navigation }: ForgotPasswordScreenProps) => {
                                 {
                                     backgroundColor: colors.cardBackground,
                                     borderColor: emailFocused ? colors.accent : (touched && emailError ? '#EF4444' : colors.border),
-                                    shadowColor: colors.accent,
-                                    shadowOffset: { width: 0, height: 0 },
-                                    shadowOpacity: emailFocused && isDarkTheme ? 0.35 : 0,
-                                    shadowRadius: 8,
-                                    elevation: emailFocused ? 2 : 0,
+                                    
+                                    
+                                    
+                                    
+                                    
                                 }
                             ]}>
                                 <Icon name="mail" size={normalize(18)} color={emailFocused ? colors.accent : colors.textSecondary} style={styles.inputIcon} />
@@ -144,10 +144,10 @@ const ForgotPasswordScreen = ({ navigation }: ForgotPasswordScreenProps) => {
                                     borderColor: colors.border,
                                     borderWidth: isDarkTheme ? 1 : 0,
                                     transform: [{ scale: buttonScale }],
-                                    shadowColor: isDarkTheme ? colors.accent : '#000000',
-                                    shadowOpacity: isDarkTheme ? 0.25 : 0.1,
-                                    shadowRadius: 8,
-                                    shadowOffset: { width: 0, height: 4 },
+                                    
+                                    
+                                    
+                                    
                                 }
                             ]}
                             onPress={handleSendOTP}
@@ -244,11 +244,11 @@ const styles = StyleSheet.create({
         height: verticalScale(55),
         justifyContent: 'center',
         alignItems: 'center',
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 6,
+        
+        
+        
+        
+        
     },
     submitButtonText: {
         color: '#FFFFFF',

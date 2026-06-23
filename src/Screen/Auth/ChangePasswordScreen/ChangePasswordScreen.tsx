@@ -192,11 +192,11 @@ const ChangePasswordScreen = ({ route, navigation }: ChangePasswordScreenProps) 
                                     {
                                         backgroundColor: colors.cardBackground,
                                         borderColor: currentFocused ? colors.accent : (touched.currentPassword && errors.currentPassword ? '#EF4444' : colors.border),
-                                        shadowColor: colors.accent,
-                                        shadowOffset: { width: 0, height: 0 },
-                                        shadowOpacity: currentFocused && isDarkTheme ? 0.35 : 0,
-                                        shadowRadius: 8,
-                                        elevation: currentFocused ? 2 : 0,
+                                        
+                                        
+                                        
+                                        
+                                        
                                     }
                                 ]}>
                                     <Icon name="lock" size={normalize(18)} color={currentFocused ? colors.accent : colors.textSecondary} style={styles.inputIcon} />
@@ -234,11 +234,11 @@ const ChangePasswordScreen = ({ route, navigation }: ChangePasswordScreenProps) 
                                 {
                                     backgroundColor: colors.cardBackground,
                                     borderColor: newFocused ? colors.accent : (touched.newPassword && errors.newPassword ? '#EF4444' : colors.border),
-                                    shadowColor: colors.accent,
-                                    shadowOffset: { width: 0, height: 0 },
-                                    shadowOpacity: newFocused && isDarkTheme ? 0.35 : 0,
-                                    shadowRadius: 8,
-                                    elevation: newFocused ? 2 : 0,
+                                    
+                                    
+                                    
+                                    
+                                    
                                 }
                             ]}>
                                 <Icon name="lock" size={normalize(18)} color={newFocused ? colors.accent : colors.textSecondary} style={styles.inputIcon} />
@@ -275,11 +275,11 @@ const ChangePasswordScreen = ({ route, navigation }: ChangePasswordScreenProps) 
                                 {
                                     backgroundColor: colors.cardBackground,
                                     borderColor: confirmFocused ? colors.accent : (touched.confirmPassword && errors.confirmPassword ? '#EF4444' : colors.border),
-                                    shadowColor: colors.accent,
-                                    shadowOffset: { width: 0, height: 0 },
-                                    shadowOpacity: confirmFocused && isDarkTheme ? 0.35 : 0,
-                                    shadowRadius: 8,
-                                    elevation: confirmFocused ? 2 : 0,
+                                    
+                                    
+                                    
+                                    
+                                    
                                 }
                             ]}>
                                 <Icon name="lock" size={normalize(18)} color={confirmFocused ? colors.accent : colors.textSecondary} style={styles.inputIcon} />
@@ -317,10 +317,10 @@ const ChangePasswordScreen = ({ route, navigation }: ChangePasswordScreenProps) 
                                     borderColor: colors.border,
                                     borderWidth: isDarkTheme ? 1 : 0,
                                     transform: [{ scale: buttonScale }],
-                                    shadowColor: isDarkTheme ? colors.accent : '#000000',
-                                    shadowOpacity: isDarkTheme ? 0.25 : 0.1,
-                                    shadowRadius: 8,
-                                    shadowOffset: { width: 0, height: 4 },
+                                    
+                                    
+                                    
+                                    
                                 }
                             ]}
                             onPress={handleChangePassword}
@@ -414,11 +414,11 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: verticalScale(10),
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 6,
+        
+        
+        
+        
+        
     },
     submitButtonText: {
         color: '#FFFFFF',

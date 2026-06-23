@@ -96,11 +96,11 @@ const StatCard = memo(({ label, value }: StatCardProps) => {
                     backgroundColor: tokens.glassSurface,
                     borderColor: tokens.glassBorder,
                     borderWidth: 1.5,
-                    shadowColor: tokens.shadow,
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: tokens.shadowOpacity,
-                    shadowRadius: 8,
-                    elevation: 2,
+                    
+                    
+                    
+                    
+                    
                 } : {
                     backgroundColor: cardBg,
                     borderColor: colors.border,
@@ -125,13 +125,13 @@ const RecentItemCard = memo(({ item, isLoading, onPress }: RecentItemCardProps) 
                 backgroundColor: tokens.glassSurface,
                 borderColor: tokens.glassBorder,
                 borderWidth: 1,
-                shadowColor: tokens.shadow,
-                shadowOpacity: tokens.shadowOpacity,
+                
+                
             },
             tokens.isDark && {
-                shadowOffset: { width: 0, height: 4 },
-                shadowRadius: 10,
-                elevation: 3,
+                
+                
+                
             }
         ]}>
             <View style={styles.resultTopRow}>
@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     listContent: {
-        paddingBottom: verticalScale(34),
+        paddingBottom: verticalScale(180),
         flexGrow: 1,
     },
     headerBackground: {
@@ -527,11 +527,11 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         borderWidth: 1,
         // borderColor: '#E6EAF0',
-        // shadowColor: '#0F172A',
-        // shadowOffset: { width: 0, height: 8 },
-        // shadowOpacity: 0.08,
-        // shadowRadius: 14,
-        // elevation: 4,
+        // 
+        // 
+        // 
+        // 
+        // 
     },
     statLabel: {
         color: '#586375',
@@ -564,11 +564,11 @@ const styles = StyleSheet.create({
         borderRadius: normalize(20),
         borderWidth: 1,
         borderColor: '#E2E8F0',
-        // shadowColor: '#0F172A',
-        // shadowOffset: { width: 0, height: 10 },
-        // shadowOpacity: 0.05,
-        // shadowRadius: 18,
-        // elevation: 4,
+        // 
+        // 
+        // 
+        // 
+        // 
     },
     resultTopRow: {
         flexDirection: 'column',

@@ -104,7 +104,7 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
     backButton: { width: normalize(36), height: normalize(36), borderRadius: normalize(18), justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.15)' },
     scrollContent: { padding: normalize(20) },
     sectionSubtitle: { fontSize: normalize(14), color: colors.textSecondary, marginBottom: verticalScale(24) },
-    glassCard: { backgroundColor: colors.cardBackground, borderRadius: normalize(16), borderWidth: 1, borderColor: colors.border, padding: normalize(16), marginBottom: verticalScale(16), shadowColor: isDarkTheme ? colors.accent : '#000000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: isDarkTheme ? 0.15 : 0.05, shadowRadius: 10, elevation: 3 },
+    glassCard: { backgroundColor: colors.cardBackground, borderRadius: normalize(16), borderWidth: 1, borderColor: colors.border, padding: normalize(16), marginBottom: verticalScale(16),     },
     teacherInfoRow: { flexDirection: 'row', marginBottom: verticalScale(16) },
     avatarGlass: { width: normalize(60), height: normalize(60), borderRadius: normalize(30), backgroundColor: colors.Background, justifyContent: 'center', alignItems: 'center', marginRight: normalize(16), borderWidth: 1, borderColor: colors.border },
     teacherDetails: { flex: 1, justifyContent: 'center' },

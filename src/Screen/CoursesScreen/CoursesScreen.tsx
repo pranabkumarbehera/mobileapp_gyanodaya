@@ -1058,7 +1058,7 @@ const ExamCard = ({ bundle, index, onPress, colors, isDarkTheme, styles }: any) 
                     {
                         backgroundColor: colors.cardBackground,
                         borderColor: colors.border,
-                        shadowColor: isDarkTheme ? colors.accent : '#000000',
+                        
                     }
                 ]}
             >
@@ -1094,13 +1094,13 @@ const QuizCard = ({ quiz, index, isEnrollingBundle, handleQuizAction, canAttempt
 
     return (
         <Animated.View style={{ width: '48%', transform: [{ scale }] }}>
-            <View style={[styles.quizCard, { backgroundColor: colors.cardBackground, borderColor: colors.border, shadowColor: isDarkTheme ? colors.accent : '#000000' }]}>
+            <View style={[styles.quizCard, { backgroundColor: colors.cardBackground, borderColor: colors.border, }]}>
                 <View style={[styles.quizBadge, { backgroundColor: colors.tagCyan, borderColor: colors.border }]}>
                     <Text style={[styles.quizBadgeText, { color: colors.tagCyanText }]}>MOCK</Text>
                 </View>
 
                 <Text style={[styles.quizCardTitle, { color: colors.text }]} numberOfLines={2}>{quiz.title}</Text>
-                
+
                 <View style={styles.quizMetaRow}>
                     <View style={styles.quizMetaItem}>
                         <Feather name="book-open" size={normalize(12)} color={colors.textSecondary} />
@@ -1174,7 +1174,7 @@ const SubBundleCard = ({ subBundle, index, handleSubBundlePress, colors, isDarkT
                     {
                         backgroundColor: colors.cardBackground,
                         borderColor: colors.border,
-                        shadowColor: isDarkTheme ? colors.accent : '#000000',
+                        
                     }
                 ]}
             >
@@ -1223,7 +1223,7 @@ const CourseMaterialCard = ({ item, sectionKey, handleOpenCourseItem, colors, is
                 <Pressable
                     onPressIn={handlePressIn}
                     onPressOut={handlePressOut}
-                    style={[styles.courseCard, { backgroundColor: tokens.glassSurface, borderColor: tokens.glassBorder, borderRadius: normalize(tokens.radius.xl), shadowColor: tokens.shadow, shadowOpacity: tokens.shadowOpacity }]}
+                    style={[styles.courseCard, { backgroundColor: tokens.glassSurface, borderColor: tokens.glassBorder, borderRadius: normalize(tokens.radius.xl),  }]}
                     onPress={() => handleOpenCourseItem(sectionKey, item)}
                 >
                     <View style={[styles.courseCardBadge, { backgroundColor: colors.tagGreen, borderColor: tokens.glassBorder, borderRadius: normalize(tokens.radius.pill) }]}>
@@ -1246,7 +1246,7 @@ const CourseMaterialCard = ({ item, sectionKey, handleOpenCourseItem, colors, is
                 <Pressable
                     onPressIn={handlePressIn}
                     onPressOut={handlePressOut}
-                    style={[styles.courseCard, { backgroundColor: tokens.glassSurface, borderColor: tokens.glassBorder, borderRadius: normalize(tokens.radius.xl), shadowColor: tokens.shadow, shadowOpacity: tokens.shadowOpacity }]}
+                    style={[styles.courseCard, { backgroundColor: tokens.glassSurface, borderColor: tokens.glassBorder, borderRadius: normalize(tokens.radius.xl),  }]}
                     onPress={() => handleOpenCourseItem(sectionKey, item)}
                 >
                     <View style={[styles.courseCardBadge, { backgroundColor: colors.tagPurple, borderColor: tokens.glassBorder, borderRadius: normalize(tokens.radius.pill) }]}>
@@ -1269,7 +1269,7 @@ const CourseMaterialCard = ({ item, sectionKey, handleOpenCourseItem, colors, is
             <Pressable
                 onPressIn={handlePressIn}
                 onPressOut={handlePressOut}
-                style={[styles.courseCard, { backgroundColor: tokens.glassSurface, borderColor: tokens.glassBorder, borderRadius: normalize(tokens.radius.xl), shadowColor: tokens.shadow, shadowOpacity: tokens.shadowOpacity }]}
+                style={[styles.courseCard, { backgroundColor: tokens.glassSurface, borderColor: tokens.glassBorder, borderRadius: normalize(tokens.radius.xl),  }]}
                 onPress={() => handleOpenCourseItem(sectionKey, item)}
             >
                 <View style={[styles.courseCardBadge, { backgroundColor: colors.tagOrange, borderColor: tokens.glassBorder, borderRadius: normalize(tokens.radius.pill) }]}>
@@ -1350,7 +1350,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         const collectedIds = collectEnrolledBundleIds(studentModules);
         const paymentsList = paymentHistoryData?.data?.items || paymentHistoryData?.items || [];
         const failedPending = new Set<string>();
-        
+
         if (Array.isArray(paymentsList) && paymentsList.length > 0) {
             const paymentStatusMap = new Map<string, boolean>();
             paymentsList.forEach((item: any) => {
@@ -1420,7 +1420,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                 const hasAccess =
                     !failedPendingBundleIds.has(strId) &&
                     (enrolledBundleIds.includes(strId) || enrolledBundleOverrides.has(strId));
-                
+
                 if (selectedBundle.isEnrolled !== hasAccess) {
                     setSelectedBundle((prev: any) => prev ? { ...prev, isEnrolled: hasAccess } : null);
                 }
@@ -1438,9 +1438,9 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         const isEnrolled =
             !failedPendingBundleIds.has(resolvedBundleId) &&
             (Boolean(bundleDetails?.isEnrolled) ||
-            (resolvedBundleId ? enrolledBundleIds.includes(resolvedBundleId) : false) ||
-            enrolledBundleOverrides.has(resolvedBundleId) ||
-            Boolean(selectedBundle?.isEnrolled));
+                (resolvedBundleId ? enrolledBundleIds.includes(resolvedBundleId) : false) ||
+                enrolledBundleOverrides.has(resolvedBundleId) ||
+                Boolean(selectedBundle?.isEnrolled));
 
         setSelectedExam(buildSelectedExam(bundleDetails, isEnrolled));
         if (resolvedBundleId) {
@@ -1458,8 +1458,8 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         const isEnrolled =
             !failedPendingBundleIds.has(parentBundleId) &&
             (Boolean(subBundleDetails?.isEnrolled) ||
-            Boolean(selectedExam?.isEnrolled) ||
-            (parentBundleId ? enrolledBundleIds.includes(parentBundleId) : false));
+                Boolean(selectedExam?.isEnrolled) ||
+                (parentBundleId ? enrolledBundleIds.includes(parentBundleId) : false));
         setSelectedSubBundleExam(buildSelectedExam(subBundleDetails, isEnrolled));
     }, [activeBundleId, enrolledBundleIds, subBundleDetails, selectedExam, failedPendingBundleIds]);
 
@@ -1482,7 +1482,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
             status === paymentFailure.type
         ) {
             setPendingEnrollmentId(null);
-            
+
             if ((status === enrollBundleSuccess.type || status === paymentSuccess.type) && activeBundleId) {
                 dispatch(paymentHistoryRequest({ page: 1, limit: 100 }));
                 setEnrolledBundleOverrides(prev => {
@@ -1866,8 +1866,8 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                     <Text style={styles.sectionTitle}>Mock Bank</Text>
                     <Text style={styles.subjectSubtitle}>
                         {detailScreen.quizGroups?.length > 0
-                             ? `${detailScreen.quizIds?.length || 0} quizzes in this ${showingSubBundle ? 'course' : 'category'}`
-                             : 'No quizzes returned from the API'}
+                            ? `${detailScreen.quizIds?.length || 0} quizzes in this ${showingSubBundle ? 'course' : 'category'}`
+                            : 'No quizzes returned from the API'}
                     </Text>
 
                     <View style={styles.subjectList}>
@@ -2001,80 +2001,80 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     );
 
     const openBundleDetails = (bundle: any, mode: 'view' | 'enroll') => {
-                                        const normalizedBundle = getBundlePayload(bundle);
-                                        const bundleId = getBundleId(normalizedBundle);
-                                        const resolvedBundleId = bundleId ? String(bundleId) : null;
-                                
-                                        if (!resolvedBundleId) {
-                                            return;
-                                        }
-                                
-                                        const alreadyEnrolled =
-                                            !failedPendingBundleIds.has(resolvedBundleId) &&
-                                            (Boolean(normalizedBundle?.isEnrolled) ||
-                                            enrolledBundleIds.includes(resolvedBundleId) ||
-                                            enrolledBundleOverrides.has(resolvedBundleId));
-                                
-                                        setShowBundleActionModal(false);
-                                        setSelectedSubBundleExam(null);
-                                        setActiveSubBundleId(null);
-                                        setActiveBundleId(resolvedBundleId);
-                                
-                                        if (alreadyEnrolled) {
-                                            dispatch(bundleIDRequest({ id: resolvedBundleId }));
-                                            return;
-                                        }
-                                
-                                        if (mode === 'enroll') {
-                                            if (pendingEnrollmentId === resolvedBundleId) {
-                                                return;
-                                            }
-                                            setPendingEnrollmentId(resolvedBundleId);
-                                            const originalPrice = Number(normalizedBundle?.price || normalizedBundle?.amount || 0);
-                                            const discountPrice = Number(normalizedBundle?.discountPrice || 0);
-                                            const discountPercentage = Number(normalizedBundle?.discountPercentage || 0);
-                                
-                                            let finalPrice = originalPrice;
-                                            if (discountPrice > 0) {
-                                                finalPrice = discountPrice;
-                                            } else if (discountPercentage > 0) {
-                                                finalPrice = originalPrice - (originalPrice * discountPercentage) / 100;
-                                            }
-                                            finalPrice = Math.round(finalPrice);
-                                
-                                            if (finalPrice > 0) {
-                                                dispatch(paymentRequest({ id: resolvedBundleId, price: finalPrice }));
-                                            } else {
-                                                dispatch(enrollBundleRequest({ id: resolvedBundleId }));
-                                            }
-                                            return;
-                                        }
-                                
-                                        dispatch(bundleIDRequest({ id: resolvedBundleId }));
-                                    };
-                                
-                                    const handleBundlePress = (bundle: any) => {
-                                        const normalizedBundle = getBundlePayload(bundle);
-                                        const bundleId = getBundleId(normalizedBundle);
-                                        const hasEnrolledAccess =
-                                            !failedPendingBundleIds.has(String(bundleId)) &&
-                                            (Boolean(normalizedBundle?.isEnrolled) ||
-                                            (bundleId ? enrolledBundleIds.includes(String(bundleId)) : false) ||
-                                            (bundleId ? enrolledBundleOverrides.has(String(bundleId)) : false));
-                                
-                                        const finalBundle = {
-                                            ...normalizedBundle,
-                                            isEnrolled: hasEnrolledAccess,
-                                        };
+        const normalizedBundle = getBundlePayload(bundle);
+        const bundleId = getBundleId(normalizedBundle);
+        const resolvedBundleId = bundleId ? String(bundleId) : null;
 
-                                        if (hasEnrolledAccess) {
-                                            openBundleDetails(finalBundle, 'view');
-                                            return;
-                                        }
+        if (!resolvedBundleId) {
+            return;
+        }
 
-                                        setSelectedBundle(finalBundle);
-                                        setShowBundleActionModal(true);
-                                    };
+        const alreadyEnrolled =
+            !failedPendingBundleIds.has(resolvedBundleId) &&
+            (Boolean(normalizedBundle?.isEnrolled) ||
+                enrolledBundleIds.includes(resolvedBundleId) ||
+                enrolledBundleOverrides.has(resolvedBundleId));
+
+        setShowBundleActionModal(false);
+        setSelectedSubBundleExam(null);
+        setActiveSubBundleId(null);
+        setActiveBundleId(resolvedBundleId);
+
+        if (alreadyEnrolled) {
+            dispatch(bundleIDRequest({ id: resolvedBundleId }));
+            return;
+        }
+
+        if (mode === 'enroll') {
+            if (pendingEnrollmentId === resolvedBundleId) {
+                return;
+            }
+            setPendingEnrollmentId(resolvedBundleId);
+            const originalPrice = Number(normalizedBundle?.price || normalizedBundle?.amount || 0);
+            const discountPrice = Number(normalizedBundle?.discountPrice || 0);
+            const discountPercentage = Number(normalizedBundle?.discountPercentage || 0);
+
+            let finalPrice = originalPrice;
+            if (discountPrice > 0) {
+                finalPrice = discountPrice;
+            } else if (discountPercentage > 0) {
+                finalPrice = originalPrice - (originalPrice * discountPercentage) / 100;
+            }
+            finalPrice = Math.round(finalPrice);
+
+            if (finalPrice > 0) {
+                dispatch(paymentRequest({ id: resolvedBundleId, price: finalPrice }));
+            } else {
+                dispatch(enrollBundleRequest({ id: resolvedBundleId }));
+            }
+            return;
+        }
+
+        dispatch(bundleIDRequest({ id: resolvedBundleId }));
+    };
+
+    const handleBundlePress = (bundle: any) => {
+        const normalizedBundle = getBundlePayload(bundle);
+        const bundleId = getBundleId(normalizedBundle);
+        const hasEnrolledAccess =
+            !failedPendingBundleIds.has(String(bundleId)) &&
+            (Boolean(normalizedBundle?.isEnrolled) ||
+                (bundleId ? enrolledBundleIds.includes(String(bundleId)) : false) ||
+                (bundleId ? enrolledBundleOverrides.has(String(bundleId)) : false));
+
+        const finalBundle = {
+            ...normalizedBundle,
+            isEnrolled: hasEnrolledAccess,
+        };
+
+        if (hasEnrolledAccess) {
+            openBundleDetails(finalBundle, 'view');
+            return;
+        }
+
+        setSelectedBundle(finalBundle);
+        setShowBundleActionModal(true);
+    };
 
     const handleSubBundlePress = (subBundle: any) => {
         const normalizedSubBundle = getBundlePayload(subBundle);
@@ -2127,7 +2127,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     if (detailScreen) {
         return (
             <View style={styles.container}>
-                <StatusBar backgroundColor={colors.statusBg} barStyle={colors.statusBar} />
+                <StatusBar backgroundColor={colors.Primary} barStyle="light-content" />
 
                 <View style={styles.detailHeader}>
                     <SafeAreaView edges={['top']}>
@@ -2378,15 +2378,15 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                                 </View>
                                                 <Feather name="chevron-right" size={normalize(20)} color={colors.textSecondary} />
                                             </View>
-                                            
+
                                             <Text style={[styles.premiumNoteCardTitle, { color: colors.text }]}>
                                                 {pageTitle}
                                             </Text>
-                                            
+
                                             <Text style={[styles.premiumNoteCardBody, { color: colors.textSecondary }]} numberOfLines={3}>
                                                 {previewText}
                                             </Text>
-                                            
+
                                             <View style={[styles.premiumNoteCardFooter, { borderTopColor: colors.border }]}>
                                                 <Feather name="book-open" size={normalize(14)} color={colors.Primary} style={{ marginRight: 6 }} />
                                                 <Text style={[styles.premiumNoteCardFooterText, { color: colors.Primary }]}>Read full note page</Text>
@@ -2478,11 +2478,11 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                                 </View>
                                                 <Feather name="chevron-right" size={normalize(20)} color={colors.textSecondary} />
                                             </View>
-                                            
+
                                             <Text style={[styles.premiumQuestionCardTitle, { color: colors.text }]} numberOfLines={3}>
                                                 {prompt}
                                             </Text>
-                                            
+
                                             <View style={[styles.premiumNoteCardFooter, { borderTopColor: colors.border }]}>
                                                 <Feather name="help-circle" size={normalize(14)} color={colors.Primary} style={{ marginRight: 6 }} />
                                                 <Text style={[styles.premiumNoteCardFooterText, { color: colors.Primary }]}>View Question & Answer</Text>
@@ -2531,7 +2531,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                         </Text>
                                     </View>
                                 </View>
-                                
+
                                 <View style={{ marginVertical: verticalScale(12) }}>
                                     <CustomNoteRenderer
                                         content={selectedQuestionAnswerDetail?.questionContent}
@@ -2566,7 +2566,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                             ANSWER & EXPLANATION
                                         </Text>
                                     </View>
-                                    
+
                                     <View style={styles.qDetailExplanationBody}>
                                         {selectedQuestionAnswerDetail?.answer ? (
                                             <View style={styles.qCorrectAnswerBox}>
@@ -2708,7 +2708,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
     return (
         <View style={styles.container}>
-            <StatusBar backgroundColor={colors.statusBg} barStyle={colors.statusBar} />
+            <StatusBar backgroundColor={colors.Primary} barStyle="light-content" />
 
             <View style={styles.headerBackground}>
                 <View pointerEvents="none" style={styles.headerGlowPrimary} />
@@ -2908,8 +2908,8 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                                     }
                                                     finalPrice = Math.round(finalPrice);
 
-                                                    return pendingEnrollmentId === String(getBundleId(selectedBundle)) 
-                                                        ? (finalPrice > 0 ? 'Processing...' : 'Enrolling...') 
+                                                    return pendingEnrollmentId === String(getBundleId(selectedBundle))
+                                                        ? (finalPrice > 0 ? 'Processing...' : 'Enrolling...')
                                                         : (finalPrice > 0 ? `Buy & Enroll (₹${finalPrice})` : 'Enroll');
                                                 })()}
                                             </Text>
@@ -3016,10 +3016,10 @@ const getStyles = (colors: any, tokens: any) => StyleSheet.create({
         paddingVertical: verticalScale(16),
         borderRadius: normalize(16),
         borderWidth: 1,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: tokens.shadowOpacity,
-        shadowRadius: 10,
-        elevation: 3,
+        
+        
+        
+        
     },
     circleContainer: {
         width: normalize(60),
@@ -3027,11 +3027,11 @@ const getStyles = (colors: any, tokens: any) => StyleSheet.create({
         borderRadius: normalize(30),
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
-        elevation: 3,
+        
+        
+        
+        
+        
         borderWidth: 1,
         borderColor: '#FFFFFF',
     },
@@ -3094,6 +3094,7 @@ const getStyles = (colors: any, tokens: any) => StyleSheet.create({
     detailScrollContent: {
         paddingHorizontal: normalize(20),
         paddingTop: verticalScale(20),
+        paddingBottom: verticalScale(180),
     },
     sectionTitle: {
         fontSize: normalize(16),
@@ -3108,11 +3109,11 @@ const getStyles = (colors: any, tokens: any) => StyleSheet.create({
         borderColor: colors.border,
         padding: normalize(16),
         marginBottom: verticalScale(20),
-        shadowColor: tokens.shadow,
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: tokens.shadowOpacity,
-        shadowRadius: 20,
-        elevation: 3,
+        
+        
+        
+        
+        
     },
     patternGrid: {
         flexDirection: 'row',
@@ -3212,10 +3213,10 @@ const getStyles = (colors: any, tokens: any) => StyleSheet.create({
         borderRadius: normalize(tokens.radius.lg),
         padding: normalize(14),
         borderWidth: 1,
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: tokens.shadowOpacity,
-        shadowRadius: 18,
-        elevation: 4,
+        
+        
+        
+        
     },
     quizBadge: {
         alignSelf: 'flex-start',
@@ -3463,11 +3464,11 @@ const getStyles = (colors: any, tokens: any) => StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.border,
         padding: normalize(20),
-        shadowColor: tokens.shadow,
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: tokens.shadowOpacity,
-        shadowRadius: 20,
-        elevation: 3,
+        
+        
+        
+        
+        
     },
     noteViewerDetailTopRow: {
         flexDirection: 'row',
@@ -3567,6 +3568,7 @@ const getStyles = (colors: any, tokens: any) => StyleSheet.create({
     },
     notePageViewerScrollContent: {
         padding: normalize(18),
+        paddingBottom: verticalScale(100),
     },
     notePageViewerCard: {
         backgroundColor: colors.cardBackground,
@@ -3574,11 +3576,11 @@ const getStyles = (colors: any, tokens: any) => StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.border,
         padding: normalize(20),
-        shadowColor: tokens.shadow,
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: tokens.shadowOpacity,
-        shadowRadius: 20,
-        elevation: 3,
+        
+        
+        
+        
+        
     },
     notePageViewerBody: {
         fontSize: normalize(14),
@@ -3673,11 +3675,11 @@ const getStyles = (colors: any, tokens: any) => StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.border,
         padding: normalize(16),
-        shadowColor: tokens.shadow,
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: tokens.shadowOpacity,
-        shadowRadius: 18,
-        elevation: 3,
+        
+        
+        
+        
+        
         justifyContent: 'space-between',
     },
     courseCardBadge: {
@@ -3864,8 +3866,8 @@ const getStyles = (colors: any, tokens: any) => StyleSheet.create({
         backgroundColor: 'transparent',
         borderColor: 'transparent',
         borderWidth: 0,
-        elevation: 0,
-        shadowOpacity: 0,
+        
+        
     },
     questionBankListIndex: {
         fontSize: normalize(14),
@@ -3894,11 +3896,11 @@ const getStyles = (colors: any, tokens: any) => StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.border,
         padding: normalize(20),
-        shadowColor: tokens.shadow,
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: tokens.shadowOpacity,
-        shadowRadius: 20,
-        elevation: 3,
+        
+        
+        
+        
+        
     },
     questionBankDetailTopRow: {
         flexDirection: 'row',
@@ -4050,6 +4052,7 @@ const getStyles = (colors: any, tokens: any) => StyleSheet.create({
     },
     questionAnswerScrollContent: {
         padding: normalize(18),
+        paddingBottom: verticalScale(100),
     },
     questionAnswerCard: {
         backgroundColor: colors.cardBackground,
@@ -4057,11 +4060,11 @@ const getStyles = (colors: any, tokens: any) => StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.border,
         padding: normalize(20),
-        shadowColor: tokens.shadow,
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: tokens.shadowOpacity,
-        shadowRadius: 20,
-        elevation: 3,
+        
+        
+        
+        
+        
     },
     questionAnswerBody: {
         fontSize: normalize(14),
@@ -4154,6 +4157,7 @@ const getStyles = (colors: any, tokens: any) => StyleSheet.create({
     },
     videoBankListContent: {
         padding: normalize(18),
+        paddingBottom: verticalScale(100),
     },
     videoBankCard: {
         backgroundColor: colors.cardBackground,
@@ -4161,11 +4165,11 @@ const getStyles = (colors: any, tokens: any) => StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.border,
         padding: normalize(16),
-        shadowColor: tokens.shadow,
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: tokens.shadowOpacity,
-        shadowRadius: 18,
-        elevation: 3,
+        
+        
+        
+        
+        
         minHeight: verticalScale(120),
         justifyContent: 'space-between',
     },
@@ -4255,7 +4259,7 @@ const getStyles = (colors: any, tokens: any) => StyleSheet.create({
     },
     noteListScrollContainer: {
         padding: normalize(18),
-        paddingBottom: verticalScale(32),
+        paddingBottom: verticalScale(100),
     },
     premiumNoteCard: {
         backgroundColor: colors.cardBackground,
@@ -4264,11 +4268,11 @@ const getStyles = (colors: any, tokens: any) => StyleSheet.create({
         borderColor: colors.border,
         padding: normalize(18),
         marginBottom: verticalScale(14),
-        shadowColor: '#101828',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 12,
-        elevation: 2,
+        
+        
+        
+        
+        
     },
     premiumNoteCardHeader: {
         flexDirection: 'row',
@@ -4316,7 +4320,7 @@ const getStyles = (colors: any, tokens: any) => StyleSheet.create({
     },
     questionListScrollContainer: {
         padding: normalize(18),
-        paddingBottom: verticalScale(32),
+        paddingBottom: verticalScale(100),
     },
     premiumQuestionCard: {
         backgroundColor: colors.cardBackground,
@@ -4325,11 +4329,11 @@ const getStyles = (colors: any, tokens: any) => StyleSheet.create({
         borderColor: colors.border,
         padding: normalize(18),
         marginBottom: verticalScale(14),
-        shadowColor: '#101828',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 12,
-        elevation: 2,
+        
+        
+        
+        
+        
     },
     premiumQuestionCardTitle: {
         fontSize: normalize(15),
@@ -4344,11 +4348,11 @@ const getStyles = (colors: any, tokens: any) => StyleSheet.create({
         borderColor: colors.border,
         padding: normalize(20),
         marginBottom: verticalScale(20),
-        shadowColor: '#101828',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.06,
-        shadowRadius: 16,
-        elevation: 3,
+        
+        
+        
+        
+        
     },
     qDetailBadgeRow: {
         flexDirection: 'row',

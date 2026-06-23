@@ -296,11 +296,11 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(255, 255, 255, 0.05)',
         top: height * 0.5 - width * 0.75,
         left: -width * 0.25,
-        shadowColor: '#FFF',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 1,
-        shadowRadius: 120,
-        elevation: 20,
+        
+        
+        
+        
+        
     },
     largeMergeBubble: {
         position: 'absolute',
@@ -315,11 +315,11 @@ const styles = StyleSheet.create({
         position: 'absolute',
         bottom: -30,
         backgroundColor: '#FACC15', // Bright yellow bubbles
-        shadowColor: '#FACC15',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.9,
-        shadowRadius: 8,
-        elevation: 8,
+        
+        
+        
+        
+        
     },
     content: {
         alignItems: 'center',

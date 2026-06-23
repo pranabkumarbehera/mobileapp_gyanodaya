@@ -46,8 +46,8 @@ const EmptyState = ({
                 backgroundColor: tokens.glassSurface,
                 borderColor: tokens.glassBorder,
                 borderRadius: normalize(tokens.radius.xl),
-                shadowColor: tokens.shadow,
-                shadowOpacity: tokens.shadowOpacity,
+                
+                
                 opacity,
                 transform: [{ scale }]
             },
@@ -79,9 +79,9 @@ const styles = StyleSheet.create({
         paddingVertical: verticalScale(36),
         alignItems: 'center',
         borderWidth: 1,
-        shadowOffset: { width: 0, height: 16 },
-        shadowRadius: 24,
-        elevation: 6,
+        
+        
+        
         marginVertical: verticalScale(20),
         marginHorizontal: normalize(16),
     },
@@ -110,10 +110,10 @@ const styles = StyleSheet.create({
         borderRadius: normalize(999),
         paddingHorizontal: normalize(24),
         paddingVertical: verticalScale(14),
-        shadowOffset: { width: 0, height: 4 },
-        shadowRadius: 8,
-        shadowOpacity: 0.2,
-        elevation: 3,
+        
+        
+        
+        
     },
     buttonText: {
         fontSize: normalize(14),

@@ -54,7 +54,6 @@ export type DesignTokens = {
         lg: number;
         xl: number;
     };
-    shadowOpacity: number;
     blurStrength: number;
 };
 
@@ -84,7 +83,7 @@ export const createDesignTokens = (colors: ThemeColors, theme: string): DesignTo
         video: '#FF3B30',
         radius: { sm: 12, md: 16, lg: 20, xl: 28, pill: 999 },
         space: { xs: 6, sm: 10, md: 16, lg: 20, xl: 32 },
-        shadowOpacity: isGlass ? 0.35 : isDark ? 0.25 : 0.1,
+        
         blurStrength: isGlass ? 24 : 0,
     };
 };

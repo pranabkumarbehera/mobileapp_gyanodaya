@@ -197,11 +197,11 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                                     { 
                                         backgroundColor: colors.cardBackground, 
                                         borderColor: firstNameFocused ? colors.accent : (touched.firstName && errors.firstName ? '#EF4444' : colors.border),
-                                        shadowColor: colors.accent,
-                                        shadowOffset: { width: 0, height: 0 },
-                                        shadowOpacity: firstNameFocused && isDarkTheme ? 0.35 : 0,
-                                        shadowRadius: 8,
-                                        elevation: firstNameFocused ? 2 : 0,
+                                        
+                                        
+                                        
+                                        
+                                        
                                     }
                                 ]}>
                                     <Icon name="user" size={normalize(18)} color={firstNameFocused ? colors.accent : colors.textSecondary} style={styles.inputIcon} />
@@ -233,11 +233,11 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                                     { 
                                         backgroundColor: colors.cardBackground, 
                                         borderColor: lastNameFocused ? colors.accent : (touched.lastName && errors.lastName ? '#EF4444' : colors.border),
-                                        shadowColor: colors.accent,
-                                        shadowOffset: { width: 0, height: 0 },
-                                        shadowOpacity: lastNameFocused && isDarkTheme ? 0.35 : 0,
-                                        shadowRadius: 8,
-                                        elevation: lastNameFocused ? 2 : 0,
+                                        
+                                        
+                                        
+                                        
+                                        
                                     }
                                 ]}>
                                     <Icon name="user" size={normalize(18)} color={lastNameFocused ? colors.accent : colors.textSecondary} style={styles.inputIcon} />
@@ -271,11 +271,11 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                                 { 
                                     backgroundColor: colors.cardBackground, 
                                     borderColor: emailFocused ? colors.accent : (touched.email && errors.email ? '#EF4444' : colors.border),
-                                    shadowColor: colors.accent,
-                                    shadowOffset: { width: 0, height: 0 },
-                                    shadowOpacity: emailFocused && isDarkTheme ? 0.35 : 0,
-                                    shadowRadius: 8,
-                                    elevation: emailFocused ? 2 : 0,
+                                    
+                                    
+                                    
+                                    
+                                    
                                 }
                             ]}>
                                 <Icon name="mail" size={normalize(18)} color={emailFocused ? colors.accent : colors.textSecondary} style={styles.inputIcon} />
@@ -310,11 +310,11 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                                 { 
                                     backgroundColor: colors.cardBackground, 
                                     borderColor: phoneFocused ? colors.accent : (touched.phone && errors.phone ? '#EF4444' : colors.border),
-                                    shadowColor: colors.accent,
-                                    shadowOffset: { width: 0, height: 0 },
-                                    shadowOpacity: phoneFocused && isDarkTheme ? 0.35 : 0,
-                                    shadowRadius: 8,
-                                    elevation: phoneFocused ? 2 : 0,
+                                    
+                                    
+                                    
+                                    
+                                    
                                 }
                             ]}>
                                 <Icon name="phone" size={normalize(18)} color={phoneFocused ? colors.accent : colors.textSecondary} style={styles.inputIcon} />
@@ -349,11 +349,11 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                                 { 
                                     backgroundColor: colors.cardBackground, 
                                     borderColor: passwordFocused ? colors.accent : (touched.password && errors.password ? '#EF4444' : colors.border),
-                                    shadowColor: colors.accent,
-                                    shadowOffset: { width: 0, height: 0 },
-                                    shadowOpacity: passwordFocused && isDarkTheme ? 0.35 : 0,
-                                    shadowRadius: 8,
-                                    elevation: passwordFocused ? 2 : 0,
+                                    
+                                    
+                                    
+                                    
+                                    
                                 }
                             ]}>
                                 <Icon name="lock" size={normalize(18)} color={passwordFocused ? colors.accent : colors.textSecondary} style={styles.inputIcon} />
@@ -451,10 +451,10 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                                     borderColor: colors.border,
                                     borderWidth: isDarkTheme ? 1 : 0,
                                     transform: [{ scale: buttonScale }],
-                                    shadowColor: isDarkTheme ? colors.accent : '#000000',
-                                    shadowOpacity: isDarkTheme ? 0.25 : 0.1,
-                                    shadowRadius: 8,
-                                    shadowOffset: { width: 0, height: 4 },
+                                    
+                                    
+                                    
+                                    
                                 }
                             ]} 
                             onPress={handleRegister} 
@@ -612,11 +612,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginTop: verticalScale(24),
         marginBottom: verticalScale(30),
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 6,
+        
+        
+        
+        
+        
     },
     createButtonText: {
         fontSize: normalize(16),
