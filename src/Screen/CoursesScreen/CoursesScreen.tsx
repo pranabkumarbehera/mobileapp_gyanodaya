@@ -2254,89 +2254,57 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                 <Text style={styles.noteViewerStateText}>No note pages found.</Text>
                             </View>
                         ) : (
-                            <View style={styles.noteViewerLayout}>
-                                <View style={styles.noteViewerLeftPanel}>
-                                    <Text style={styles.noteViewerPanelLabel}>PAGES</Text>
-                                    <FlatList
-                                        data={selectedNotePages}
-                                        keyExtractor={(page: any, index: number) => `${page?._id || page?.id || index}`}
-                                        showsVerticalScrollIndicator={false}
-                                        contentContainerStyle={styles.noteViewerListContent}
-                                        renderItem={({ item, index }) => {
-                                            const pageTitle = toDisplayText(item?.title, `Page ${index + 1}`);
+                            <FlatList
+                                data={selectedNotePages}
+                                keyExtractor={(page: any, index: number) => `${page?._id || page?.id || index}`}
+                                showsVerticalScrollIndicator={false}
+                                contentContainerStyle={styles.noteListScrollContainer}
+                                renderItem={({ item, index }) => {
+                                    const pageTitle = toDisplayText(item?.title, `Page ${index + 1}`);
+                                    const previewText = getPagePreviewText(item);
+                                    const readingTime = Math.max(1, Math.round((item?.htmlContent?.length || item?.content?.length || 500) / 1000));
 
-                                            return (
-                                                <Pressable
-                                                    onPress={() => setSelectedNotePageIndex(index)}
-                                                    style={[
-                                                        styles.noteViewerListItem,
-                                                        selectedNotePageIndex === index && styles.noteViewerListItemActive,
-                                                    ]}
-                                                >
-                                                    <Text
-                                                        style={[
-                                                            styles.noteViewerListIndex,
-                                                            selectedNotePageIndex === index && styles.noteViewerListIndexActive,
-                                                        ]}
-                                                    >
-                                                        {index + 1}.
-                                                    </Text>
-                                                    <Text
-                                                        style={[
-                                                            styles.noteViewerListText,
-                                                            selectedNotePageIndex === index && styles.noteViewerListTextActive,
-                                                        ]}
-                                                        numberOfLines={2}
-                                                    >
-                                                        {pageTitle}
-                                                    </Text>
-                                                </Pressable>
-                                            );
-                                        }}
-                                        ItemSeparatorComponent={() => <View style={{ height: verticalScale(12) }} />}
-                                    />
-                                </View>
-
-                                <View style={styles.noteViewerRightPanel}>
-                                    {(() => {
-                                        const currentPage = selectedNotePages[selectedNotePageIndex];
-
-                                        if (!currentPage) {
-                                            return (
-                                                <View style={styles.noteViewerStateBox}>
-                                                    <Feather name="file-text" size={normalize(24)} color="#94A3B8" />
-                                                    <Text style={styles.noteViewerStateText}>No note pages found.</Text>
-                                                </View>
-                                            );
-                                        }
-
-                                        return (
-                                            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.noteViewerDetailScroll}>
-                                                <View style={styles.noteViewerDetailCard}>
-                                                    <View style={styles.noteViewerDetailTopRow}>
-                                                        <Text style={styles.noteViewerDetailTag}>PAGE {selectedNotePageIndex + 1}</Text>
-                                                        <Text style={styles.noteViewerDetailTitle}>{toDisplayText(currentPage?.title, `Page ${selectedNotePageIndex + 1}`)}</Text>
+                                    return (
+                                        <Pressable
+                                            onPress={() => {
+                                                setSelectedNotePageDetail(item);
+                                                setShowNotePageModal(true);
+                                            }}
+                                            style={styles.premiumNoteCard}
+                                        >
+                                            <View style={styles.premiumNoteCardHeader}>
+                                                <View style={styles.premiumNoteCardTagRow}>
+                                                    <View style={[styles.premiumNoteCardBadge, { backgroundColor: colors.tagCyan }]}>
+                                                        <Text style={[styles.premiumNoteCardBadgeText, { color: colors.tagCyanText }]}>
+                                                            PAGE {String(index + 1).padStart(2, '0')}
+                                                        </Text>
                                                     </View>
-                                                    <Text style={styles.noteViewerDetailBody} numberOfLines={5} ellipsizeMode="tail">
-                                                        {getPagePreviewText(currentPage)}
-                                                    </Text>
-                                                    <Text style={styles.noteViewerDetailHint}>Tap View to read the full page.</Text>
-                                                    <Pressable
-                                                        style={styles.noteViewerViewButton}
-                                                        onPress={() => {
-                                                            setSelectedNotePageDetail(currentPage);
-                                                            setShowNotePageModal(true);
-                                                        }}
-                                                    >
-                                                        <Text style={styles.noteViewerViewButtonText}>View</Text>
-                                                        <Feather name="chevron-right" size={normalize(16)} color="#FFFFFF" />
-                                                    </Pressable>
+                                                    <View style={[styles.premiumNoteCardBadge, { backgroundColor: colors.tagOrange }]}>
+                                                        <Feather name="clock" size={normalize(10)} color={colors.tagOrangeText} style={{ marginRight: 3 }} />
+                                                        <Text style={[styles.premiumNoteCardBadgeText, { color: colors.tagOrangeText }]}>
+                                                            {readingTime} MIN READ
+                                                        </Text>
+                                                    </View>
                                                 </View>
-                                            </ScrollView>
-                                        );
-                                    })()}
-                                </View>
-                            </View>
+                                                <Feather name="chevron-right" size={normalize(20)} color={colors.textSecondary} />
+                                            </View>
+                                            
+                                            <Text style={[styles.premiumNoteCardTitle, { color: colors.text }]}>
+                                                {pageTitle}
+                                            </Text>
+                                            
+                                            <Text style={[styles.premiumNoteCardBody, { color: colors.textSecondary }]} numberOfLines={3}>
+                                                {previewText}
+                                            </Text>
+                                            
+                                            <View style={[styles.premiumNoteCardFooter, { borderTopColor: colors.border }]}>
+                                                <Feather name="book-open" size={normalize(14)} color={colors.Primary} style={{ marginRight: 6 }} />
+                                                <Text style={[styles.premiumNoteCardFooterText, { color: colors.Primary }]}>Read full note page</Text>
+                                            </View>
+                                        </Pressable>
+                                    );
+                                }}
+                            />
                         )}
                     </View>
                 </Modal>
@@ -2372,130 +2340,63 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                 <Text style={styles.questionBankEmptyText}>No Data Available</Text>
                             </View>
                         ) : (
-                            <View style={styles.questionBankLayout}>
-                                <View style={styles.questionBankLeftPanel}>
-                                    <Text style={styles.questionBankPanelLabel}>QUESTIONS</Text>
-                                    <FlatList
-                                        data={selectedQuestionBankQuestions}
-                                        keyExtractor={(item: any, index: number) => `${item?._id || item?.id || index}`}
-                                        showsVerticalScrollIndicator={false}
-                                        contentContainerStyle={styles.questionBankListContent}
-                                        renderItem={({ item, index }) => {
-                                            const itemTitle = toDisplayText(getQuestionPrompt(item), `Question ${index + 1}`);
-                                            return (
-                                                <Pressable
-                                                    onPress={() => {
-                                                        setSelectedQuestionIndex(index);
-                                                    }}
-                                                    style={[
-                                                        styles.questionBankListItem,
-                                                        selectedQuestionIndex === index && styles.questionBankListItemActive,
-                                                    ]}
-                                                >
-                                                    <Text
-                                                        style={[
-                                                            styles.questionBankListIndex,
-                                                            selectedQuestionIndex === index && styles.questionBankListIndexActive,
-                                                        ]}
-                                                    >
-                                                        {index + 1}.
-                                                    </Text>
-                                                    <Text
-                                                        style={[
-                                                            styles.questionBankListText,
-                                                            selectedQuestionIndex === index && styles.questionBankListTextActive,
-                                                        ]}
-                                                        numberOfLines={2}
-                                                    >
-                                                        {itemTitle}
-                                                    </Text>
-                                                </Pressable>
-                                            );
-                                        }}
-                                        ItemSeparatorComponent={() => <View style={{ height: verticalScale(12) }} />}
-                                    />
-                                </View>
+                            <FlatList
+                                data={selectedQuestionBankQuestions}
+                                keyExtractor={(item: any, index: number) => `${item?._id || item?.id || index}`}
+                                showsVerticalScrollIndicator={false}
+                                contentContainerStyle={styles.questionListScrollContainer}
+                                renderItem={({ item, index }) => {
+                                    const prompt = toDisplayText(getQuestionPrompt(item), 'Question');
+                                    const year = toDisplayText(getQuestionBankYear(selectedQuestionBankMeta || item), '');
 
-                                <View style={styles.questionBankRightPanel}>
-                                    {(() => {
-                                        const currentQuestion = selectedQuestionBankQuestions[selectedQuestionIndex];
-
-                                        if (!currentQuestion) {
-                                            return (
-                                                <View style={styles.questionBankEmptyState}>
-                                                    <Feather name="file-text" size={normalize(26)} color="#94A3B8" />
-                                                    <Text style={styles.questionBankEmptyText}>No Data Available</Text>
-                                                </View>
-                                            );
-                                        }
-
-                                        const options = getQuestionOptions(currentQuestion);
-                                        const prompt = toDisplayText(getQuestionPrompt(currentQuestion), 'Question');
-                                        const answer = toDisplayText(getQuestionAnswer(currentQuestion), '');
-                                        const explanation = toDisplayText(getQuestionExplanation(currentQuestion), '');
-                                        const year = toDisplayText(getQuestionBankYear(selectedQuestionBankMeta || currentQuestion), '');
-
-                                        return (
-                                            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.questionBankDetailScroll}>
-                                                <View style={styles.questionBankDetailCard}>
-                                                    <View style={styles.questionBankDetailTopRow}>
-                                                        <Text style={styles.questionBankDetailTag}>QUESTION {selectedQuestionIndex + 1}</Text>
-                                                        <Text style={styles.questionBankDetailTitle}>{prompt}</Text>
-                                                    </View>
-
-                                                    {currentQuestion?.htmlContent ? (
-                                                        <Text style={{ fontSize: normalize(15), color: '#334155', marginTop: verticalScale(10), marginBottom: verticalScale(16), lineHeight: normalize(22) }}>
-                                                            {htmlToPlainText(currentQuestion.htmlContent)}
+                                    return (
+                                        <Pressable
+                                            onPress={() => {
+                                                setSelectedQuestionIndex(index);
+                                                setSelectedQuestionAnswerDetail({
+                                                    questionNumber: index + 1,
+                                                    title: prompt,
+                                                    answer: toDisplayText(getQuestionAnswer(item), ''),
+                                                    explanation: toDisplayText(getQuestionExplanation(item), ''),
+                                                    htmlContent: item.htmlContent,
+                                                    questionContent: item.content || item.questionContent || item.jsonContent || item.questionContentJson,
+                                                    explanationJson: item.explanationJson || item.explanationContent || item.explanationContentJson,
+                                                    options: getQuestionOptions(item),
+                                                });
+                                                setShowQuestionAnswerModal(true);
+                                            }}
+                                            style={styles.premiumQuestionCard}
+                                        >
+                                            <View style={styles.premiumNoteCardHeader}>
+                                                <View style={styles.premiumNoteCardTagRow}>
+                                                    <View style={[styles.premiumNoteCardBadge, { backgroundColor: colors.tagPurple }]}>
+                                                        <Text style={[styles.premiumNoteCardBadgeText, { color: colors.tagPurpleText }]}>
+                                                            QUESTION {String(index + 1).padStart(2, '0')}
                                                         </Text>
-                                                    ) : null}
-
-                                                    {year ? <Text style={styles.questionBankYearText}>Year: {year}</Text> : null}
-
-                                                    {options.length > 0 ? (
-                                                        <View style={styles.questionBankOptionsWrap}>
-                                                            {options.map((option: any, optionIndex: number) => {
-                                                                const optionText = toDisplayText(
-                                                                    option,
-                                                                    `Option ${optionIndex + 1}`,
-                                                                );
-
-                                                                return (
-                                                                    <View key={`${optionText}-${optionIndex}`} style={styles.questionBankOptionRow}>
-                                                                        <View style={styles.questionBankOptionDot} />
-                                                                        <Text style={styles.questionBankOptionText}>{optionText}</Text>
-                                                                    </View>
-                                                                );
-                                                            })}
+                                                    </View>
+                                                    {year ? (
+                                                        <View style={[styles.premiumNoteCardBadge, { backgroundColor: colors.tagGreen }]}>
+                                                            <Text style={[styles.premiumNoteCardBadgeText, { color: colors.tagGreenText }]}>
+                                                                YEAR: {year}
+                                                            </Text>
                                                         </View>
                                                     ) : null}
-
-                                                    {(answer || explanation) ? (
-                                                        <Pressable
-                                                            onPress={() => {
-                                                                setSelectedQuestionAnswerDetail({
-                                                                    questionNumber: selectedQuestionIndex + 1,
-                                                                    title: prompt,
-                                                                    answer,
-                                                                    explanation,
-                                                                });
-                                                                setShowQuestionAnswerModal(true);
-                                                            }}
-                                                            style={styles.questionBankToggleBtn}
-                                                        >
-                                                            <Text style={styles.questionBankToggleText}>Show Answer</Text>
-                                                            <Feather
-                                                                name="chevron-right"
-                                                                size={normalize(18)}
-                                                                color={Colorpath.Primary}
-                                                            />
-                                                        </Pressable>
-                                                    ) : null}
                                                 </View>
-                                            </ScrollView>
-                                        );
-                                    })()}
-                                </View>
-                            </View>
+                                                <Feather name="chevron-right" size={normalize(20)} color={colors.textSecondary} />
+                                            </View>
+                                            
+                                            <Text style={[styles.premiumQuestionCardTitle, { color: colors.text }]} numberOfLines={3}>
+                                                {prompt}
+                                            </Text>
+                                            
+                                            <View style={[styles.premiumNoteCardFooter, { borderTopColor: colors.border }]}>
+                                                <Feather name="help-circle" size={normalize(14)} color={colors.Primary} style={{ marginRight: 6 }} />
+                                                <Text style={[styles.premiumNoteCardFooterText, { color: colors.Primary }]}>View Question & Answer</Text>
+                                            </View>
+                                        </Pressable>
+                                    );
+                                }}
+                            />
                         )}
                     </View>
                 </Modal>
@@ -2510,9 +2411,9 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                         <SafeAreaView edges={['top']} style={styles.questionAnswerSafeArea}>
                             <View style={styles.questionAnswerHeader}>
                                 <View style={styles.questionAnswerHeaderText}>
-                                    <Text style={styles.questionAnswerLabel}>ANSWER & EXPLANATION</Text>
+                                    <Text style={styles.questionAnswerLabel}>QUESTION DETAIL</Text>
                                     <Text style={styles.questionAnswerTitle}>
-                                        {selectedQuestionAnswerDetail?.title || 'Question Answer'}
+                                        Review Question
                                     </Text>
                                     <Text style={styles.questionAnswerSubtitle}>
                                         QUESTION {selectedQuestionAnswerDetail?.questionNumber || ''}
@@ -2528,15 +2429,73 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                         </SafeAreaView>
 
                         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.questionAnswerScrollContent}>
-                            <View style={styles.questionAnswerCard}>
-                                {selectedQuestionAnswerDetail?.answer ? (
-                                    <Text style={styles.questionAnswerBody}>{selectedQuestionAnswerDetail.answer}</Text>
+                            <View style={styles.qDetailBodyCard}>
+                                <View style={styles.qDetailBadgeRow}>
+                                    <View style={[styles.premiumNoteCardBadge, { backgroundColor: colors.tagPurple }]}>
+                                        <Text style={[styles.premiumNoteCardBadgeText, { color: colors.tagPurpleText }]}>
+                                            QUESTION {String(selectedQuestionAnswerDetail?.questionNumber || '').padStart(2, '0')}
+                                        </Text>
+                                    </View>
+                                </View>
+                                
+                                <View style={{ marginVertical: verticalScale(12) }}>
+                                    <CustomNoteRenderer
+                                        content={selectedQuestionAnswerDetail?.questionContent}
+                                        htmlFallback={selectedQuestionAnswerDetail?.htmlContent || selectedQuestionAnswerDetail?.title || ''}
+                                    />
+                                </View>
+
+                                {selectedQuestionAnswerDetail?.options && selectedQuestionAnswerDetail.options.length > 0 ? (
+                                    <View style={styles.qDetailOptionsWrap}>
+                                        {selectedQuestionAnswerDetail.options.map((option: any, optIdx: number) => {
+                                            const optionLetter = String.fromCharCode(65 + optIdx); // A, B, C, D
+                                            return (
+                                                <View key={optIdx} style={[styles.qDetailOptionRow, { borderColor: colors.border }]}>
+                                                    <View style={[styles.qDetailOptionLetterBox, { backgroundColor: colors.tagCyan }]}>
+                                                        <Text style={[styles.qDetailOptionLetter, { color: colors.tagCyanText }]}>
+                                                            {optionLetter}
+                                                        </Text>
+                                                    </View>
+                                                    <Text style={[styles.qDetailOptionText, { color: colors.text }]}>
+                                                        {toDisplayText(option, '')}
+                                                    </Text>
+                                                </View>
+                                            );
+                                        })}
+                                    </View>
                                 ) : null}
-                                {selectedQuestionAnswerDetail?.explanation ? (
-                                    <Text style={styles.questionAnswerExplanation}>
-                                        {selectedQuestionAnswerDetail.explanation}
-                                    </Text>
-                                ) : null}
+
+                                <View style={[styles.qDetailExplanationContainer, { borderColor: colors.border }]}>
+                                    <View style={[styles.qDetailExplanationHeader, { backgroundColor: theme === 'classic' ? '#ECFDF5' : 'rgba(16, 185, 129, 0.08)', borderBottomColor: colors.border }]}>
+                                        <Feather name="check-circle" size={normalize(18)} color="#10B981" />
+                                        <Text style={[styles.qDetailExplanationTitle, { color: theme === 'classic' ? '#0F766E' : '#34D399' }]}>
+                                            ANSWER & EXPLANATION
+                                        </Text>
+                                    </View>
+                                    
+                                    <View style={styles.qDetailExplanationBody}>
+                                        {selectedQuestionAnswerDetail?.answer ? (
+                                            <View style={styles.qCorrectAnswerBox}>
+                                                <Text style={[styles.qCorrectAnswerLabel, { color: colors.textSecondary }]}>CORRECT ANSWER</Text>
+                                                <View style={[styles.qCorrectAnswerValueContainer, { backgroundColor: theme === 'classic' ? '#EFF6FF' : 'rgba(59, 130, 246, 0.08)' }]}>
+                                                    <Text style={[styles.qCorrectAnswerValue, { color: colors.Primary }]}>
+                                                        {selectedQuestionAnswerDetail.answer}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                        ) : null}
+
+                                        {selectedQuestionAnswerDetail?.explanation ? (
+                                            <View style={styles.qExplanationBox}>
+                                                <Text style={[styles.qExplanationLabel, { color: colors.textSecondary }]}>EXPLANATION</Text>
+                                                <CustomNoteRenderer
+                                                    content={selectedQuestionAnswerDetail?.explanationJson}
+                                                    htmlFallback={selectedQuestionAnswerDetail.explanation}
+                                                />
+                                            </View>
+                                        ) : null}
+                                    </View>
+                                </View>
                             </View>
                         </ScrollView>
                     </View>
@@ -4162,6 +4121,186 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
         fontSize: normalize(14),
         color: colors.text,
         fontWeight: '600',
+    },
+    noteListScrollContainer: {
+        padding: normalize(18),
+        paddingBottom: verticalScale(32),
+    },
+    premiumNoteCard: {
+        backgroundColor: colors.cardBackground,
+        borderRadius: normalize(18),
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: normalize(18),
+        marginBottom: verticalScale(14),
+        shadowColor: '#101828',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 12,
+        elevation: 2,
+    },
+    premiumNoteCardHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: verticalScale(10),
+    },
+    premiumNoteCardTagRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: normalize(8),
+    },
+    premiumNoteCardBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: normalize(10),
+        paddingVertical: verticalScale(4),
+        borderRadius: normalize(999),
+    },
+    premiumNoteCardBadgeText: {
+        fontSize: normalize(10),
+        fontWeight: '800',
+        letterSpacing: 0.6,
+    },
+    premiumNoteCardTitle: {
+        fontSize: normalize(16),
+        fontWeight: '800',
+        marginBottom: verticalScale(6),
+    },
+    premiumNoteCardBody: {
+        fontSize: normalize(13),
+        lineHeight: normalize(19),
+        marginBottom: verticalScale(12),
+    },
+    premiumNoteCardFooter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderTopWidth: 1,
+        paddingTop: verticalScale(10),
+        marginTop: verticalScale(4),
+    },
+    premiumNoteCardFooterText: {
+        fontSize: normalize(12),
+        fontWeight: '700',
+    },
+    questionListScrollContainer: {
+        padding: normalize(18),
+        paddingBottom: verticalScale(32),
+    },
+    premiumQuestionCard: {
+        backgroundColor: colors.cardBackground,
+        borderRadius: normalize(18),
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: normalize(18),
+        marginBottom: verticalScale(14),
+        shadowColor: '#101828',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 12,
+        elevation: 2,
+    },
+    premiumQuestionCardTitle: {
+        fontSize: normalize(15),
+        fontWeight: '800',
+        lineHeight: normalize(22),
+        marginBottom: verticalScale(12),
+    },
+    qDetailBodyCard: {
+        backgroundColor: colors.cardBackground,
+        borderRadius: normalize(22),
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: normalize(20),
+        marginBottom: verticalScale(20),
+        shadowColor: '#101828',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.06,
+        shadowRadius: 16,
+        elevation: 3,
+    },
+    qDetailBadgeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: verticalScale(8),
+    },
+    qDetailOptionsWrap: {
+        marginVertical: verticalScale(16),
+        gap: verticalScale(10),
+    },
+    qDetailOptionRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderRadius: normalize(12),
+        borderWidth: 1,
+        padding: normalize(12),
+        gap: normalize(12),
+    },
+    qDetailOptionLetterBox: {
+        width: normalize(28),
+        height: normalize(28),
+        borderRadius: normalize(14),
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    qDetailOptionLetter: {
+        fontSize: normalize(13),
+        fontWeight: '800',
+    },
+    qDetailOptionText: {
+        flex: 1,
+        fontSize: normalize(14),
+        fontWeight: '600',
+        lineHeight: normalize(20),
+    },
+    qDetailExplanationContainer: {
+        borderRadius: normalize(16),
+        borderWidth: 1,
+        overflow: 'hidden',
+        marginTop: verticalScale(12),
+    },
+    qDetailExplanationHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: normalize(14),
+        borderBottomWidth: 1,
+        gap: normalize(8),
+    },
+    qDetailExplanationTitle: {
+        fontSize: normalize(13),
+        fontWeight: '800',
+        letterSpacing: 0.5,
+    },
+    qDetailExplanationBody: {
+        padding: normalize(16),
+        gap: verticalScale(14),
+    },
+    qCorrectAnswerBox: {
+        gap: verticalScale(6),
+    },
+    qCorrectAnswerLabel: {
+        fontSize: normalize(11),
+        fontWeight: '800',
+        letterSpacing: 0.8,
+    },
+    qCorrectAnswerValueContainer: {
+        paddingHorizontal: normalize(12),
+        paddingVertical: verticalScale(8),
+        borderRadius: normalize(8),
+        alignSelf: 'flex-start',
+    },
+    qCorrectAnswerValue: {
+        fontSize: normalize(14),
+        fontWeight: '800',
+    },
+    qExplanationBox: {
+        gap: verticalScale(6),
+    },
+    qExplanationLabel: {
+        fontSize: normalize(11),
+        fontWeight: '800',
+        letterSpacing: 0.8,
+        marginBottom: verticalScale(4),
     },
 });
 
