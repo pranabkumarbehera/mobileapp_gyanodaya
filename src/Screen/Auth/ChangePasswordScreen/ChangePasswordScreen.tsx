@@ -35,8 +35,8 @@ const ChangePasswordScreen = ({ route, navigation }: ChangePasswordScreenProps) 
     const resetToken = route.params?.token;
     const isResetMode = !!resetToken;
 
-    const { colors, theme } = useTheme();
-    const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
+    const { colors, tokens } = useTheme();
+    const isDarkTheme = tokens.isDark;
     const statusBarStyle = isDarkTheme ? 'light-content' : 'dark-content';
 
     const [currentPassword, setCurrentPassword] = useState('');

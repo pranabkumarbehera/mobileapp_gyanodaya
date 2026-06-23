@@ -10,8 +10,8 @@ import { useTheme } from '../../Themes/hooks';
 type AboutUsScreenProps = StackScreenProps<RootStackParamList, 'AboutUs'>;
 
 const AboutUsScreen = ({ navigation }: AboutUsScreenProps) => {
-    const { colors, theme } = useTheme();
-    const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
+    const { colors, tokens } = useTheme();
+    const isDarkTheme = tokens.isDark;
     const styles = useMemo(() => getStyles(colors, isDarkTheme), [colors, isDarkTheme]);
 
     return (

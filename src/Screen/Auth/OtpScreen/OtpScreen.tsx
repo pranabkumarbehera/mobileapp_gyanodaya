@@ -31,8 +31,8 @@ const OtpScreen = ({ route, navigation }: OtpScreenProps) => {
     const [resendTimer, setResendTimer] = useState(30);
     const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
 
-    const { colors, theme } = useTheme();
-    const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
+    const { colors, tokens } = useTheme();
+    const isDarkTheme = tokens.isDark;
     const statusBarStyle = isDarkTheme ? 'light-content' : 'dark-content';
 
     const inputRefs = useRef<(TextInput | null)[]>([]);

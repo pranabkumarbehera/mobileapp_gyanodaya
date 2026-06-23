@@ -154,8 +154,8 @@ const mapQuestions = (rawQuestions: any[]) =>
 const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenProps) => {
     const { testId, duration, acceptedTerms } = route.params || {};
     const dispatch = useDispatch();
-    const { colors, theme } = useTheme();
-    const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
+    const { colors, tokens } = useTheme();
+    const isDarkTheme = tokens.isDark;
     const styles = useMemo(() => getStyles(colors, isDarkTheme), [colors, isDarkTheme]);
 
     const { startTestResponse, submitTestResponse, testResult, isLoading, error, status } = useSelector((state: RootState) => state.MockTestReducer);

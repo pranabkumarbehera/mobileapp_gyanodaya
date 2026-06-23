@@ -84,9 +84,9 @@ const MockTestCard = ({ mock, handleStartTest, colors, isDarkTheme, styles }: an
 const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
     const dispatch = useDispatch();
     const isFocused = useIsFocused();
-    const { colors, theme } = useTheme();
+    const { colors, tokens } = useTheme();
     const { t } = useTranslation();
-    const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
+    const isDarkTheme = tokens.isDark;
     const styles = useMemo(() => getStyles(colors, isDarkTheme), [colors, isDarkTheme]);
 
     const [searchFocused, setSearchFocused] = useState(false);

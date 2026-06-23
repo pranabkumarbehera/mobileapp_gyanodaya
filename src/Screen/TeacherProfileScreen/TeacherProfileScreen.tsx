@@ -19,8 +19,8 @@ const getInitials = (nameStr: string) => {
 
 const TeacherProfileScreen = ({ route, navigation }: TeacherProfileProps) => {
     const { teacher } = route.params || {};
-    const { colors, theme } = useTheme();
-    const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
+    const { colors, tokens } = useTheme();
+    const isDarkTheme = tokens.isDark;
     const styles = useMemo(() => getStyles(colors, isDarkTheme), [colors, isDarkTheme]);
 
     const name = teacher?.name || 'Prof. V. Kumar';

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, TextInput, ActivityIndicator, Modal, Linking, FlatList, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, ActivityIndicator, Modal, Linking, FlatList, Animated, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from 'react-native-vector-icons/Feather';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
@@ -11,6 +11,12 @@ import { useIsFocused } from '@react-navigation/native';
 import { useTheme, useTranslation } from '../../Themes/hooks';
 import Toast from 'react-native-toast-message';
 import CustomNoteRenderer from '../../Components/CustomNoteRenderer';
+import {
+    CatalogMetric,
+    CatalogSearch,
+    CatalogState,
+    CourseCatalogCard,
+} from '../../Components/CourseCatalog';
 import {
     bundleIDRequest,
     clearBundleFlowState,
@@ -645,6 +651,23 @@ const getBundleMockCount = (bundle: any) => {
     return Number(directCount || 0);
 };
 
+const getBundlePricing = (bundle: any) => {
+    const payload = getBundlePayload(bundle);
+    const originalPrice = Math.max(0, Number(payload?.price || payload?.amount || 0));
+    const discountPrice = Math.max(0, Number(payload?.discountPrice || 0));
+    const discountPercentage = Math.max(0, Number(payload?.discountPercentage || 0));
+    const discountedPrice = discountPrice > 0
+        ? discountPrice
+        : discountPercentage > 0
+            ? originalPrice - (originalPrice * discountPercentage) / 100
+            : originalPrice;
+
+    return {
+        originalPrice: Math.round(originalPrice),
+        finalPrice: Math.max(0, Math.round(discountedPrice)),
+    };
+};
+
 const buildDetailTabs = (bundle: any) => {
     const collections = getDetailCollections(bundle);
     const tabs = [
@@ -1255,8 +1278,8 @@ const CourseMaterialCard = ({ item, sectionKey, handleOpenCourseItem, colors, is
                 </View>
                 {getItemDescription(item) ? <Text style={[styles.courseCardSubtitle, { color: colors.textSecondary }]}>{getItemDescription(item)}</Text> : <Text style={[styles.courseCardSubtitle, { color: colors.textSecondary }]}>YouTube Video</Text>}
                 <View style={styles.courseCardFooter}>
-                    <Feather name="youtube" size={normalize(14)} color="#FF0000" />
-                    <Text style={[styles.courseCardFooterText, { color: '#FF0000', marginLeft: normalize(6) }]}>Open in YouTube</Text>
+                    <Feather name="youtube" size={normalize(14)} color={colors.tagOrangeText} />
+                    <Text style={[styles.courseCardFooterText, { color: colors.tagOrangeText, marginLeft: normalize(6) }]}>Open video lesson</Text>
                 </View>
             </Pressable>
         </Animated.View>
@@ -1266,10 +1289,10 @@ const CourseMaterialCard = ({ item, sectionKey, handleOpenCourseItem, colors, is
 const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     const dispatch = useDispatch();
     const isFocused = useIsFocused();
-    const { colors, theme } = useTheme();
+    const { colors, theme, tokens } = useTheme();
     const { t } = useTranslation();
-    const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
-    const styles = useMemo(() => getStyles(colors, isDarkTheme), [colors, isDarkTheme]);
+    const isDarkTheme = tokens.isDark;
+    const styles = useMemo(() => getStyles(colors, tokens), [colors, tokens]);
     const {
         bundleList,
         studentModules,
@@ -1404,16 +1427,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
             return;
         }
 
-        // DEBUG: Log the raw bundle response so we can see what keys the backend returns
         const payload = getBundlePayload(bundleDetails);
-        const topKeys = Object.keys(bundleDetails || {});
-        const payloadKeys = Object.keys(payload || {});
-        console.log('[BundleDetails] Top-level keys:', topKeys);
-        console.log('[BundleDetails] Payload keys:', payloadKeys);
-        console.log('[BundleDetails] note_banks:', payload?.note_banks, '| noteBanks:', payload?.noteBanks, '| notes:', payload?.notes);
-        console.log('[BundleDetails] question_banks:', payload?.question_banks, '| questionBanks:', payload?.questionBanks);
-        console.log('[BundleDetails] Full payload (truncated):', JSON.stringify(payload)?.slice(0, 500));
-
         const resolvedBundleId = String(getBundleId(bundleDetails) || activeBundleId || '');
         const isEnrolled =
             !failedPendingBundleIds.has(resolvedBundleId) &&
@@ -1500,11 +1514,44 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         return false;
     }, []);
 
-    const filteredExams = bundleItems.filter((bundle: any) => {
-        const matchesSearch = (bundle?.title || bundle?.name || '').toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesModule = selectedModule ? ((bundle?.module && bundle.module === selectedModule) || (bundle?.title || bundle?.name || '').toLowerCase().includes(selectedModule.toLowerCase())) : true;
-        return matchesSearch && matchesModule;
-    });
+    const filteredExams = useMemo(() => {
+        const normalizedSearch = searchQuery.trim().toLowerCase();
+        return bundleItems.filter((bundle: any) => {
+            const normalizedBundle = getBundlePayload(bundle);
+            const searchableText = [
+                normalizedBundle?.title,
+                normalizedBundle?.name,
+                normalizedBundle?.description,
+                normalizedBundle?.module?.name,
+                normalizedBundle?.module,
+            ].filter(Boolean).join(' ').toLowerCase();
+            const matchesSearch = !normalizedSearch || searchableText.includes(normalizedSearch);
+            const matchesModule = selectedModule
+                ? searchableText.includes(selectedModule.toLowerCase())
+                : true;
+            return matchesSearch && matchesModule;
+        });
+    }, [bundleItems, searchQuery, selectedModule]);
+    const catalogStats = useMemo(() => {
+        const enrolledCount = bundleItems.reduce((count: number, bundle: any) => {
+            const normalizedBundle = getBundlePayload(bundle);
+            const bundleId = getBundleId(normalizedBundle);
+            const isEnrolled = Boolean(normalizedBundle?.isEnrolled) ||
+                (bundleId ? enrolledBundleIds.includes(String(bundleId)) : false) ||
+                (bundleId ? enrolledBundleOverrides.has(String(bundleId)) : false);
+            return count + (isEnrolled ? 1 : 0);
+        }, 0);
+        const mockCount = bundleItems.reduce(
+            (count: number, bundle: any) => count + getBundleMockCount(getBundlePayload(bundle)),
+            0,
+        );
+
+        return {
+            courses: bundleItems.length,
+            enrolled: enrolledCount,
+            mocks: mockCount,
+        };
+    }, [bundleItems, enrolledBundleIds, enrolledBundleOverrides]);
     const isEnrollingBundle = isLoading && (status === enrollBundleRequest.type || status === paymentRequest.type);
     const detailScreen = selectedSubBundleExam || selectedExam;
     const showingSubBundle = Boolean(selectedSubBundleExam);
@@ -1515,13 +1562,13 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         [detailScreen],
     );
     const examPatternItems = useMemo(() => [
-        { key: 'mock', label: 'Mock Bank', icon: 'layers', color: '#1D4ED8', bg: '#EFF6FF' },
-        { key: 'crack', label: 'Crack', icon: 'zap', color: '#D97706', bg: '#FEF3C7' },
-        { key: 'note', label: 'Note Bank Content', icon: 'book-open', color: '#059669', bg: '#ECFDF5' },
-        { key: 'question', label: 'Question Bank', icon: 'help-circle', color: '#7C3AED', bg: '#F5F3FF' },
-        { key: 'youtube', label: 'YouTube Video Bank URL', icon: 'youtube', color: '#FF0000', bg: '#FEF2F2' },
-        { key: 'security', label: 'No Screen Record & Screenshot Denied', icon: 'shield', color: '#DC2626', bg: '#FEE2E2' },
-    ], []);
+        { key: 'mock', label: 'Mock Bank', icon: 'layers', color: tokens.info, bg: colors.tagCyan },
+        { key: 'crack', label: 'Practice Insights', icon: 'zap', color: tokens.warning, bg: colors.tagOrange },
+        { key: 'note', label: 'Note Bank Content', icon: 'book-open', color: tokens.success, bg: colors.tagGreen },
+        { key: 'question', label: 'Question Bank', icon: 'help-circle', color: colors.tagPurpleText, bg: colors.tagPurple },
+        { key: 'youtube', label: 'Video Learning', icon: 'youtube', color: tokens.video, bg: colors.tagOrange },
+        { key: 'security', label: 'Protected Learning Content', icon: 'shield', color: tokens.danger, bg: colors.tagPurple },
+    ], [colors, tokens]);
     const mockContentAvailable = Boolean(
         detailScreen?.quizGroups?.length ||
         showSubBundleList ||
@@ -1865,7 +1912,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         if (courseSections.length === 0) {
             return (
                 <View style={styles.emptyStateBox}>
-                    <Feather name="folder" size={normalize(24)} color="#94A3B8" />
+                    <Feather name="folder" size={normalize(24)} color={colors.textSecondary} />
                     <Text style={styles.emptyStateText}>No Data Available</Text>
                 </View>
             );
@@ -1912,7 +1959,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                         ItemSeparatorComponent={() => <View style={{ height: verticalScale(12) }} />}
                         ListEmptyComponent={(
                             <View style={styles.emptyStateBox}>
-                                <Feather name="inbox" size={normalize(24)} color="#94A3B8" />
+                                <Feather name="inbox" size={normalize(24)} color={colors.textSecondary} />
                                 <Text style={styles.emptyStateText}>No Data Available</Text>
                             </View>
                         )}
@@ -2037,6 +2084,12 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
             return;
         }
     };
+
+    const refreshCatalog = useCallback(() => {
+        dispatch(getBundleListRequest({ limit: 50, page: 1, ...(selectedModule ? { module: selectedModule } : {}) }));
+        dispatch(getStudentModulesRequest({}));
+        dispatch(paymentHistoryRequest({ page: 1, limit: 100 }));
+    }, [dispatch, selectedModule]);
 
     if (detailScreen) {
         return (
@@ -2238,7 +2291,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                     <Text style={styles.noteViewerSubtitle}>READ AND LEARN WITH CURATED NOTES</Text>
                                 </View>
                                 <Pressable onPress={() => setShowNoteViewerModal(false)} style={styles.noteViewerCloseBtn}>
-                                    <Feather name="x" size={normalize(22)} color="#0F172A" />
+                                    <Feather name="x" size={normalize(22)} color={colors.text} />
                                 </Pressable>
                             </View>
                         </SafeAreaView>
@@ -2250,7 +2303,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                             </View>
                         ) : selectedNotePages.length === 0 ? (
                             <View style={styles.noteViewerStateBox}>
-                                <Feather name="file-text" size={normalize(24)} color="#94A3B8" />
+                                <Feather name="file-text" size={normalize(24)} color={colors.textSecondary} />
                                 <Text style={styles.noteViewerStateText}>No note pages found.</Text>
                             </View>
                         ) : (
@@ -2324,7 +2377,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                     <Text style={styles.questionBankSubtitle}>PRACTICE WITH CURATED QUESTIONS AND EXPLANATIONS</Text>
                                 </View>
                                 <Pressable onPress={() => setShowQuestionBankModal(false)} style={styles.questionBankCloseBtn}>
-                                    <Feather name="x" size={normalize(22)} color="#0F172A" />
+                                    <Feather name="x" size={normalize(22)} color={colors.text} />
                                 </Pressable>
                             </View>
                         </SafeAreaView>
@@ -2336,7 +2389,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                             </View>
                         ) : selectedQuestionBankQuestions.length === 0 ? (
                             <View style={styles.questionBankEmptyState}>
-                                <Feather name="inbox" size={normalize(26)} color="#94A3B8" />
+                                <Feather name="inbox" size={normalize(26)} color={colors.textSecondary} />
                                 <Text style={styles.questionBankEmptyText}>No Data Available</Text>
                             </View>
                         ) : (
@@ -2423,7 +2476,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                     onPress={() => setShowQuestionAnswerModal(false)}
                                     style={styles.questionAnswerCloseBtn}
                                 >
-                                    <Feather name="x" size={normalize(22)} color="#0F172A" />
+                                    <Feather name="x" size={normalize(22)} color={colors.text} />
                                 </Pressable>
                             </View>
                         </SafeAreaView>
@@ -2516,7 +2569,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                     <Text style={styles.videoBankSubtitle}>Select a video to open in YouTube</Text>
                                 </View>
                                 <Pressable onPress={() => setShowVideoBankModal(false)} style={styles.videoBankCloseBtn}>
-                                    <Feather name="x" size={normalize(22)} color="#0F172A" />
+                                    <Feather name="x" size={normalize(22)} color={colors.text} />
                                 </Pressable>
                             </View>
                         </SafeAreaView>
@@ -2528,7 +2581,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                             </View>
                         ) : selectedVideoBankItems.length === 0 ? (
                             <View style={styles.videoBankEmptyState}>
-                                <Feather name="youtube" size={normalize(28)} color="#94A3B8" />
+                                <Feather name="youtube" size={normalize(28)} color={colors.textSecondary} />
                                 <Text style={styles.videoBankEmptyText}>No Data Available</Text>
                             </View>
                         ) : (
@@ -2554,7 +2607,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                         >
                                             <View style={styles.videoBankCardTopRow}>
                                                 <View style={styles.videoBankPlayIconWrap}>
-                                                    <Feather name="play-circle" size={normalize(18)} color="#FF0000" />
+                                                    <Feather name="play-circle" size={normalize(18)} color={tokens.video} />
                                                 </View>
                                                 <View style={styles.videoBankCardTextWrap}>
                                                     <Text style={styles.videoBankCardTitle} numberOfLines={2}>{title}</Text>
@@ -2562,7 +2615,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                                 </View>
                                             </View>
                                             <View style={styles.videoBankCardFooter}>
-                                                <Feather name="youtube" size={normalize(16)} color="#FF0000" />
+                                                <Feather name="youtube" size={normalize(16)} color={tokens.video} />
                                                 <Text style={styles.videoBankCardFooterText}>Open in YouTube</Text>
                                             </View>
                                         </Pressable>
@@ -2589,7 +2642,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                     </Text>
                                 </View>
                                 <Pressable onPress={() => setShowNotePageModal(false)} style={styles.notePageViewerCloseBtn}>
-                                    <Feather name="x" size={normalize(22)} color="#0F172A" />
+                                    <Feather name="x" size={normalize(22)} color={colors.text} />
                                 </Pressable>
                             </View>
                         </SafeAreaView>
@@ -2613,6 +2666,8 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
             <StatusBar backgroundColor={colors.statusBg} barStyle={colors.statusBar} />
 
             <View style={styles.headerBackground}>
+                <View pointerEvents="none" style={styles.headerGlowPrimary} />
+                <View pointerEvents="none" style={styles.headerGlowSecondary} />
                 <SafeAreaView edges={['top']}>
                     <View style={styles.topBar}>
                         {selectedModule && (
@@ -2628,54 +2683,82 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                 </SafeAreaView>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                <View style={styles.searchContainer}>
-                    <Feather name="search" size={normalize(18)} color={colors.textSecondary} style={styles.searchIcon} />
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="Search courses..."
-                        placeholderTextColor={colors.textSecondary}
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
+            <FlatList
+                data={filteredExams}
+                numColumns={2}
+                keyExtractor={(bundle: any, index: number) => String(getBundleId(getBundlePayload(bundle)) || index)}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={styles.catalogContent}
+                columnWrapperStyle={filteredExams.length > 1 ? styles.catalogRow : undefined}
+                refreshControl={(
+                    <RefreshControl
+                        refreshing={Boolean(isLoading && bundleItems.length > 0)}
+                        onRefresh={refreshCatalog}
+                        tintColor={colors.accent}
+                        colors={[colors.accent]}
                     />
-                </View>
+                )}
+                ListHeaderComponent={(
+                    <View>
+                        <CatalogSearch value={searchQuery} colors={colors} tokens={tokens} onChangeText={setSearchQuery} />
 
-                <View style={styles.statsContainer}>
-                    <View style={styles.statCard}>
-                        <Text style={[styles.statValue, { color: colors.Primary }]}>{bundleItems.length}</Text>
-                        <Text style={styles.statLabel}>Exams</Text>
-                    </View>
-                    <View style={styles.statCard}>
-                        <Text style={[styles.statValue, { color: '#10B981' }]}>30+</Text>
-                        <Text style={styles.statLabel}>Subjects</Text>
-                    </View>
-                    <View style={styles.statCard}>
-                        <Text style={[styles.statValue, { color: '#F0A335' }]}>500+</Text>
-                        <Text style={styles.statLabel}>Mock Tests</Text>
-                    </View>
-                </View>
+                        <View style={styles.catalogStats}>
+                            <CatalogMetric icon="book-open" label="Courses" value={catalogStats.courses} color={colors.accent} colors={colors} tokens={tokens} />
+                            <CatalogMetric icon="check-circle" label="Enrolled" value={catalogStats.enrolled} color={tokens.success} colors={colors} tokens={tokens} />
+                            <CatalogMetric icon="layers" label="Mock tests" value={catalogStats.mocks} color={tokens.warning} colors={colors} tokens={tokens} />
+                        </View>
 
-                <>
-                    <Text style={styles.allExamsTitle}>All Courses</Text>
-
-                    <View style={styles.gridContainer}>
-                        {filteredExams.map((bundle: any, index: number) => (
-                            <ExamCard
-                                key={String(getBundleId(getBundlePayload(bundle)) || index)}
-                                bundle={bundle}
-                                index={index}
-                                onPress={() => handleBundlePress(bundle)}
-                                colors={colors}
-                                isDarkTheme={isDarkTheme}
-                                styles={styles}
-                                renderIcon={renderIcon}
-                            />
-                        ))}
+                        <View style={styles.catalogSectionHeader}>
+                            <View>
+                                <Text style={styles.allExamsTitle}>
+                                    {searchQuery ? 'Search results' : 'Explore courses'}
+                                </Text>
+                                <Text style={styles.catalogSectionSubtitle}>
+                                    {filteredExams.length} course{filteredExams.length === 1 ? '' : 's'} available
+                                </Text>
+                            </View>
+                            {searchQuery ? (
+                                <Pressable hitSlop={10} onPress={() => setSearchQuery('')}>
+                                    <Text style={[styles.clearSearchText, { color: colors.accent }]}>Clear</Text>
+                                </Pressable>
+                            ) : null}
+                        </View>
                     </View>
-                </>
+                )}
+                ListEmptyComponent={(
+                    <CatalogState loading={Boolean(isLoading)} hasSearch={Boolean(searchQuery.trim())} colors={colors} tokens={tokens} />
+                )}
+                ListFooterComponent={<View style={{ height: verticalScale(100) }} />}
+                renderItem={({ item: bundle }) => {
+                    const normalizedBundle = getBundlePayload(bundle);
+                    const bundleId = getBundleId(normalizedBundle);
+                    const exam = getExamMetaByTitle(normalizedBundle?.title || normalizedBundle?.name || '');
+                    const pricing = getBundlePricing(normalizedBundle);
+                    const isEnrolled = Boolean(normalizedBundle?.isEnrolled) ||
+                        (bundleId ? enrolledBundleIds.includes(String(bundleId)) : false) ||
+                        (bundleId ? enrolledBundleOverrides.has(String(bundleId)) : false);
 
-                <View style={{ height: verticalScale(100) }} />
-            </ScrollView>
+                    return (
+                        <CourseCatalogCard
+                            title={normalizedBundle?.title || normalizedBundle?.name || 'Untitled course'}
+                            icon={{
+                                name: exam.icon,
+                                type: exam.iconType,
+                                backgroundColor: exam.bgColor,
+                                color: exam.iconColor,
+                            }}
+                            mockCount={getBundleMockCount(normalizedBundle)}
+                            price={pricing.finalPrice}
+                            originalPrice={pricing.originalPrice}
+                            isEnrolled={isEnrolled}
+                            colors={colors}
+                            tokens={tokens}
+                            onPress={() => handleBundlePress(bundle)}
+                        />
+                    );
+                }}
+            />
 
             <Modal
                 visible={showBundleActionModal}
@@ -2714,10 +2797,10 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                             return (
                                 <View style={styles.modalPriceRow}>
                                     <Text style={styles.modalPriceText}>
-                                        Price: <Text style={{ textDecorationLine: 'line-through', color: '#9CA3AF' }}>₹{originalPrice}</Text>
+                                        Price: <Text style={{ textDecorationLine: 'line-through', color: colors.textSecondary }}>₹{originalPrice}</Text>
                                         {discountPercentage > 0 ? ` | Discount: ${discountPercentage}%` : ''}
                                         {` | Final: `}
-                                        <Text style={{ color: '#16A34A', fontWeight: 'bold' }}>₹{finalPrice}</Text>
+                                        <Text style={{ color: tokens.success, fontWeight: 'bold' }}>₹{finalPrice}</Text>
                                     </Text>
                                 </View>
                             );
@@ -2744,7 +2827,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                     style={styles.modalSecondaryButton}
                                     onPress={() => openBundleDetails(selectedBundle, 'view')}
                                 >
-                                    <Feather name="eye" size={normalize(16)} color="#0F172A" />
+                                    <Feather name="eye" size={normalize(16)} color={colors.text} />
                                     <Text style={styles.modalSecondaryButtonText}>View</Text>
                                 </Pressable>
 
@@ -2792,16 +2875,37 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     );
 };
 
-const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
+const getStyles = (colors: any, tokens: any) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: colors.Background,
     },
     headerBackground: {
         backgroundColor: colors.Primary,
-        borderBottomLeftRadius: normalize(24),
-        borderBottomRightRadius: normalize(24),
+        borderBottomLeftRadius: normalize(tokens.radius.xl),
+        borderBottomRightRadius: normalize(tokens.radius.xl),
         paddingBottom: verticalScale(12),
+        overflow: 'hidden',
+        borderBottomWidth: tokens.isGlass ? 1 : 0,
+        borderBottomColor: tokens.glassBorder,
+    },
+    headerGlowPrimary: {
+        position: 'absolute',
+        width: normalize(180),
+        height: normalize(180),
+        borderRadius: normalize(90),
+        backgroundColor: tokens.isGlass ? 'rgba(139, 156, 255, 0.18)' : 'rgba(255, 255, 255, 0.08)',
+        right: -normalize(55),
+        top: -normalize(95),
+    },
+    headerGlowSecondary: {
+        position: 'absolute',
+        width: normalize(120),
+        height: normalize(120),
+        borderRadius: normalize(60),
+        backgroundColor: tokens.isGlass ? 'rgba(53, 216, 255, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+        left: -normalize(45),
+        bottom: -normalize(75),
     },
     topBar: {
         paddingHorizontal: normalize(24),
@@ -2811,75 +2915,49 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
     titleText: {
         fontSize: normalize(24),
         fontWeight: '800',
-        color: '#FFFFFF',
+        color: tokens.onAccent,
         marginBottom: verticalScale(6),
     },
     subtitleText: {
         fontSize: normalize(13),
-        color: 'rgba(255, 255, 255, 0.85)',
+        color: tokens.isGlass ? colors.textSecondary : 'rgba(255, 255, 255, 0.85)',
         lineHeight: normalize(18),
     },
-    scrollContent: {
-        paddingHorizontal: normalize(20),
-        paddingTop: verticalScale(20),
-    },
-    searchContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.cardBackground,
-        borderRadius: normalize(12),
+    catalogContent: {
         paddingHorizontal: normalize(14),
-        height: verticalScale(48),
-        borderWidth: 1,
-        borderColor: colors.border,
-        marginBottom: verticalScale(20),
+        paddingTop: verticalScale(18),
     },
-    searchIcon: {
-        marginRight: normalize(8),
-    },
-    searchInput: {
-        flex: 1,
-        fontSize: normalize(14),
-        color: colors.text,
-        height: '100%',
-        paddingVertical: 0,
-    },
-    statsContainer: {
+    catalogStats: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        gap: normalize(10),
+        marginTop: verticalScale(16),
         marginBottom: verticalScale(24),
     },
-    statCard: {
-        flex: 1,
-        backgroundColor: colors.cardBackground,
-        borderRadius: normalize(12),
-        paddingVertical: verticalScale(12),
-        alignItems: 'center',
-        marginHorizontal: normalize(4),
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    statValue: {
-        fontSize: normalize(16),
-        fontWeight: '800',
-    },
-    statLabel: {
-        fontSize: normalize(11),
-        color: colors.textSecondary,
-        fontWeight: '600',
-        marginTop: verticalScale(2),
+    catalogSectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'flex-end',
+        justifyContent: 'space-between',
+        paddingHorizontal: normalize(6),
+        marginBottom: verticalScale(14),
     },
     allExamsTitle: {
-        fontSize: normalize(16),
-        fontWeight: 'bold',
+        fontSize: normalize(18),
+        fontWeight: '800',
         color: colors.text,
-        marginBottom: verticalScale(16),
     },
-    gridContainer: {
+    catalogSectionSubtitle: {
+        marginTop: verticalScale(3),
+        fontSize: normalize(11),
+        fontWeight: '600',
+        color: colors.textSecondary,
+    },
+    clearSearchText: {
+        fontSize: normalize(12),
+        fontWeight: '800',
+    },
+    catalogRow: {
         flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'flex-start',
-        marginHorizontal: -normalize(8),
+        alignItems: 'stretch',
     },
     gridItem: {
         alignItems: 'center',
@@ -2889,7 +2967,7 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
         borderRadius: normalize(16),
         borderWidth: 1,
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: isDarkTheme ? 0.16 : 0.05,
+        shadowOpacity: tokens.shadowOpacity,
         shadowRadius: 10,
         elevation: 3,
     },
@@ -2929,7 +3007,7 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
     backBtn: {
         width: normalize(36),
         height: normalize(36),
-        borderRadius: normalize(18),
+        borderRadius: normalize(tokens.radius.lg),
         backgroundColor: 'rgba(255, 255, 255, 0.15)',
         justifyContent: 'center',
         alignItems: 'center',
@@ -2980,9 +3058,9 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
         borderColor: colors.border,
         padding: normalize(16),
         marginBottom: verticalScale(20),
-        shadowColor: isDarkTheme ? colors.accent : '#101828',
+        shadowColor: tokens.shadow,
         shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: isDarkTheme ? 0.12 : 0.05,
+        shadowOpacity: tokens.shadowOpacity,
         shadowRadius: 20,
         elevation: 3,
     },
@@ -3081,11 +3159,11 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
     quizCard: {
         width: '100%',
         minWidth: normalize(140),
-        borderRadius: normalize(18),
+        borderRadius: normalize(tokens.radius.lg),
         padding: normalize(14),
         borderWidth: 1,
         shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: isDarkTheme ? 0.16 : 0.08,
+        shadowOpacity: tokens.shadowOpacity,
         shadowRadius: 18,
         elevation: 4,
     },
@@ -3169,12 +3247,12 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
     },
     modalBackdrop: {
         ...StyleSheet.absoluteFill,
-        backgroundColor: 'rgba(15, 23, 42, 0.45)',
+        backgroundColor: tokens.overlay,
     },
     modalCard: {
         width: '100%',
         backgroundColor: colors.cardBackground,
-        borderRadius: normalize(20),
+        borderRadius: normalize(tokens.radius.xl),
         padding: normalize(22),
         borderWidth: 1,
         borderColor: colors.border,
@@ -3197,7 +3275,7 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
         backgroundColor: colors.Background,
     },
     noteViewerSafeArea: {
-        backgroundColor: colors.cardBackground,
+        backgroundColor: tokens.glassSurface,
     },
     noteViewerHeader: {
         flexDirection: 'row',
@@ -3222,7 +3300,7 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
         alignSelf: 'flex-start',
         borderRadius: normalize(999),
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: tokens.glassBorder,
         backgroundColor: colors.tagCyan,
         color: colors.tagCyanText,
         fontSize: normalize(10),
@@ -3332,9 +3410,9 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.border,
         padding: normalize(20),
-        shadowColor: isDarkTheme ? colors.accent : '#101828',
+        shadowColor: tokens.shadow,
         shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: isDarkTheme ? 0.12 : 0.06,
+        shadowOpacity: tokens.shadowOpacity,
         shadowRadius: 20,
         elevation: 3,
     },
@@ -3443,9 +3521,9 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.border,
         padding: normalize(20),
-        shadowColor: isDarkTheme ? colors.accent : '#101828',
+        shadowColor: tokens.shadow,
         shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: isDarkTheme ? 0.12 : 0.06,
+        shadowOpacity: tokens.shadowOpacity,
         shadowRadius: 20,
         elevation: 3,
     },
@@ -3542,9 +3620,9 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.border,
         padding: normalize(16),
-        shadowColor: isDarkTheme ? colors.accent : '#000000',
+        shadowColor: tokens.shadow,
         shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: isDarkTheme ? 0.12 : 0.06,
+        shadowOpacity: tokens.shadowOpacity,
         shadowRadius: 18,
         elevation: 3,
         justifyContent: 'space-between',
@@ -3763,9 +3841,9 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.border,
         padding: normalize(20),
-        shadowColor: isDarkTheme ? colors.accent : '#101828',
+        shadowColor: tokens.shadow,
         shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: isDarkTheme ? 0.12 : 0.06,
+        shadowOpacity: tokens.shadowOpacity,
         shadowRadius: 20,
         elevation: 3,
     },
@@ -3926,9 +4004,9 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.border,
         padding: normalize(20),
-        shadowColor: isDarkTheme ? colors.accent : '#101828',
+        shadowColor: tokens.shadow,
         shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: isDarkTheme ? 0.12 : 0.06,
+        shadowOpacity: tokens.shadowOpacity,
         shadowRadius: 20,
         elevation: 3,
     },
@@ -4030,9 +4108,9 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.border,
         padding: normalize(16),
-        shadowColor: isDarkTheme ? colors.accent : '#000000',
+        shadowColor: tokens.shadow,
         shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: isDarkTheme ? 0.12 : 0.06,
+        shadowOpacity: tokens.shadowOpacity,
         shadowRadius: 18,
         elevation: 3,
         minHeight: verticalScale(120),

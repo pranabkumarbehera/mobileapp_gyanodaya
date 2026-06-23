@@ -44,10 +44,9 @@ const getQuizNegativeMarking = (quiz: any) => {
 const MockTestRulesScreen = ({ navigation, route }: MockTestRulesScreenProps) => {
     const { testId, testData } = route.params || {};
     const dispatch = useDispatch();
-    const { colors, theme } = useTheme();
+    const { colors, tokens } = useTheme();
     const { t } = useTranslation();
-    const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
-    const styles = useMemo(() => getStyles(colors, isDarkTheme), [colors, isDarkTheme]);
+    const styles = useMemo(() => getStyles(colors, tokens), [colors, tokens]);
 
     const { mockTestDetails, isLoading, status, startTestResponse } = useSelector((state: RootState) => state.MockTestReducer);
     const [termsAccepted, setTermsAccepted] = useState(false);
@@ -127,6 +126,7 @@ const MockTestRulesScreen = ({ navigation, route }: MockTestRulesScreenProps) =>
         <SafeAreaView style={styles.container}>
             <StatusBar backgroundColor={colors.statusBg} barStyle={colors.statusBar} />
             <View style={styles.header}>
+                <View pointerEvents="none" style={styles.headerGlow} />
                 <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
                     <Icon name="arrow-left" size={normalize(16)} color={colors.text} />
                 </Pressable>
@@ -184,7 +184,7 @@ const MockTestRulesScreen = ({ navigation, route }: MockTestRulesScreenProps) =>
                             termsAccepted && styles.checkboxChecked,
                             { borderColor: termsAccepted ? colors.Primary : colors.border }
                         ]}>
-                            {termsAccepted ? <Icon name="check" size={normalize(10)} color="#FFFFFF" /> : null}
+                            {termsAccepted ? <Icon name="check" size={normalize(10)} color={tokens.onAccent} /> : null}
                         </View>
                         <Text style={styles.checkboxText}>I accept the Terms & Conditions and want to continue.</Text>
                     </Pressable>
@@ -210,7 +210,7 @@ const MockTestRulesScreen = ({ navigation, route }: MockTestRulesScreenProps) =>
     );
 };
 
-const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
+const getStyles = (colors: any, tokens: any) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: colors.Background,
@@ -222,16 +222,26 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
         paddingHorizontal: normalize(20),
         paddingVertical: verticalScale(16),
         borderBottomWidth: 1,
-        borderBottomColor: colors.border,
-        backgroundColor: colors.cardBackground,
+        borderBottomColor: tokens.glassBorder,
+        backgroundColor: tokens.glassSurface,
+        overflow: 'hidden',
+    },
+    headerGlow: {
+        position: 'absolute',
+        width: normalize(140),
+        height: normalize(140),
+        borderRadius: normalize(70),
+        right: -normalize(50),
+        top: -normalize(90),
+        backgroundColor: tokens.isGlass ? 'rgba(139, 156, 255, 0.18)' : colors.tagCyan,
     },
     backButton: {
         width: normalize(36),
         height: normalize(36),
-        borderRadius: normalize(18),
+        borderRadius: normalize(tokens.radius.lg),
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: colors.Background,
+        backgroundColor: tokens.surfaceMuted,
         borderWidth: 1,
         borderColor: colors.border,
     },
@@ -248,15 +258,15 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
         flexGrow: 1,
     },
     infoCard: {
-        backgroundColor: colors.cardBackground,
-        borderRadius: normalize(18),
+        backgroundColor: tokens.glassSurface,
+        borderRadius: normalize(tokens.radius.xl),
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: tokens.glassBorder,
         padding: normalize(20),
         marginBottom: verticalScale(18),
-        shadowColor: isDarkTheme ? colors.accent : '#000000',
+        shadowColor: tokens.shadow,
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: isDarkTheme ? 0.15 : 0.05,
+        shadowOpacity: tokens.shadowOpacity,
         shadowRadius: 8,
         elevation: 2,
     },
@@ -288,10 +298,10 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
     metaChip: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.Background,
+        backgroundColor: tokens.surfaceMuted,
         borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: normalize(999),
+        borderColor: tokens.glassBorder,
+        borderRadius: normalize(tokens.radius.pill),
         paddingHorizontal: normalize(12),
         paddingVertical: verticalScale(8),
     },
@@ -306,8 +316,8 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
         alignItems: 'center',
         backgroundColor: colors.tagOrange,
         borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: normalize(999),
+        borderColor: tokens.glassBorder,
+        borderRadius: normalize(tokens.radius.pill),
         paddingHorizontal: normalize(12),
         paddingVertical: verticalScale(8),
     },
@@ -318,15 +328,15 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
         color: colors.tagOrangeText,
     },
     rulesCard: {
-        backgroundColor: colors.cardBackground,
-        borderRadius: normalize(18),
+        backgroundColor: tokens.glassSurface,
+        borderRadius: normalize(tokens.radius.xl),
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: tokens.glassBorder,
         padding: normalize(20),
         marginBottom: verticalScale(18),
-        shadowColor: isDarkTheme ? colors.accent : '#000000',
+        shadowColor: tokens.shadow,
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: isDarkTheme ? 0.15 : 0.05,
+        shadowOpacity: tokens.shadowOpacity,
         shadowRadius: 8,
         elevation: 2,
     },
@@ -374,7 +384,7 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
         height: normalize(22),
         borderRadius: normalize(6),
         borderWidth: 2,
-        backgroundColor: colors.Background,
+        backgroundColor: tokens.surfaceMuted,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: normalize(12),
@@ -398,7 +408,7 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
     },
     primaryButton: {
         backgroundColor: colors.Primary,
-        borderRadius: normalize(12),
+        borderRadius: normalize(tokens.radius.md),
         height: verticalScale(55),
         justifyContent: 'center',
         alignItems: 'center',
@@ -407,7 +417,7 @@ const getStyles = (colors: any, isDarkTheme: boolean) => StyleSheet.create({
         opacity: 0.7,
     },
     primaryButtonText: {
-        color: '#FFFFFF',
+        color: tokens.onAccent,
         fontSize: normalize(18),
         fontWeight: '800',
     },

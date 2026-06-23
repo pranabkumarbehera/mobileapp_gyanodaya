@@ -24,10 +24,8 @@ const TabNav = () => {
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, verticalScale(8));
   
-  const { colors, theme } = useTheme();
+  const { colors, tokens } = useTheme();
   const { t, language } = useTranslation();
-
-  const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
 
   const getTabLabel = (routeName: string) => {
     if (routeName === 'Home') {
@@ -110,16 +108,16 @@ const TabNav = () => {
           bottom: verticalScale(12) + (bottomInset > 8 ? bottomInset - 8 : 0),
           left: normalize(16),
           right: normalize(16),
-          backgroundColor: theme === 'classic' ? colors.tabBg : 'rgba(11, 15, 25, 0.94)',
+          backgroundColor: tokens.isGlass ? tokens.glassSurface : colors.tabBg,
           borderWidth: 1,
-          borderColor: theme === 'classic' ? colors.border : 'rgba(255, 255, 255, 0.08)',
-          borderRadius: normalize(24),
+          borderColor: tokens.glassBorder,
+          borderRadius: normalize(tokens.radius.xl),
           height: verticalScale(64),
           paddingBottom: verticalScale(8),
           paddingTop: verticalScale(8),
-          shadowColor: isDarkTheme ? colors.accent : '#000000',
+          shadowColor: tokens.shadow,
           shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: isDarkTheme ? 0.16 : 0.06,
+          shadowOpacity: tokens.shadowOpacity,
           shadowRadius: 16,
           elevation: 6,
         },

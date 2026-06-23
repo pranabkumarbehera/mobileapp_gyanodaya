@@ -53,8 +53,8 @@ const colStatus = { width: normalize(115) };
 
 const CoursesPaymentHistoryScreen = ({ navigation }: CoursesPaymentHistoryScreenProps) => {
     const dispatch = useDispatch();
-    const { colors, theme } = useTheme();
-    const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
+    const { colors, tokens } = useTheme();
+    const isDarkTheme = tokens.isDark;
     const styles = useMemo(() => getStyles(colors, isDarkTheme), [colors, isDarkTheme]);
 
     const { paymentHistoryData, paymentHistoryLoading, paymentHistoryError } = useSelector(

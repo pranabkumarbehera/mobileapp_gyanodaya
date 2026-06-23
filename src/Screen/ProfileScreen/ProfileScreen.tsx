@@ -39,6 +39,7 @@ import {
     normalizeProfileData,
 } from '../../Utils/Helpers/home';
 import { useTheme, useTranslation } from '../../Themes/hooks';
+import { themes } from '../../Themes/themes';
 import { changeTheme, changeLanguage } from '../../Redux/Reducers/UiPreferenceReducer';
 
 type ProfileScreenProps = StackScreenProps<RootStackParamList, 'Profile'>;
@@ -79,10 +80,10 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
     const [focusedField, setFocusedField] = useState<string | null>(null);
 
 
-    const { colors, theme } = useTheme();
+    const { colors, theme, tokens } = useTheme();
     const { t, language } = useTranslation();
 
-    const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
+    const isDarkTheme = tokens.isDark;
     const statusBarStyle = isDarkTheme ? 'light-content' : 'dark-content';
 
     // Account Deletion States
@@ -268,13 +269,19 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
     };
 
     const themeOptions = [
-        { name: 'classic', label: t('profile.classic_theme'), mainColor: '#092948', accentColor: '#f0a335' },
-        { name: 'neon', label: t('profile.neon_theme'), mainColor: '#0A0A10', accentColor: '#00F2FE' },
-        { name: 'aurora', label: t('profile.aurora_theme'), mainColor: '#4F46E5', accentColor: '#EC4899' },
-        { name: 'sunset', label: t('profile.sunset_theme'), mainColor: '#1E0D06', accentColor: '#F97316' },
-        { name: 'midnight', label: t('profile.midnight_theme'), mainColor: '#0F172A', accentColor: '#6366F1' },
-        { name: 'emerald', label: t('profile.emerald_theme'), mainColor: '#064E3B', accentColor: '#10B981' }
-    ];
+        'classic',
+        'neon',
+        'aurora',
+        'sunset',
+        'midnight',
+        'emerald',
+        'glass',
+    ].map(name => ({
+        name,
+        label: t(`profile.${name}_theme`),
+        mainColor: themes[name].Primary,
+        accentColor: themes[name].accent,
+    }));
 
     const langOptions = [
         { code: 'en', name: 'English' },

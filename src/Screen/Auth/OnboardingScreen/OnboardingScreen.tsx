@@ -75,11 +75,11 @@ const onboardingSlides: Slide[] = [
 const OnboardingScreen = ({ navigation }: OnboardingScreenProps) => {
     const flatListRef = useRef<FlatList<Slide>>(null);
     const [currentIndex, setCurrentIndex] = useState(0);
-    const { colors, theme } = useTheme();
+    const { colors, theme, tokens } = useTheme();
     const { t } = useTranslation();
     const isLastSlide = currentIndex === onboardingSlides.length - 1;
 
-    const isDarkTheme = theme === 'neon' || theme === 'sunset';
+    const isDarkTheme = tokens.isDark;
     const statusBarStyle = isDarkTheme ? 'light-content' : 'dark-content';
 
     const handleMomentumPress = () => {

@@ -25,7 +25,6 @@ import MockResultScreen from '../Screen/MockResultScreen/MockResultScreen';
 import AboutUsScreen from '../Screen/AboutUsScreen/AboutUsScreen';
 import CoursesPaymentHistoryScreen from '../Screen/CoursesPaymentHistoryScreen/CoursesPaymentHistoryScreen';
 import { bootstrapHomeRequest } from '../Redux/Reducers/HomeReducer';
-import Colorpath from '../Themes/Colorpath';
 import { useTheme, useTranslation } from '../Themes/hooks';
 
 export type RootStackParamList = {
@@ -90,10 +89,10 @@ const StackNav = () => {
     const dispatch = useDispatch();
     const token = useSelector((state: RootState) => state.AuthReducer.token);
     const homeState = useSelector((state: RootState) => state.HomeReducer);
-    const { colors, theme } = useTheme();
+    const { colors, tokens } = useTheme();
     const { t } = useTranslation();
 
-    const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
+    const isDarkTheme = tokens.isDark;
     const statusBarStyle = isDarkTheme ? 'light-content' : 'dark-content';
 
     useEffect(() => {
@@ -106,7 +105,7 @@ const StackNav = () => {
         return (
             <View style={{ flex: 1, backgroundColor: colors.Background, justifyContent: 'center', alignItems: 'center' }}>
                 <StatusBar backgroundColor={colors.Background} barStyle={statusBarStyle} />
-                <View style={{ backgroundColor: colors.cardBackground, borderColor: colors.border, borderWidth: isDarkTheme ? 1 : 0, paddingHorizontal: 28, paddingVertical: 24, borderRadius: 18, alignItems: 'center' }}>
+                <View style={{ backgroundColor: tokens.glassSurface, borderColor: tokens.glassBorder, borderWidth: 1, paddingHorizontal: 28, paddingVertical: 24, borderRadius: tokens.radius.lg, alignItems: 'center', shadowColor: tokens.shadow, shadowOpacity: tokens.shadowOpacity, shadowRadius: 18 }}>
                     <ActivityIndicator size="large" color={colors.accent} />
                     <Text style={{ marginTop: 12, color: colors.text, fontSize: 14, fontWeight: '600' }}>{t('home.loading_dashboard')}</Text>
                 </View>

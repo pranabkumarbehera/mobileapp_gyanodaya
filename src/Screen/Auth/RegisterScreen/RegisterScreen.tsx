@@ -36,8 +36,8 @@ type RegisterErrors = {
 };
 
 const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
-    const { colors, theme } = useTheme();
-    const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
+    const { colors, tokens } = useTheme();
+    const isDarkTheme = tokens.isDark;
     const statusBarStyle = isDarkTheme ? 'light-content' : 'dark-content';
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');

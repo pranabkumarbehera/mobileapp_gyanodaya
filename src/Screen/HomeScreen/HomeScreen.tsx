@@ -22,8 +22,7 @@ import { bootstrapHomeRequest } from '../../Redux/Reducers/HomeReducer';
 import { clearTestResult, getTestResultRequest } from '../../Redux/Reducers/MockTestReducer';
 import { getProfileRequest } from '../../Redux/Reducers/ProfileReducer';
 import { RootState } from '../../Redux/Store';
-import Colorpath from '../../Themes/Colorpath';
-import { useTheme, useTranslation } from '../../Themes/hooks';
+import { useTheme, useTranslation, withAlpha } from '../../Themes/hooks';
 import {
     formatDisplayDate,
     formatPercent,
@@ -56,11 +55,11 @@ type RecentItemCardProps = {
 };
 
 const StatCard = memo(({ label, value }: StatCardProps) => {
-    const { colors, theme } = useTheme();
+    const { colors, tokens } = useTheme();
     const { t } = useTranslation();
 
     let displayLabel = label;
-    let cardBg = '#FFFFFF';
+    let cardBg = tokens.glassSurface;
     let labelColor = colors.textSecondary;
     let valueColor = colors.text;
 
@@ -82,7 +81,7 @@ const StatCard = memo(({ label, value }: StatCardProps) => {
         labelColor = colors.tagPurpleText;
     }
 
-    const isFuturistic = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
+    const isFuturistic = tokens.isDark;
 
     if (isFuturistic) {
         labelColor = colors.textSecondary;
@@ -94,18 +93,18 @@ const StatCard = memo(({ label, value }: StatCardProps) => {
             style={[
                 styles.statCard,
                 isFuturistic ? {
-                    backgroundColor: colors.cardBackground,
-                    borderColor: colors.accent + '25', // 15% opacity accent border
+                    backgroundColor: tokens.glassSurface,
+                    borderColor: tokens.glassBorder,
                     borderWidth: 1.5,
-                    shadowColor: colors.accent,
+                    shadowColor: tokens.shadow,
                     shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.12,
+                    shadowOpacity: tokens.shadowOpacity,
                     shadowRadius: 8,
                     elevation: 2,
                 } : {
                     backgroundColor: cardBg,
                     borderColor: colors.border,
-                    borderWidth: theme === 'classic' ? 0 : 1,
+                    borderWidth: 1,
                 },
             ]}
         >
@@ -116,23 +115,21 @@ const StatCard = memo(({ label, value }: StatCardProps) => {
 });
 
 const RecentItemCard = memo(({ item, isLoading, onPress }: RecentItemCardProps) => {
-    const { colors, theme } = useTheme();
+    const { colors, tokens } = useTheme();
     const { t } = useTranslation();
-
-    const isDark = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
 
     return (
         <View style={[
             styles.resultCard, 
             { 
-                backgroundColor: colors.cardBackground, 
-                borderColor: isDark ? colors.accent + '20' : colors.border,
+                backgroundColor: tokens.glassSurface,
+                borderColor: tokens.glassBorder,
                 borderWidth: 1,
+                shadowColor: tokens.shadow,
+                shadowOpacity: tokens.shadowOpacity,
             },
-            isDark && {
-                shadowColor: colors.accent,
+            tokens.isDark && {
                 shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.08,
                 shadowRadius: 10,
                 elevation: 3,
             }
@@ -155,11 +152,11 @@ const RecentItemCard = memo(({ item, isLoading, onPress }: RecentItemCardProps) 
             <Text style={[styles.resultTitle, { color: colors.text }]}>{item.title}</Text>
 
             <View style={styles.resultMetricsRow}>
-                <View style={[styles.metricChip, { backgroundColor: colors.Background, borderColor: colors.border }]}>
+                <View style={[styles.metricChip, { backgroundColor: tokens.surfaceMuted, borderColor: tokens.glassBorder }]}>
                     <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Score</Text>
                     <Text style={[styles.metricValue, { color: colors.text }]}>{formatScore(item.score)}</Text>
                 </View>
-                <View style={[styles.metricChip, { backgroundColor: colors.Background, borderColor: colors.border }]}>
+                <View style={[styles.metricChip, { backgroundColor: tokens.surfaceMuted, borderColor: tokens.glassBorder }]}>
                     <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Accuracy</Text>
                     <Text style={[styles.metricValue, { color: colors.text }]}>{formatPercent(item.accuracy)}</Text>
                 </View>
@@ -168,18 +165,18 @@ const RecentItemCard = memo(({ item, isLoading, onPress }: RecentItemCardProps) 
             <Pressable
                 style={[
                     styles.detailsButton,
-                    { backgroundColor: colors.Primary, borderColor: colors.border, borderWidth: isDark ? 1 : 0 },
+                    { backgroundColor: colors.Primary, borderColor: tokens.glassBorder, borderWidth: 1 },
                     (isLoading || !item.attemptId) && styles.detailsButtonDisabled
                 ]}
                 onPress={() => onPress(item)}
                 disabled={isLoading || !item.attemptId}
             >
                 {isLoading ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <ActivityIndicator size="small" color={tokens.onAccent} />
                 ) : (
                     <>
-                        <Text style={styles.detailsButtonText}>{t('home.view_details')}</Text>
-                        <Icon name="arrow-up-right" size={normalize(14)} color="#FFFFFF" />
+                        <Text style={[styles.detailsButtonText, { color: tokens.onAccent }]}>{t('home.view_details')}</Text>
+                        <Icon name="arrow-up-right" size={normalize(14)} color={tokens.onAccent} />
                     </>
                 )}
             </Pressable>
@@ -228,10 +225,10 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
         ?? homeState.dashboardData?.summary?.dayStreak
         ?? 0;
     const recentItems = useMemo(() => normalizeRecentItems(homeState.dashboardData), [homeState.dashboardData]);
-    const { colors, theme } = useTheme();
+    const { colors, tokens } = useTheme();
     const { t } = useTranslation();
 
-    const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
+    const isDarkTheme = tokens.isDark;
     const statusBarStyle = isDarkTheme ? 'light-content' : 'dark-content';
 
     const recentSectionTitle = useMemo(
@@ -300,6 +297,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
         <View style={[styles.container, { backgroundColor: colors.Background }]}>
             <StatusBar backgroundColor={colors.Primary} barStyle={statusBarStyle} />
             <View style={[styles.headerBackground, { backgroundColor: colors.Primary }]}>
+                <View pointerEvents="none" style={[styles.headerGlow, { backgroundColor: withAlpha(colors.accent, tokens.isGlass ? 0.22 : 0.1) }]} />
                 <SafeAreaView edges={['top']}>
                     <View style={styles.topBar}>
                         <View style={styles.profileRow}>
@@ -329,16 +327,17 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
     const header = (
         <>
             <View style={[styles.headerBackground, { backgroundColor: colors.Primary }]}>
+                <View pointerEvents="none" style={[styles.headerGlow, { backgroundColor: withAlpha(colors.accent, tokens.isGlass ? 0.22 : 0.1) }]} />
                 <SafeAreaView edges={['top']}>
                     <View style={styles.topBar}>
                         <View style={styles.profileRow}>
-                            <Pressable onPress={() => navigation.navigate('Profile')} style={[styles.avatarFrame, { borderColor: colors.border }]}>
+                            <Pressable onPress={() => navigation.navigate('Profile')} style={[styles.avatarFrame, { borderColor: tokens.glassBorder }]}>
                                 <Avatar imageUri={profileImage} name={profileName} size={normalize(52)} />
                             </Pressable>
                             <View style={styles.profileCopy}>
-                                <Text style={[styles.welcomeText, { color: theme === 'neon' ? 'rgba(0, 242, 254, 0.8)' : 'rgba(255,255,255,0.78)' }]}>{t('home.greetings')}</Text>
+                                <Text style={[styles.welcomeText, { color: tokens.isGlass ? colors.textSecondary : 'rgba(255,255,255,0.78)' }]}>{t('home.greetings')}</Text>
                                 <Pressable onPress={() => navigation.navigate('Profile')}>
-                                    <Text style={styles.userName}>{profileName}</Text>
+                                    <Text style={[styles.userName, { color: tokens.onAccent }]}>{profileName}</Text>
                                 </Pressable>
                             </View>
                         </View>
@@ -447,10 +446,18 @@ const styles = StyleSheet.create({
         flexGrow: 1,
     },
     headerBackground: {
-        backgroundColor: Colorpath.Primary,
         paddingBottom: verticalScale(28),
         borderBottomLeftRadius: normalize(28),
         borderBottomRightRadius: normalize(28),
+        overflow: 'hidden',
+    },
+    headerGlow: {
+        position: 'absolute',
+        width: normalize(220),
+        height: normalize(220),
+        borderRadius: normalize(110),
+        top: -normalize(130),
+        right: -normalize(65),
     },
     topBar: {
         paddingHorizontal: normalize(20),
@@ -480,7 +487,6 @@ const styles = StyleSheet.create({
         marginBottom: verticalScale(2),
     },
     userName: {
-        color: '#FFFFFF',
         fontSize: normalize(20),
         fontWeight: '800',
     },
@@ -503,7 +509,6 @@ const styles = StyleSheet.create({
         marginRight: normalize(8),
     },
     liveBadgeText: {
-        color: '#FFFFFF',
         fontSize: normalize(12),
         fontWeight: '700',
     },
@@ -515,7 +520,6 @@ const styles = StyleSheet.create({
     },
     statCard: {
         flex: 1,
-        backgroundColor: '#FFFFFF',
         borderRadius: normalize(16),
         paddingHorizontal: normalize(12),
         paddingVertical: verticalScale(18),
@@ -546,20 +550,17 @@ const styles = StyleSheet.create({
         paddingBottom: verticalScale(14),
     },
     sectionTitle: {
-        color: '#0F172A',
         fontSize: normalize(20),
         fontWeight: '800',
         marginBottom: verticalScale(4),
     },
     sectionSubtitle: {
-        color: '#64748B',
         fontSize: normalize(13),
     },
     resultCard: {
         marginHorizontal: normalize(20),
         marginBottom: verticalScale(14),
         padding: normalize(18),
-        backgroundColor: '#FFFFFF',
         borderRadius: normalize(20),
         borderWidth: 1,
         borderColor: '#E2E8F0',
@@ -604,7 +605,6 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     resultDateText: {
-        color: '#64748B',
         fontSize: normalize(11),
         fontWeight: '600',
     },
@@ -615,12 +615,10 @@ const styles = StyleSheet.create({
         borderRadius: normalize(999),
     },
     resultTypeText: {
-        color: Colorpath.Primary,
         fontSize: normalize(11),
         fontWeight: '700',
     },
     resultTitle: {
-        color: '#0F172A',
         fontSize: normalize(17),
         fontWeight: '800',
         lineHeight: normalize(24),
@@ -641,19 +639,16 @@ const styles = StyleSheet.create({
         paddingVertical: verticalScale(12),
     },
     metricLabel: {
-        color: '#64748B',
         fontSize: normalize(11),
         fontWeight: '600',
         marginBottom: verticalScale(4),
     },
     metricValue: {
-        color: '#0F172A',
         fontSize: normalize(16),
         fontWeight: '800',
     },
     detailsButton: {
         borderRadius: normalize(14),
-        backgroundColor: Colorpath.Primary,
         paddingVertical: verticalScale(14),
         flexDirection: 'row',
         justifyContent: 'center',
@@ -664,7 +659,6 @@ const styles = StyleSheet.create({
         opacity: 0.85,
     },
     detailsButtonText: {
-        color: '#FFFFFF',
         fontSize: normalize(14),
         fontWeight: '700',
     },

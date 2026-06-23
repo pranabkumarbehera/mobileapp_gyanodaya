@@ -203,8 +203,8 @@ const formatTimeSpent = (value: any) => {
 
 const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
     const dispatch = useDispatch();
-    const { colors, theme } = useTheme();
-    const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
+    const { colors, tokens } = useTheme();
+    const isDarkTheme = tokens.isDark;
     const styles = useMemo(() => getStyles(colors, isDarkTheme), [colors, isDarkTheme]);
 
     const { testResult, isLoading, submitTestResponse, startTestResponse, status } = useSelector((state: RootState) => state.MockTestReducer);

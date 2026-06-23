@@ -46,10 +46,10 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
     const [emailFocused, setEmailFocused] = useState(false);
     const [passwordFocused, setPasswordFocused] = useState(false);
 
-    const { colors, theme } = useTheme();
+    const { colors, tokens } = useTheme();
     const { t } = useTranslation();
 
-    const isDarkTheme = theme === 'neon' || theme === 'sunset' || theme === 'midnight' || theme === 'emerald';
+    const isDarkTheme = tokens.isDark;
     const statusBarStyle = isDarkTheme ? 'light-content' : 'dark-content';
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -208,8 +208,8 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                         <View style={[
                             styles.inputContainer,
                             { 
-                                backgroundColor: colors.cardBackground, 
-                                borderColor: emailFocused ? colors.accent : (touched.email && errors.email ? '#EF4444' : colors.border),
+                                backgroundColor: tokens.glassSurface,
+                                borderColor: emailFocused ? colors.accent : (touched.email && errors.email ? tokens.danger : tokens.glassBorder),
                                 shadowColor: colors.accent,
                                 shadowOffset: { width: 0, height: 0 },
                                 shadowOpacity: emailFocused && isDarkTheme ? 0.35 : 0,
@@ -237,15 +237,15 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                                 editable={!isLoading}
                             />
                         </View>
-                        {touched.email && errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
+                        {touched.email && errors.email ? <Text style={[styles.errorText, { color: tokens.danger }]}>{errors.email}</Text> : null}
                     </View>
 
                     <View style={styles.fieldWrapper}>
                         <View style={[
                             styles.inputContainer,
                             { 
-                                backgroundColor: colors.cardBackground, 
-                                borderColor: passwordFocused ? colors.accent : (touched.password && errors.password ? '#EF4444' : colors.border),
+                                backgroundColor: tokens.glassSurface,
+                                borderColor: passwordFocused ? colors.accent : (touched.password && errors.password ? tokens.danger : tokens.glassBorder),
                                 shadowColor: colors.accent,
                                 shadowOffset: { width: 0, height: 0 },
                                 shadowOpacity: passwordFocused && isDarkTheme ? 0.35 : 0,
@@ -275,7 +275,7 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                                 <Icon name={secureText ? "eye-off" : "eye"} size={normalize(18)} color={colors.textSecondary} />
                             </Pressable>
                         </View>
-                        {touched.password && errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
+                        {touched.password && errors.password ? <Text style={[styles.errorText, { color: tokens.danger }]}>{errors.password}</Text> : null}
                     </View>
 
                     <View style={styles.helperRow}>
@@ -298,11 +298,11 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                             styles.loginButton, 
                             { 
                                 backgroundColor: colors.Primary,
-                                borderColor: colors.border,
-                                borderWidth: isDarkTheme ? 1 : 0,
+                                borderColor: tokens.glassBorder,
+                                borderWidth: 1,
                                 transform: [{ scale: buttonScale }],
-                                shadowColor: isDarkTheme ? colors.accent : '#000000',
-                                shadowOpacity: isDarkTheme ? 0.25 : 0.1,
+                                shadowColor: tokens.shadow,
+                                shadowOpacity: tokens.shadowOpacity,
                                 shadowRadius: 8,
                                 shadowOffset: { width: 0, height: 4 },
                             }
@@ -312,7 +312,7 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                         onPressOut={handlePressOut}
                         disabled={isLoading}
                     >
-                        <Text style={styles.loginButtonText}>{t('login.signin')}</Text>
+                        <Text style={[styles.loginButtonText, { color: tokens.onAccent }]}>{t('login.signin')}</Text>
                     </AnimatedPressable>
                 </View>
 
@@ -325,8 +325,8 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
             </KeyboardAvoidingView>
 
             <Modal visible={isLoading} transparent animationType="fade" statusBarTranslucent onRequestClose={() => {}}>
-                <View style={[styles.loadingOverlay, { backgroundColor: isDarkTheme ? 'rgba(5, 5, 8, 0.85)' : 'rgba(250, 251, 255, 0.82)' }]}>
-                    <View style={[styles.loadingCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                <View style={[styles.loadingOverlay, { backgroundColor: tokens.overlay }]}>
+                    <View style={[styles.loadingCard, { backgroundColor: tokens.glassSurface, borderColor: tokens.glassBorder }]}>
                         <ActivityIndicator size="large" color={colors.accent} />
                         <Text style={[styles.loadingText, { color: colors.text }]}>{t('login.signing_in')}</Text>
                     </View>
@@ -382,7 +382,6 @@ const styles = StyleSheet.create({
         padding: normalize(8),
     },
     errorText: {
-        color: '#EF4444',
         fontSize: normalize(12),
         marginTop: verticalScale(6),
         marginLeft: normalize(4),
@@ -422,7 +421,6 @@ const styles = StyleSheet.create({
         shadowRadius: 6,
     },
     loginButtonText: {
-        color: '#FFFFFF',
         fontSize: normalize(16),
         fontWeight: '700',
     },
