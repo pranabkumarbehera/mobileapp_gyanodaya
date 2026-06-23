@@ -37,6 +37,7 @@
     "react-native-shimmer-placeholder": "^2.0.9",
     "react-native-toast-message": "^2.3.3",
     "react-native-vector-icons": "^10.3.0",
+    "react-native-webview": "^14.0.1",
     "react-redux": "^9.3.0",
     "redux-logger": "^3.0.6",
     "redux-saga": "^1.5.0"

@@ -22,6 +22,7 @@ import {
     enrollBundleSuccess,
     enrollBundleFailure,
     paymentRequest,
+    paymentCheckoutReady,
     paymentSuccess,
     paymentFailure,
     getMockTestDetailsRequest,
@@ -39,7 +40,6 @@ import {
 } from '../Reducers/MockTestReducer';
 import { getApi, postApi } from '../../Utils/Helpers/ApiRequest';
 import Toast from 'react-native-toast-message';
-import { Linking } from 'react-native';
 
 const getAuth = (state: any) => state.AuthReducer;
 
@@ -257,9 +257,12 @@ export function* paymentSaga(action: any): Generator<any, void, any> {
             const paymentUrl = findPaymentUrl(response?.data);
 
             if (paymentUrl) {
-                yield put(paymentSuccess(response?.data?.data || response?.data));
-                yield call([Linking, 'openURL'], paymentUrl);
-                Toast.show({ type: 'info', text1: 'Opening Razorpay checkout...' });
+                yield put(paymentCheckoutReady({
+                    url: paymentUrl,
+                    bundleId: action.payload.id,
+                    amount: Number(action.payload.price),
+                    payment: response?.data?.data || response?.data,
+                }));
             } else {
                 yield put(paymentSuccess(response?.data?.data || response?.data));
                 

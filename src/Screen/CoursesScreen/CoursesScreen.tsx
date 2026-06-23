@@ -27,6 +27,7 @@ import {
     getSubBundleDetailsRequest,
     getSubBundleListRequest,
     paymentRequest,
+    paymentCheckoutReady,
     paymentSuccess,
     paymentFailure,
 } from '../../Redux/Reducers/MockTestReducer';
@@ -1300,6 +1301,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         subBundleDetails,
         isLoading,
         status,
+        paymentCheckout,
     } = useSelector((state: RootState) => state.MockTestReducer);
 
     const [searchQuery, setSearchQuery] = useState('');
@@ -1455,6 +1457,17 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
             (parentBundleId ? enrolledBundleIds.includes(parentBundleId) : false));
         setSelectedSubBundleExam(buildSelectedExam(subBundleDetails, isEnrolled));
     }, [activeBundleId, enrolledBundleIds, subBundleDetails, selectedExam, failedPendingBundleIds]);
+
+    useEffect(() => {
+        if (status === paymentCheckoutReady.type && paymentCheckout?.url && paymentCheckout?.bundleId) {
+            navigation.navigate('PaymentCheckout', {
+                url: paymentCheckout.url,
+                bundleId: String(paymentCheckout.bundleId),
+                amount: paymentCheckout.amount,
+                payment: paymentCheckout.payment,
+            });
+        }
+    }, [navigation, paymentCheckout, status]);
 
     useEffect(() => {
         if (

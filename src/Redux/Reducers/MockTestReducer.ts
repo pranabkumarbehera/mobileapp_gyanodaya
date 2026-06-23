@@ -10,6 +10,7 @@ const initialState = {
     subBundleList: null as any,
     subBundleDetails: null as any,
     enrollBundleResponse: null as any,
+    paymentCheckout: null as any,
     mockTestDetails: null as any,
     startTestResponse: null as any,
     submitTestResponse: null as any,
@@ -124,12 +125,20 @@ const MockTestSlice = createSlice({
         paymentRequest(state, action) {
             state.status = action.type;
             state.isLoading = true;
+            state.paymentCheckout = null;
+        },
+        paymentCheckoutReady(state, action) {
+            state.paymentCheckout = action.payload;
+            state.status = action.type;
+            state.isLoading = false;
         },
         paymentSuccess(state, action) {
+            state.paymentCheckout = null;
             state.status = action.type;
             state.isLoading = false;
         },
         paymentFailure(state, action: any) {
+            state.paymentCheckout = null;
             state.status = action.type;
             state.error = action.error || action.payload;
             state.isLoading = false;
@@ -206,6 +215,7 @@ const MockTestSlice = createSlice({
             state.subBundleList = null;
             state.subBundleDetails = null;
             state.enrollBundleResponse = null;
+            state.paymentCheckout = null;
             state.mockTestDetails = null;
             state.error = null;
         },
@@ -238,6 +248,7 @@ export const {
     enrollBundleSuccess,
     enrollBundleFailure,
     paymentRequest,
+    paymentCheckoutReady,
     paymentSuccess,
     paymentFailure,
     getMockTestDetailsRequest,

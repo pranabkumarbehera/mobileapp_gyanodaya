@@ -24,6 +24,7 @@ import CoursesScreen from '../Screen/CoursesScreen/CoursesScreen';
 import MockResultScreen from '../Screen/MockResultScreen/MockResultScreen';
 import AboutUsScreen from '../Screen/AboutUsScreen/AboutUsScreen';
 import CoursesPaymentHistoryScreen from '../Screen/CoursesPaymentHistoryScreen/CoursesPaymentHistoryScreen';
+import PaymentCheckoutScreen from '../Screen/PaymentCheckoutScreen/PaymentCheckoutScreen';
 import { bootstrapHomeRequest } from '../Redux/Reducers/HomeReducer';
 import { useTheme, useTranslation } from '../Themes/hooks';
 
@@ -44,6 +45,12 @@ export type RootStackParamList = {
     AboutUs: undefined;
     Profile: undefined;
     CoursesPaymentHistory: undefined;
+    PaymentCheckout: {
+        url: string;
+        bundleId: string;
+        amount?: number;
+        payment?: any;
+    };
     TeacherProfile: { teacher: { name: string, subject: string, rating: string, experience: string, designation: string } };
     MockResult: {
         attemptId?: string | number;
@@ -82,6 +89,7 @@ const AppStack = () => (
         <Stack.Screen name="MockResult" component={MockResultScreen} />
         <Stack.Screen name="AboutUs" component={AboutUsScreen} />
         <Stack.Screen name="CoursesPaymentHistory" component={CoursesPaymentHistoryScreen} />
+        <Stack.Screen name="PaymentCheckout" component={PaymentCheckoutScreen} />
     </Stack.Navigator>
 );
 
