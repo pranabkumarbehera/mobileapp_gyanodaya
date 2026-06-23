@@ -12,9 +12,10 @@ The application has been designed with a **futuristic, glassy user interface**, 
 3. [Project Directory Structure](#project-directory-structure)
 4. [Theming & Localization Architecture](#theming--localization-architecture)
 5. [Local Development Environment Setup](#local-development-environment-setup)
-6. [Android Deployment Procedure (Google Play Store)](#android-deployment-procedure-google-play-store)
-7. [iOS Deployment Procedure (Apple App Store)](#ios-deployment-procedure-apple-app-store)
-8. [Troubleshooting & Build Optimization](#troubleshooting--build-optimization)
+6. [Generating Android APKs (Debug & Release)](#generating-android-apks-debug--release)
+7. [Android Deployment Procedure (Google Play Store)](#android-deployment-procedure-google-play-store)
+8. [iOS Deployment Procedure (Apple App Store)](#ios-deployment-procedure-apple-app-store)
+9. [Troubleshooting & Build Optimization](#troubleshooting--build-optimization)
 
 ---
 
@@ -113,6 +114,44 @@ Gyanodaya uses a reactive context-free approach utilizing the active Redux store
      ```bash
      npm run ios
      ```
+
+---
+
+## Generating Android APKs (Debug & Release)
+
+To generate standalone installation files (`.apk`) for testing on physical devices or local staging, follow these procedures.
+
+### Method A: Generate Debug APK (Fastest, no signing key required)
+Use the debug configuration for quick testing. You do not need to create signing keys or configure credentials.
+
+1. **Build using the pre-configured script**:
+   Run the following command in the project root:
+   ```bash
+   npm run debug-build
+   ```
+2. **Retrieve your APK file**:
+   Once compile process completes, locate the installer at:
+   `android/app/build/outputs/apk/debug/app-debug.apk`
+
+### Method B: Generate Signed Release APK (For distribution)
+Use this configuration for performance testing or distribution. It builds an optimized, minified bundle.
+
+1. **Verify Credentials**:
+   Ensure you have created your release signing key (`gyanodaya-release-key.jks`) and set up credentials in `android/gradle.properties` (see [Android Deployment Procedure](#android-deployment-procedure-google-play-store) below).
+
+2. **Build using the pre-configured script**:
+   Run the following command in the project root:
+   ```bash
+   npm run release-build
+   ```
+3. **Retrieve your APK file**:
+   Once completed, find the signed installer at:
+   `android/app/build/outputs/apk/release/app-release.apk`
+
+### How to Install the APK on a Physical Android Device
+1. **Transfer the APK**: Copy the `.apk` file (`app-debug.apk` or `app-release.apk`) to your phone using USB, Google Drive, email, or Slack.
+2. **Enable Unknown Sources**: On your Android device, go to **Settings** > **Security** (or search "Install unknown apps") and toggle access permission for the application you are using to open the file (e.g. Chrome, Drive, or My Files).
+3. **Install**: Open the transferred file on your device and follow the installation prompt.
 
 ---
 

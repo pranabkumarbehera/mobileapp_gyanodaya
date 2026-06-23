@@ -10,6 +10,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useIsFocused } from '@react-navigation/native';
 import { useTheme, useTranslation } from '../../Themes/hooks';
 import Toast from 'react-native-toast-message';
+import CustomNoteRenderer from '../../Components/CustomNoteRenderer';
 import {
     bundleIDRequest,
     clearBundleFlowState,
@@ -571,6 +572,39 @@ const htmlToPlainText = (html: string = '') => {
         .replace(/&#39;/gi, "'")
         .replace(/\n{3,}/g, '\n\n')
         .trim();
+};
+
+const getPagePreviewText = (page: any) => {
+    if (!page) return 'No content available.';
+    if (page.htmlContent) {
+        return htmlToPlainText(page.htmlContent);
+    }
+    if (page.content) {
+        let parsed = page.content;
+        if (typeof parsed === 'string') {
+            try {
+                parsed = JSON.parse(parsed);
+            } catch {
+                return parsed;
+            }
+        }
+        const extractText = (node: any): string => {
+            if (!node) return '';
+            if (node.text) return node.text;
+            if (node.type === 'math' || node.type === 'mathInline') {
+                return node.attrs?.formula || node.attrs?.latex || '';
+            }
+            if (Array.isArray(node.content)) {
+                return node.content.map(extractText).join(' ');
+            }
+            if (node.type === 'doc' && Array.isArray(node.content)) {
+                return node.content.map(extractText).join(' ');
+            }
+            return '';
+        };
+        return extractText(parsed).trim();
+    }
+    return 'No content available.';
 };
 
 const getBundleMockCount = (bundle: any) => {
@@ -2284,7 +2318,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                                         <Text style={styles.noteViewerDetailTitle}>{toDisplayText(currentPage?.title, `Page ${selectedNotePageIndex + 1}`)}</Text>
                                                     </View>
                                                     <Text style={styles.noteViewerDetailBody} numberOfLines={5} ellipsizeMode="tail">
-                                                        {htmlToPlainText(currentPage?.htmlContent || '') || 'No content available.'}
+                                                        {getPagePreviewText(currentPage)}
                                                     </Text>
                                                     <Text style={styles.noteViewerDetailHint}>Tap View to read the full page.</Text>
                                                     <Pressable
@@ -2603,9 +2637,10 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
                         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.notePageViewerScrollContent}>
                             <View style={styles.notePageViewerCard}>
-                                <Text style={styles.notePageViewerBody}>
-                                    {htmlToPlainText(selectedNotePageDetail?.htmlContent || '') || 'No content available.'}
-                                </Text>
+                                <CustomNoteRenderer
+                                    content={selectedNotePageDetail?.content || selectedNotePageDetail?.contentJson}
+                                    htmlFallback={selectedNotePageDetail?.htmlContent}
+                                />
                             </View>
                         </ScrollView>
                     </View>
