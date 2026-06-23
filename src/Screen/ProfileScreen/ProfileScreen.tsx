@@ -27,7 +27,6 @@ import { RootState } from '../../Redux/Store';
 import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
-import Colorpath from '../../Themes/Colorpath';
 import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../Navigator/StackNav';

@@ -436,7 +436,7 @@ type MathRendererProps = {
 
 const MathRenderer = ({ latex, block = false, color, size = normalize(15) }: MathRendererProps) => {
     const parsedNodes = useMemo(() => parseLatex(latex), [latex]);
-    const { colors, theme } = useTheme();
+    const { colors, tokens } = useTheme();
     const activeColor = color || colors.text;
 
     const renderNodes = (nodes: MathNode[], currentSize: number = size): React.ReactNode => {
@@ -504,8 +504,8 @@ const MathRenderer = ({ latex, block = false, color, size = normalize(15) }: Mat
                 style={[
                     mathStyles.blockCard,
                     {
-                        backgroundColor: theme === 'classic' ? '#FFFBEB' : 'rgba(255, 255, 255, 0.03)',
-                        borderColor: theme === 'classic' ? '#FEF3C7' : 'rgba(255, 255, 255, 0.08)',
+                        backgroundColor: colors.tagOrange,
+                        borderColor: tokens.glassBorder,
                     },
                 ]}
             >
@@ -578,18 +578,14 @@ const ResponsiveImage = ({ src, alt }: { src: string; alt?: string }) => {
 // --- Table Components ---
 // ==========================================
 const TableCellComponent = ({ cell, isHeader, colors }: { cell: TipTapNode; isHeader: boolean; colors: any }) => {
-    const { theme } = useTheme();
+    const { tokens } = useTheme();
     return (
         <View
             style={[
                 styles.tableCell,
                 {
                     borderColor: colors.border,
-                    backgroundColor: isHeader
-                        ? theme === 'classic'
-                            ? '#F1F5F9'
-                            : 'rgba(255, 255, 255, 0.08)'
-                        : 'transparent',
+                    backgroundColor: isHeader ? tokens.surfaceMuted : 'transparent',
                     minWidth: normalize(120),
                 },
             ]}
@@ -739,7 +735,7 @@ const ListComponent = ({ node, isOrdered, colors, depth = 0 }: { node: TipTapNod
 // --- Recursive Block Rendering Core ---
 // ==========================================
 const renderInlineNode = (node: TipTapNode, index: number, colors: any) => {
-    const { theme } = useTheme();
+    const { tokens } = useTheme();
     if (node.type === 'text') {
         let textStyle: any = { fontSize: normalize(15), color: colors.text };
         let onPress: any = undefined;
@@ -764,7 +760,7 @@ const renderInlineNode = (node: TipTapNode, index: number, colors: any) => {
                 if (mark.type === 'code') {
                     textStyle.fontFamily = Platform.OS === 'ios' ? 'Courier New' : 'monospace';
                     textStyle.backgroundColor = 'rgba(100, 116, 139, 0.12)';
-                    textStyle.color = theme === 'classic' ? '#B91C1C' : '#F87171';
+                    textStyle.color = tokens.danger;
                     textStyle.paddingHorizontal = normalize(4);
                     textStyle.borderRadius = normalize(3);
                 }
@@ -813,7 +809,7 @@ const renderInlineNode = (node: TipTapNode, index: number, colors: any) => {
 };
 
 const renderNode = (node: TipTapNode, index: number, colors: any, depth: number = 0): React.ReactNode => {
-    const { theme } = useTheme();
+    const { tokens } = useTheme();
     switch (node.type) {
         case 'heading': {
             const level = node.attrs?.level || 1;
@@ -843,9 +839,7 @@ const renderNode = (node: TipTapNode, index: number, colors: any, depth: number 
                         styles.blockquote,
                         {
                             borderLeftColor: colors.Secondary,
-                            backgroundColor: theme === 'classic'
-                                ? 'rgba(240, 163, 53, 0.06)'
-                                : 'rgba(255, 255, 255, 0.04)',
+                            backgroundColor: tokens.surfaceMuted,
                         },
                     ]}
                 >

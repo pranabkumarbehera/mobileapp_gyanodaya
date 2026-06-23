@@ -18,7 +18,6 @@ import { signupRequest } from '../../../Redux/Reducers/AuthReducer';
 import { RootState } from '../../../Redux/Store';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
-import Colorpath from '../../../Themes/Colorpath';
 import { normalize, verticalScale } from '../../../Utils/Helpers/normalize';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../Navigator/StackNav';
@@ -226,7 +225,7 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                                         editable={!isLoading}
                                     />
                                 </View>
-                                {touched.firstName && errors.firstName ? <Text style={styles.errorText}>{errors.firstName}</Text> : null}
+                                {touched.firstName && errors.firstName ? <Text style={[styles.errorText, { color: tokens.danger }]}>{errors.firstName}</Text> : null}
                             </View>
                             <View style={[styles.fieldWrapper, styles.halfInput]}>
                                 <View style={[
@@ -262,7 +261,7 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                                         editable={!isLoading}
                                     />
                                 </View>
-                                {touched.lastName && errors.lastName ? <Text style={styles.errorText}>{errors.lastName}</Text> : null}
+                                {touched.lastName && errors.lastName ? <Text style={[styles.errorText, { color: tokens.danger }]}>{errors.lastName}</Text> : null}
                             </View>
                         </View>
 
@@ -302,7 +301,7 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                                     editable={!isLoading}
                                 />
                             </View>
-                            {touched.email && errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
+                            {touched.email && errors.email ? <Text style={[styles.errorText, { color: tokens.danger }]}>{errors.email}</Text> : null}
                         </View>
 
                         <View style={styles.fieldWrapper}>
@@ -341,7 +340,7 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                                     editable={!isLoading}
                                 />
                             </View>
-                            {touched.phone && errors.phone ? <Text style={styles.errorText}>{errors.phone}</Text> : null}
+                            {touched.phone && errors.phone ? <Text style={[styles.errorText, { color: tokens.danger }]}>{errors.phone}</Text> : null}
                         </View>
 
                         <View style={styles.fieldWrapper}>
@@ -382,7 +381,7 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                                     <Icon name={secureText ? "eye-off" : "eye"} size={normalize(18)} color={colors.textSecondary} />
                                 </Pressable>
                             </View>
-                            {touched.password && errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
+                            {touched.password && errors.password ? <Text style={[styles.errorText, { color: tokens.danger }]}>{errors.password}</Text> : null}
                         </View>
 
                         <Text style={[styles.genderLabel, { color: colors.text }]}>Gender</Text>
@@ -415,7 +414,7 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                                 <Text style={[styles.radioText, { color: colors.text }]}>Male</Text>
                             </Pressable>
                         </View>
-                        {touched.gender && errors.gender ? <Text style={styles.errorText}>{errors.gender}</Text> : null}
+                        {touched.gender && errors.gender ? <Text style={[styles.errorText, { color: tokens.danger }]}>{errors.gender}</Text> : null}
 
                         <Pressable
                             style={styles.checkboxRow}
@@ -433,16 +432,16 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                             />
                             <Text style={[styles.checkboxText, { color: colors.text }]}>
                                 I agree with GYANODAYA{' '}
-                                <Text style={styles.termsLinkText} onPress={!isLoading ? () => navigation.navigate('TermsConditions') : undefined}>
+                                <Text style={[styles.termsLinkText, { color: colors.accent }]} onPress={!isLoading ? () => navigation.navigate('TermsConditions') : undefined}>
                                     Terms & Condition
                                 </Text>
                                 {' '}and{' '}
-                                <Text style={styles.privacyLinkText} onPress={!isLoading ? () => navigation.navigate('PrivacyPolicy') : undefined}>
+                                <Text style={[styles.privacyLinkText, { color: colors.accent }]} onPress={!isLoading ? () => navigation.navigate('PrivacyPolicy') : undefined}>
                                     Privacy & Policy
                                 </Text>
                             </Text>
                         </Pressable>
-                        {touched.acceptedTerms && errors.acceptedTerms ? <Text style={styles.errorText}>{errors.acceptedTerms}</Text> : null}
+                        {touched.acceptedTerms && errors.acceptedTerms ? <Text style={[styles.errorText, { color: tokens.danger }]}>{errors.acceptedTerms}</Text> : null}
 
                         <AnimatedPressable 
                             style={[
@@ -463,7 +462,7 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
                             onPressOut={handlePressOut}
                             disabled={isLoading}
                         >
-                            <Text style={styles.createButtonText}>Create Account</Text>
+                            <Text style={[styles.createButtonText, { color: tokens.onAccent }]}>Create Account</Text>
                         </AnimatedPressable>
 
                     </View>
@@ -471,8 +470,8 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
             </KeyboardAvoidingView>
 
             <Modal visible={isLoading} transparent animationType="fade" statusBarTranslucent onRequestClose={() => {}}>
-                <View style={[styles.loadingOverlay, { backgroundColor: isDarkTheme ? 'rgba(5, 5, 8, 0.85)' : 'rgba(250, 251, 255, 0.82)' }]} pointerEvents="auto">
-                    <View style={[styles.loadingCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                <View style={[styles.loadingOverlay, { backgroundColor: tokens.overlay }]} pointerEvents="auto">
+                    <View style={[styles.loadingCard, { backgroundColor: tokens.glassSurface, borderColor: tokens.glassBorder }]}>
                         <ActivityIndicator size="large" color={colors.Primary} />
                         <Text style={[styles.loadingText, { color: colors.text }]}>Creating your account...</Text>
                     </View>
@@ -527,22 +526,18 @@ const styles = StyleSheet.create({
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
         borderRadius: normalize(12),
         borderWidth: 1,
-        borderColor: '#E5E7EB',
         height: verticalScale(55),
         paddingHorizontal: normalize(16),
     },
     inputContainerError: {
-        borderColor: '#EF4444',
     },
     inputIcon: {
         marginRight: normalize(12),
     },
     input: {
         flex: 1,
-        color: '#111827',
         fontSize: normalize(15),
     },
     eyeIcon: {
@@ -550,7 +545,6 @@ const styles = StyleSheet.create({
     },
     genderLabel: {
         fontSize: normalize(14),
-        color: '#374151',
         fontWeight: '600',
         marginBottom: verticalScale(12),
         marginTop: verticalScale(8),
@@ -575,7 +569,6 @@ const styles = StyleSheet.create({
         width: normalize(20),
         borderRadius: normalize(10),
         borderWidth: 2,
-        borderColor: '#092948',
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: normalize(10),
@@ -584,11 +577,9 @@ const styles = StyleSheet.create({
         height: normalize(10),
         width: normalize(10),
         borderRadius: normalize(5),
-        backgroundColor: '#092948',
     },
     radioText: {
         fontSize: normalize(15),
-        color: '#374151',
     },
     checkboxRow: {
         flexDirection: 'row',
@@ -601,25 +592,20 @@ const styles = StyleSheet.create({
     checkboxText: {
         flex: 1,
         fontSize: normalize(13),
-        color: '#4B5563',
         lineHeight: normalize(20),
     },
     termsLinkText: {
-        color: '#F59E0B',
         fontWeight: '700',
     },
     privacyLinkText: {
-        color: '#F59E0B',
         fontWeight: '700',
     },
     errorText: {
-        color: '#EF4444',
         fontSize: normalize(12),
         marginTop: verticalScale(6),
         marginLeft: normalize(4),
     },
     createButton: {
-        backgroundColor: '#092948',
         borderRadius: normalize(12),
         height: verticalScale(55),
         justifyContent: 'center',
@@ -633,7 +619,6 @@ const styles = StyleSheet.create({
         shadowRadius: 6,
     },
     createButtonText: {
-        color: '#FFFFFF',
         fontSize: normalize(16),
         fontWeight: '700',
     },
@@ -642,33 +627,27 @@ const styles = StyleSheet.create({
         paddingVertical: verticalScale(10),
     },
     footerText: {
-        color: '#6B7280',
         fontSize: normalize(14),
     },
     footerTextBold: {
-        color: '#092948',
         fontWeight: '700',
     },
     loadingOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(250, 251, 255, 0.82)',
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 1000,
     },
     loadingCard: {
         minWidth: normalize(210),
-        backgroundColor: '#FFFFFF',
         borderRadius: normalize(16),
         paddingHorizontal: normalize(24),
         paddingVertical: verticalScale(22),
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#E5E7EB',
     },
     loadingText: {
         marginTop: verticalScale(12),
-        color: '#111827',
         fontSize: normalize(14),
         fontWeight: '600',
     },

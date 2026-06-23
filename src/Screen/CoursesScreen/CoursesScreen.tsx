@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, ActivityIndic
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from 'react-native-vector-icons/Feather';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
-import Colorpath from '../../Themes/Colorpath';
 import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
 import { getApi } from '../../Utils/Helpers/ApiRequest';
 import { useDispatch, useSelector } from 'react-redux';
@@ -2298,7 +2297,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
                         {isLoadingNotePages ? (
                             <View style={styles.noteViewerStateBox}>
-                                <ActivityIndicator size="large" color={Colorpath.Primary} />
+                                <ActivityIndicator size="large" color={colors.accent} />
                                 <Text style={styles.noteViewerStateText}>Loading pages...</Text>
                             </View>
                         ) : selectedNotePages.length === 0 ? (
@@ -2384,7 +2383,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
                         {isLoadingQuestionBank ? (
                             <View style={styles.questionBankLoadingState}>
-                                <ActivityIndicator size="large" color={Colorpath.Primary} />
+                                <ActivityIndicator size="large" color={colors.accent} />
                                 <Text style={styles.questionBankLoadingText}>Loading questions...</Text>
                             </View>
                         ) : selectedQuestionBankQuestions.length === 0 ? (
@@ -2576,7 +2575,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
                         {isLoadingVideoBank ? (
                             <View style={styles.videoBankLoadingState}>
-                                <ActivityIndicator size="large" color={Colorpath.Primary} />
+                                <ActivityIndicator size="large" color={colors.accent} />
                                 <Text style={styles.videoBankLoadingText}>Loading videos...</Text>
                             </View>
                         ) : selectedVideoBankItems.length === 0 ? (
@@ -3037,7 +3036,7 @@ const getStyles = (colors: any, tokens: any) => StyleSheet.create({
         width: normalize(36),
         height: normalize(36),
         borderRadius: normalize(18),
-        backgroundColor: '#FFFFFF',
+        backgroundColor: tokens.surfaceElevated,
         justifyContent: 'center',
         alignItems: 'center',
     },

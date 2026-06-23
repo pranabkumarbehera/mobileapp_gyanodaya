@@ -1,18 +1,21 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, View, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../Navigator/StackNav';
-import Colorpath from '../../../Themes/Colorpath';
+import { useTheme } from '../../../Themes/hooks';
 import { normalize, verticalScale } from '../../../Utils/Helpers/normalize';
 
 type PrivacyPolicyScreenProps = StackScreenProps<RootStackParamList, 'PrivacyPolicy'>;
 
 const PrivacyPolicyScreen = ({ navigation }: PrivacyPolicyScreenProps) => {
+    const { colors, tokens } = useTheme();
+    const styles = useMemo(() => getStyles(colors, tokens), [colors, tokens]);
+
     return (
         <View style={styles.container}>
-            <StatusBar backgroundColor={Colorpath.Primary} barStyle="light-content" />
+            <StatusBar backgroundColor={colors.statusBg} barStyle={colors.statusBar} />
 
             <View style={styles.headerBackground}>
                 <SafeAreaView edges={['top']}>
@@ -189,15 +192,15 @@ const PrivacyPolicyScreen = ({ navigation }: PrivacyPolicyScreenProps) => {
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any, tokens: any) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FAFBFF',
+        backgroundColor: colors.Background,
     },
-    headerBackground: { backgroundColor: Colorpath.Primary, paddingBottom: verticalScale(16) },
+    headerBackground: { backgroundColor: colors.Primary, paddingBottom: verticalScale(16) },
     topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: normalize(20), paddingTop: verticalScale(10) },
     iconButton: { padding: normalize(8), width: normalize(40) },
-    headerTitle: { fontSize: normalize(18), fontWeight: 'bold', color: '#FFFFFF' },
+    headerTitle: { fontSize: normalize(18), fontWeight: 'bold', color: tokens.onAccent },
     content: {
         paddingHorizontal: normalize(24),
         paddingBottom: verticalScale(30),
@@ -205,36 +208,36 @@ const styles = StyleSheet.create({
     title: {
         fontSize: normalize(24),
         fontWeight: '800',
-        color: Colorpath.Primary,
+        color: colors.text,
         marginBottom: verticalScale(6),
     },
     updatedText: {
         fontSize: normalize(13),
-        color: '#6B7280',
+        color: colors.textSecondary,
         marginBottom: verticalScale(18),
     },
     sectionTitle: {
         fontSize: normalize(16),
         fontWeight: '700',
-        color: '#111827',
+        color: colors.text,
         marginTop: verticalScale(18),
         marginBottom: verticalScale(8),
     },
     subSectionTitle: {
         fontSize: normalize(14),
         fontWeight: '700',
-        color: '#374151',
+        color: colors.text,
         marginTop: verticalScale(12),
         marginBottom: verticalScale(4),
     },
     paragraph: {
         fontSize: normalize(14),
-        color: '#4B5563',
+        color: colors.textSecondary,
         lineHeight: normalize(22),
     },
     bullet: {
         fontSize: normalize(14),
-        color: '#4B5563',
+        color: colors.textSecondary,
         lineHeight: normalize(22),
         marginLeft: normalize(12),
         marginTop: verticalScale(2),
@@ -242,18 +245,18 @@ const styles = StyleSheet.create({
     contactContainer: {
         marginTop: verticalScale(8),
         padding: normalize(12),
-        backgroundColor: '#F3F4F6',
-        borderRadius: normalize(8),
+        backgroundColor: tokens.surfaceMuted,
+        borderRadius: normalize(tokens.radius.sm),
     },
     contactName: {
         fontSize: normalize(14),
         fontWeight: '700',
-        color: '#111827',
+        color: colors.text,
         marginBottom: verticalScale(2),
     },
     contactLine: {
         fontSize: normalize(14),
-        color: '#4B5563',
+        color: colors.textSecondary,
         lineHeight: normalize(22),
     },
 });
