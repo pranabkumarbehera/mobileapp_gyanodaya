@@ -39,9 +39,27 @@ import {
 } from '../Reducers/MockTestReducer';
 import { getApi, postApi } from '../../Utils/Helpers/ApiRequest';
 import Toast from 'react-native-toast-message';
-import { Linking } from 'react-native';
 
 const getAuth = (state: any) => state.AuthReducer;
+
+const ensureLoginRedirectUrl = (paymentUrl: string) => {
+    if (!paymentUrl) {
+        return paymentUrl;
+    }
+
+    try {
+        const url = new URL(paymentUrl);
+        url.searchParams.set('redirect_url', 'https://www.gyanodaya.cloud/login');
+        return url.toString();
+    } catch {
+        const hasQuery = paymentUrl.includes('?');
+        const redirectParam = 'redirect_url=https%3A%2F%2Fwww.gyanodaya.cloud%2Flogin';
+        if (paymentUrl.includes('redirect_url=')) {
+            return paymentUrl.replace(/redirect_url=[^&]*/g, redirectParam);
+        }
+        return `${paymentUrl}${hasQuery ? '&' : '?'}${redirectParam}`;
+    }
+};
 
 export function* getMockTestListSaga(action: any): Generator<any, void, any> {
     const auth = yield select(getAuth);
@@ -257,9 +275,16 @@ export function* paymentSaga(action: any): Generator<any, void, any> {
             const paymentUrl = findPaymentUrl(response?.data);
 
             if (paymentUrl) {
-                yield put(paymentSuccess(response?.data?.data || response?.data));
-                yield call([Linking, 'openURL'], paymentUrl);
-                Toast.show({ type: 'info', text1: 'Opening Razorpay checkout...' });
+                yield put(paymentSuccess({
+                    ...(response?.data?.data || response?.data || {}),
+                    paymentUrl: ensureLoginRedirectUrl(paymentUrl),
+                    resourceId: action.payload.id,
+                    amount: Number(action.payload.price),
+                    gateway: 'RAZORPAY',
+                    currency: 'INR',
+                    status: 'pending',
+                }));
+                Toast.show({ type: 'info', text1: 'Opening payment inside the app...' });
             } else {
                 yield put(paymentSuccess(response?.data?.data || response?.data));
                 

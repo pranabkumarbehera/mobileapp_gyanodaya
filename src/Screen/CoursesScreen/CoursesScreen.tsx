@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, TextInput, ActivityIndicator, Modal, Linking, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, TextInput, ActivityIndicator, Modal, Linking, FlatList, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 import Feather from 'react-native-vector-icons/Feather';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
+import { WebView } from 'react-native-webview';
 import Colorpath from '../../Themes/Colorpath';
 import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
 import { getApi } from '../../Utils/Helpers/ApiRequest';
@@ -12,6 +14,7 @@ import Toast from 'react-native-toast-message';
 import {
     bundleIDRequest,
     clearBundleFlowState,
+    clearPaymentSession as clearPaymentSessionAction,
     enrollBundleFailure,
     enrollBundleRequest,
     enrollBundleSuccess,
@@ -20,7 +23,6 @@ import {
     getSubBundleDetailsRequest,
     getSubBundleListRequest,
     paymentRequest,
-    paymentSuccess,
     paymentFailure,
 } from '../../Redux/Reducers/MockTestReducer';
 import { RootState } from '../../Redux/Store';
@@ -177,16 +179,40 @@ const getDetailCollections = (bundle: any) => {
     const parsedData = parseMaybeJson(bundle?.data);
     const sources = [bundle, payload, parsedData];
     const getCollection = (...keys: string[]) => {
+        const collected: any[] = [];
+        const seenKeys = new Set<string>();
+
+        const pushItems = (items: any[]) => {
+            items.forEach((item) => {
+                if (!item || typeof item !== 'object') {
+                    return;
+                }
+
+                const dedupeKey = [
+                    item?.id || item?._id || item?.noteId || item?.questionId || item?.videoId || '',
+                    item?.title || item?.name || item?.label || item?.heading || '',
+                    item?.type || item?.kind || '',
+                ].join('|');
+
+                if (seenKeys.has(dedupeKey)) {
+                    return;
+                }
+
+                seenKeys.add(dedupeKey);
+                collected.push(item);
+            });
+        };
+
         for (const source of sources) {
             for (const key of keys) {
                 const value = source?.[key];
                 if (Array.isArray(value) && value.length > 0) {
-                    return value;
+                    pushItems(value.flatMap((entry: any) => (Array.isArray(entry) ? entry : [entry])));
                 }
             }
         }
 
-        return [];
+        return collected;
     };
 
     const quizzes = getCollection('quizzes', 'mockTests', 'tests');
@@ -221,18 +247,6 @@ const getItemTitle = (item: any, fallback: string) =>
     item?.videoTitle ||
     item?.noteTitle ||
     fallback;
-
-const getItemLink = (item: any) =>
-    item?.url ||
-    item?.link ||
-    item?.fileUrl ||
-    item?.documentUrl ||
-    item?.videoUrl ||
-    item?.youtubeUrl ||
-    item?.youtubeLink ||
-    item?.contentUrl ||
-    item?.path ||
-    null;
 
 const getItemDescription = (item: any) =>
     item?.description ||
@@ -548,6 +562,125 @@ const htmlToPlainText = (html: string = '') => {
         .trim();
 };
 
+const htmlToNoteText = (html: string = '') => {
+    if (!html) {
+        return '';
+    }
+
+    return html
+        .replace(/<\s*style[^>]*>[\s\S]*?<\/\s*style\s*>/gi, '')
+        .replace(/<\s*script[^>]*>[\s\S]*?<\/\s*script\s*>/gi, '')
+        .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+        .replace(/<\s*\/\s*(p|div|section|article|header|footer|blockquote|table|tbody|thead|tfoot|tr)\s*>/gi, '\n\n')
+        .replace(/<\s*\/\s*(h[1-6])\s*>/gi, '\n\n')
+        .replace(/<\s*\/\s*li\s*>/gi, '\n')
+        .replace(/<\s*li[^>]*>/gi, '\n• ')
+        .replace(/<\s*\/\s*(ul|ol)\s*>/gi, '\n')
+        .replace(/<\s*\/\s*th\s*>/gi, '\t')
+        .replace(/<\s*\/\s*td\s*>/gi, '\t')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>')
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;/gi, "'")
+        .replace(/\u00a0/g, ' ')
+        .replace(/[ \t]+\n/g, '\n')
+        .replace(/\n[ \t]+/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .replace(/[ \t]{2,}/g, ' ')
+        .trim();
+};
+
+const buildNoteHtmlDocument = (html: string = '') => {
+    const safeHtml = html || '<p>No content available.</p>';
+
+    return `
+        <!doctype html>
+        <html>
+            <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+                <style>
+                    :root {
+                        color-scheme: light;
+                    }
+                    html, body {
+                        margin: 0;
+                        padding: 0;
+                        background: #FFFFFF;
+                        color: #334155;
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                        font-size: 16px;
+                        line-height: 1.7;
+                    }
+                    body {
+                        padding: 18px 18px 28px;
+                        box-sizing: border-box;
+                    }
+                    * {
+                        box-sizing: border-box;
+                    }
+                    h1, h2, h3, h4, h5, h6 {
+                        margin: 0 0 12px;
+                        color: #0F172A;
+                        line-height: 1.25;
+                    }
+                    p {
+                        margin: 0 0 12px;
+                    }
+                    ul, ol {
+                        margin: 0 0 12px 20px;
+                        padding: 0;
+                    }
+                    li {
+                        margin: 0 0 6px;
+                    }
+                    blockquote {
+                        margin: 12px 0;
+                        padding: 10px 14px;
+                        border-left: 4px solid #0F766E;
+                        background: #F0FDFA;
+                        color: #134E4A;
+                    }
+                    table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin: 12px 0;
+                    }
+                    th, td {
+                        border: 1px solid #E2E8F0;
+                        padding: 8px 10px;
+                        text-align: left;
+                        vertical-align: top;
+                    }
+                    img, video, iframe {
+                        max-width: 100%;
+                        height: auto;
+                    }
+                    pre, code {
+                        white-space: pre-wrap;
+                        word-break: break-word;
+                        background: #F8FAFC;
+                        color: #0F172A;
+                        border-radius: 10px;
+                    }
+                    pre {
+                        padding: 12px;
+                        overflow-x: auto;
+                    }
+                    code {
+                        padding: 2px 6px;
+                    }
+                </style>
+            </head>
+            <body>
+                ${safeHtml}
+            </body>
+        </html>
+    `;
+};
+
 const getBundleMockCount = (bundle: any) => {
     const payload = getBundlePayload(bundle);
     const quizzes = getBundleQuizzes(payload);
@@ -584,34 +717,6 @@ const getBundleMockCount = (bundle: any) => {
     );
 
     return Number(directCount || 0);
-};
-
-const buildDetailTabs = (bundle: any) => {
-    const collections = getDetailCollections(bundle);
-    const tabs = [
-        {
-            key: 'mock',
-            label: `Mock Test (${collections.quizCount})`,
-            items: collections.quizzes,
-        },
-        {
-            key: 'note',
-            label: `Note Bank (${collections.noteBanks.length})`,
-            items: collections.noteBanks,
-        },
-        {
-            key: 'question',
-            label: `Question Bank (${collections.questionBanks.length})`,
-            items: collections.questionBanks,
-        },
-        {
-            key: 'youtube',
-            label: `YouTube (${collections.youtubeBanks.length})`,
-            items: collections.youtubeBanks,
-        },
-    ].filter(tab => Array.isArray(tab.items) && tab.items.length > 0);
-
-    return tabs;
 };
 
 const getQuizTopicName = (quiz: any) =>
@@ -934,6 +1039,562 @@ const collectEnrolledBundleIds = (studentModules: any) => {
     }, []);
 };
 
+const COURSE_CARD_THEMES = [
+    {
+        top: ['#0F766E', '#115E59', '#134E4A'],
+        tint: '#ECFEFF',
+        accent: '#0F766E',
+        accentSoft: '#D1FAE5',
+        badge: '#0F172A',
+        footer: '#0F172A',
+        price: '#0F766E',
+    },
+    {
+        top: ['#1D4ED8', '#1E40AF', '#1E3A8A'],
+        tint: '#EFF6FF',
+        accent: '#1D4ED8',
+        accentSoft: '#DBEAFE',
+        badge: '#1E3A8A',
+        footer: '#0F172A',
+        price: '#1D4ED8',
+    },
+    {
+        top: ['#C2410C', '#9A3412', '#7C2D12'],
+        tint: '#FFF7ED',
+        accent: '#C2410C',
+        accentSoft: '#FED7AA',
+        badge: '#7C2D12',
+        footer: '#0F172A',
+        price: '#C2410C',
+    },
+    {
+        top: ['#7C3AED', '#6D28D9', '#5B21B6'],
+        tint: '#F5F3FF',
+        accent: '#7C3AED',
+        accentSoft: '#E9D5FF',
+        badge: '#4C1D95',
+        footer: '#0F172A',
+        price: '#7C3AED',
+    },
+];
+
+const getCourseCardTheme = (index: number) => COURSE_CARD_THEMES[index % COURSE_CARD_THEMES.length];
+
+const MOCK_CARD_THEMES = [
+    {
+        top: ['#ECFDF5', '#CCFBF1', '#E0F2FE'],
+        badge: ['#0F766E', '#14B8A6', '#0EA5E9'],
+        border: 'rgba(15, 118, 110, 0.10)',
+    },
+    {
+        top: ['#EEF2FF', '#E0F2FE', '#DBEAFE'],
+        badge: ['#4F46E5', '#06B6D4', '#2563EB'],
+        border: 'rgba(79, 70, 229, 0.10)',
+    },
+    {
+        top: ['#F5F3FF', '#E9D5FF', '#FCE7F3'],
+        badge: ['#7C3AED', '#A855F7', '#EC4899'],
+        border: 'rgba(124, 58, 237, 0.10)',
+    },
+    {
+        top: ['#FEF3C7', '#FDE68A', '#FED7AA'],
+        badge: ['#D97706', '#F59E0B', '#EA580C'],
+        border: 'rgba(217, 119, 6, 0.10)',
+    },
+    {
+        top: ['#FEE2E2', '#FECACA', '#FFE4E6'],
+        badge: ['#DC2626', '#FB7185', '#F97316'],
+        border: 'rgba(220, 38, 38, 0.10)',
+    },
+    {
+        top: ['#ECFEFF', '#E0F2FE', '#F0FDFA'],
+        badge: ['#0EA5E9', '#06B6D4', '#14B8A6'],
+        border: 'rgba(14, 165, 233, 0.10)',
+    },
+];
+
+const getMockCardTheme = (index: number) => MOCK_CARD_THEMES[index % MOCK_CARD_THEMES.length];
+
+const resolveBundlePricing = (bundle: any) => {
+    const originalPrice = Number(bundle?.price || bundle?.amount || 0);
+    const discountPrice = Number(bundle?.discountPrice || 0);
+    const discountPercentage = Number(bundle?.discountPercentage || 0);
+
+    let finalPrice = originalPrice;
+    if (discountPrice > 0) {
+        finalPrice = discountPrice;
+    } else if (discountPercentage > 0) {
+        finalPrice = originalPrice - (originalPrice * discountPercentage) / 100;
+    }
+
+    finalPrice = Math.max(0, Math.round(finalPrice));
+
+    return {
+        originalPrice,
+        discountPrice,
+        discountPercentage,
+        finalPrice,
+        hasDiscount: finalPrice > 0 && finalPrice < originalPrice,
+        isFree: finalPrice === 0,
+    };
+};
+
+const normalizePaymentSession = (session: any) => {
+    if (!session || typeof session !== 'object') {
+        return null;
+    }
+
+    const paymentUrl = session.paymentUrl || session.checkout_url || session.checkoutUrl || session.payment_url || session.paymentUrl || session.paymentLink || session.short_url || session.shortUrl || session.url || session.redirect_url;
+    const resourceId = String(session.resourceId || session.bundleId || session.id || '');
+
+    if (!paymentUrl || !resourceId) {
+        return null;
+    }
+
+    return {
+        ...session,
+        paymentUrl,
+        resourceId,
+        amount: Number(session.amount || 0),
+        createdAt: Number(session.createdAt || Date.now()),
+    };
+};
+
+const posterStyles = StyleSheet.create({
+    container: {
+        width: '100%',
+        backgroundColor: '#FFFFFF',
+        flexDirection: 'column',
+        borderRadius: normalize(28),
+        overflow: 'hidden',
+    },
+    topSection: {
+        padding: normalize(16),
+        paddingTop: verticalScale(18),
+        paddingBottom: verticalScale(18),
+        alignItems: 'flex-start',
+        position: 'relative',
+        minHeight: verticalScale(210),
+    },
+    posterGlowOne: {
+        position: 'absolute',
+        top: -normalize(26),
+        right: -normalize(28),
+        width: normalize(96),
+        height: normalize(96),
+        borderRadius: normalize(48),
+        backgroundColor: 'rgba(255,255,255,0.12)',
+    },
+    posterGlowTwo: {
+        position: 'absolute',
+        bottom: -normalize(22),
+        left: -normalize(18),
+        width: normalize(76),
+        height: normalize(76),
+        borderRadius: normalize(38),
+        backgroundColor: 'rgba(255,255,255,0.08)',
+    },
+    posterTopRow: {
+        width: '100%',
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        gap: normalize(12),
+        marginBottom: verticalScale(18),
+    },
+    posterBadge: {
+        maxWidth: '68%',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: normalize(6),
+        backgroundColor: '#FFFFFF',
+        paddingHorizontal: normalize(10),
+        paddingVertical: verticalScale(6),
+        borderRadius: normalize(999),
+    },
+    posterBadgeText: {
+        color: '#0F766E',
+        fontSize: normalize(10),
+        fontWeight: '800',
+        letterSpacing: 0.4,
+    },
+    posterPricePill: {
+        backgroundColor: 'rgba(255,255,255,0.16)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.25)',
+        paddingHorizontal: normalize(12),
+        paddingVertical: verticalScale(8),
+        borderRadius: normalize(16),
+        alignItems: 'flex-end',
+    },
+    posterPriceLabel: {
+        color: 'rgba(255,255,255,0.75)',
+        fontSize: normalize(9),
+        fontWeight: '700',
+    },
+    posterPriceValue: {
+        color: '#FFFFFF',
+        fontSize: normalize(18),
+        fontWeight: '900',
+    },
+    mainTitleTop: {
+        color: '#D1FAE5',
+        fontSize: normalize(12),
+        fontWeight: '900',
+        letterSpacing: 1.6,
+        marginBottom: verticalScale(8),
+    },
+    mainTitleYellow: {
+        color: '#FFFFFF',
+        fontSize: normalize(22),
+        fontWeight: '900',
+        lineHeight: normalize(28),
+        marginBottom: verticalScale(10),
+    },
+    posterSubtitle: {
+        color: 'rgba(255,255,255,0.88)',
+        fontSize: normalize(12),
+        lineHeight: normalize(18),
+        marginBottom: verticalScale(14),
+    },
+    posterChipRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: normalize(8),
+    },
+    posterChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: normalize(5),
+        paddingHorizontal: normalize(10),
+        paddingVertical: verticalScale(6),
+        borderRadius: normalize(999),
+        backgroundColor: 'rgba(255,255,255,0.12)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.14)',
+    },
+    posterChipText: {
+        color: '#FFFFFF',
+        fontSize: normalize(10),
+        fontWeight: '700',
+    },
+    priceSection: {
+        flexDirection: 'row',
+        alignItems: 'stretch',
+    },
+    priceLeft: {
+        flex: 1,
+        backgroundColor: '#ECFEFF',
+        padding: normalize(12),
+    },
+    discountHint: {
+        marginTop: verticalScale(6),
+        fontSize: normalize(10),
+        color: '#475467',
+        lineHeight: normalize(14),
+        fontWeight: '600',
+    },
+    specialPriceLabel: {
+        color: '#0F766E',
+        fontSize: normalize(9),
+        fontWeight: '900',
+        letterSpacing: 0.8,
+    },
+    priceRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: verticalScale(2),
+    },
+    oldPrice: {
+        color: '#4B5563',
+        fontSize: normalize(11),
+        textDecorationLine: 'line-through',
+        marginRight: normalize(6),
+    },
+    newPrice: {
+        color: '#0F766E',
+        fontSize: normalize(19),
+        fontWeight: '900',
+    },
+    priceRight: {
+        flex: 1.2,
+        backgroundColor: '#0F172A',
+        padding: normalize(12),
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: normalize(8),
+    },
+    priceRightTextWrap: {
+        flex: 1,
+    },
+    preparationTitle: {
+        color: '#FFFFFF',
+        fontSize: normalize(9),
+        fontWeight: '900',
+        letterSpacing: 0.6,
+    },
+    preparationSubtitle: {
+        color: '#CBD5E1',
+        fontSize: normalize(7),
+    },
+    featuresSection: {
+        padding: normalize(14),
+        gap: verticalScale(10),
+    },
+    featureRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    featureIconWrap: {
+        width: normalize(34),
+        height: normalize(34),
+        borderRadius: normalize(14),
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: normalize(10),
+    },
+    featureTextWrap: {
+        flex: 1,
+    },
+    featureTitle: {
+        fontSize: normalize(10),
+        fontWeight: '900',
+        marginBottom: verticalScale(2),
+    },
+    featureDesc: {
+        color: '#475467',
+        fontSize: normalize(8),
+        lineHeight: normalize(12),
+    },
+    featureDivider: {
+        height: 1,
+        backgroundColor: '#E5E7EB',
+        marginVertical: verticalScale(2),
+    },
+    bottomFooter: {
+        backgroundColor: '#0F172A',
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        padding: normalize(14),
+        gap: normalize(10),
+    },
+    actionBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: normalize(10),
+        padding: normalize(12),
+    },
+    primaryActionButton: {
+        flex: 1,
+        minHeight: verticalScale(44),
+        borderRadius: normalize(14),
+        paddingHorizontal: normalize(12),
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: normalize(8),
+    },
+    secondaryActionButton: {
+        flex: 1,
+        minHeight: verticalScale(44),
+        borderRadius: normalize(14),
+        paddingHorizontal: normalize(12),
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: normalize(8),
+        backgroundColor: 'rgba(255,255,255,0.12)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.18)',
+    },
+    primaryActionText: {
+        color: '#FFFFFF',
+        fontSize: normalize(12),
+        fontWeight: '800',
+    },
+    secondaryActionText: {
+        color: '#FFFFFF',
+        fontSize: normalize(12),
+        fontWeight: '800',
+    },
+    footerCol: {
+        alignItems: 'center',
+        flex: 1,
+    },
+    footerText: {
+        color: '#FFFFFF',
+        fontSize: normalize(8),
+        fontWeight: '700',
+        textAlign: 'center',
+        marginTop: verticalScale(4),
+        lineHeight: normalize(11),
+    },
+});
+
+const CoursePosterCard = ({
+    bundle,
+    index = 0,
+    isEnrolled = false,
+    isPending = false,
+    onView,
+    onEnroll,
+    onBuyAndEnroll,
+}: any) => {
+    const normalizedBundle = getBundlePayload(bundle);
+    const collections = getDetailCollections(bundle);
+    const quizzes = getBundleQuizzes(normalizedBundle);
+    const examMeta = getExamMetaByTitle(normalizedBundle?.title || normalizedBundle?.name || '');
+    const pricing = resolveBundlePricing(normalizedBundle);
+    const theme = getCourseCardTheme(index);
+
+    const fullTitle = String(normalizedBundle?.title || normalizedBundle?.name || 'COMPLETE COURSE');
+    const bundleSubtitle =
+        normalizedBundle?.description
+            ? htmlToPlainText(String(normalizedBundle.description)).split('\n').find(Boolean) || 'Complete study support with mock tests and materials'
+            : 'Complete study support with mock tests and materials';
+    const countChips = [
+        { label: `${quizzes.length || 0} mocks`, icon: 'clipboard' },
+        { label: `${collections.noteBanks.length || 0} notes`, icon: 'book-open' },
+        { label: `${collections.questionBanks.length || 0} banks`, icon: 'help-circle' },
+    ];
+    
+    return (
+        <View style={posterStyles.container}>
+            <LinearGradient
+                colors={theme.top as [string, string, string]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={posterStyles.topSection}
+            >
+                <View style={posterStyles.posterGlowOne} />
+                <View style={posterStyles.posterGlowTwo} />
+                <View style={posterStyles.posterTopRow}>
+                    <View style={[posterStyles.posterBadge, { backgroundColor: theme.tint }]}>
+                        <Feather name={examMeta.icon as any} size={normalize(12)} color={theme.accent} />
+                        <Text style={posterStyles.posterBadgeText}>Premium course</Text>
+                    </View>
+                    <View style={[posterStyles.posterPricePill, { backgroundColor: 'rgba(255,255,255,0.16)' }]}>
+                        <Text style={posterStyles.posterPriceLabel}>From</Text>
+                        <Text style={posterStyles.posterPriceValue}>₹{pricing.finalPrice}</Text>
+                    </View>
+                </View>
+
+                <Text style={posterStyles.mainTitleTop}>COURSE HUB</Text>
+                <Text style={posterStyles.mainTitleYellow} numberOfLines={2}>
+                    {fullTitle.toUpperCase()}
+                </Text>
+                <Text style={posterStyles.posterSubtitle} numberOfLines={3}>
+                    {bundleSubtitle}
+                </Text>
+
+                <View style={posterStyles.posterChipRow}>
+                    {countChips.map((chip) => (
+                        <View key={chip.label} style={[posterStyles.posterChip, { backgroundColor: 'rgba(255,255,255,0.12)' }]}>
+                            <Feather name={chip.icon as any} size={normalize(11)} color="#FFFFFF" />
+                            <Text style={posterStyles.posterChipText}>{chip.label}</Text>
+                        </View>
+                    ))}
+                </View>
+            </LinearGradient>
+
+            <View style={posterStyles.priceSection}>
+                <View style={[posterStyles.priceLeft, { backgroundColor: theme.tint }]}>
+                    <Text style={posterStyles.specialPriceLabel}>SPECIAL PRICE</Text>
+                    <View style={posterStyles.priceRow}>
+                        {pricing.hasDiscount ? <Text style={posterStyles.oldPrice}>₹{pricing.originalPrice}/-</Text> : null}
+                        <Text style={[posterStyles.newPrice, { color: theme.price }]}>₹{pricing.finalPrice}/-</Text>
+                    </View>
+                    {pricing.discountPercentage > 0 || pricing.discountPrice > 0 ? (
+                        <Text style={posterStyles.discountHint}>
+                            {pricing.discountPrice > 0
+                                ? 'Discount applied from the latest course pricing'
+                                : `Save ${pricing.discountPercentage}% on this course`}
+                        </Text>
+                    ) : null}
+                </View>
+                <View style={[posterStyles.priceRight, { backgroundColor: theme.footer }]}>
+                    <FontAwesome5 name="award" size={normalize(18)} color="#FBBF24" />
+                    <View style={posterStyles.priceRightTextWrap}>
+                        <Text style={posterStyles.preparationTitle}>COMPLETE PREPARATION</Text>
+                        <Text style={posterStyles.preparationSubtitle}>Mock tests, notes, and video content</Text>
+                    </View>
+                </View>
+            </View>
+
+            <View style={posterStyles.featuresSection}>
+                <View style={posterStyles.featureRow}>
+                    <View style={[posterStyles.featureIconWrap, { backgroundColor: theme.accent }]}>
+                        <Feather name="monitor" size={normalize(18)} color="#FFF" />
+                    </View>
+                    <View style={posterStyles.featureTextWrap}>
+                        <Text style={[posterStyles.featureTitle, { color: theme.accent }]}>VIDEO BANK</Text>
+                        <Text style={posterStyles.featureDesc}>Curated video links for focused revision</Text>
+                    </View>
+                </View>
+
+                <View style={posterStyles.featureDivider} />
+
+                <View style={posterStyles.featureRow}>
+                    <View style={[posterStyles.featureIconWrap, { backgroundColor: theme.accent }]}>
+                        <Feather name="book-open" size={normalize(18)} color="#FFF" />
+                    </View>
+                    <View style={posterStyles.featureTextWrap}>
+                        <Text style={[posterStyles.featureTitle, { color: theme.accent }]}>NOTE BANK</Text>
+                        <Text style={posterStyles.featureDesc}>Topic-wise notes made easy to scan</Text>
+                    </View>
+                </View>
+
+                <View style={posterStyles.featureDivider} />
+
+                <View style={posterStyles.featureRow}>
+                    <View style={[posterStyles.featureIconWrap, { backgroundColor: theme.accent }]}>
+                        <Feather name="clipboard" size={normalize(18)} color="#FFF" />
+                    </View>
+                    <View style={posterStyles.featureTextWrap}>
+                        <Text style={[posterStyles.featureTitle, { color: theme.accent }]}>MOCK TESTS</Text>
+                        <Text style={posterStyles.featureDesc}>Practice with a clean, exam-first flow</Text>
+                    </View>
+                </View>
+            </View>
+
+            <View style={[posterStyles.actionBar, { backgroundColor: theme.footer }]}>
+                {isEnrolled ? (
+                    <Pressable
+                        onPress={onView}
+                        style={[posterStyles.primaryActionButton, { backgroundColor: theme.accent }]}
+                        disabled={isPending}
+                    >
+                        <Feather name="eye" size={normalize(14)} color="#FFFFFF" />
+                        <Text style={posterStyles.primaryActionText}>View</Text>
+                    </Pressable>
+                ) : (
+                    <>
+                        <Pressable
+                            onPress={onView}
+                            style={posterStyles.secondaryActionButton}
+                            disabled={isPending}
+                        >
+                            <Feather name="eye" size={normalize(14)} color="#FFFFFF" />
+                            <Text style={posterStyles.secondaryActionText}>View</Text>
+                        </Pressable>
+                        <Pressable
+                            onPress={pricing.isFree ? onEnroll : onBuyAndEnroll}
+                            style={[posterStyles.primaryActionButton, { backgroundColor: theme.accent }]}
+                            disabled={isPending}
+                        >
+                            <Feather name={pricing.isFree ? 'check-circle' : 'shopping-cart'} size={normalize(14)} color="#FFFFFF" />
+                            <Text style={posterStyles.primaryActionText}>
+                                {pricing.isFree ? 'Enroll' : `Buy & Enroll (₹${pricing.finalPrice})`}
+                            </Text>
+                        </Pressable>
+                    </>
+                )}
+            </View>
+        </View>
+    );
+};
+
 const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     const dispatch = useDispatch();
     const isFocused = useIsFocused();
@@ -943,6 +1604,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         bundleDetails,
         subBundleList,
         subBundleDetails,
+        paymentSession,
         isLoading,
         status,
     } = useSelector((state: RootState) => state.MockTestReducer);
@@ -951,8 +1613,6 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     const [selectedModule, setSelectedModule] = useState<string | null>(null);
     const [selectedExam, setSelectedExam] = useState<any>(null);
     const [selectedSubBundleExam, setSelectedSubBundleExam] = useState<any>(null);
-    const [selectedBundle, setSelectedBundle] = useState<any>(null);
-    const [showBundleActionModal, setShowBundleActionModal] = useState(false);
     const [activeBundleId, setActiveBundleId] = useState<string | null>(null);
     const [_activeSubBundleId, setActiveSubBundleId] = useState<string | null>(null);
     const [pendingEnrollmentId, setPendingEnrollmentId] = useState<string | null>(null);
@@ -972,9 +1632,11 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     const [selectedQuestionBankQuestions, setSelectedQuestionBankQuestions] = useState<any[]>([]);
     const [selectedQuestionIndex, setSelectedQuestionIndex] = useState(0);
     const [selectedQuestionBankMeta, setSelectedQuestionBankMeta] = useState<any>(null);
-    const [showQuestionAnswer, setShowQuestionAnswer] = useState(false);
+    const [_showQuestionAnswer, setShowQuestionAnswer] = useState(false);
     const [showQuestionAnswerModal, setShowQuestionAnswerModal] = useState(false);
     const [selectedQuestionAnswerDetail, setSelectedQuestionAnswerDetail] = useState<any>(null);
+    const [isPaymentWebViewVisible, setIsPaymentWebViewVisible] = useState(false);
+    const [activePaymentSession, setActivePaymentSession] = useState<any>(null);
     const [showVideoBankModal, setShowVideoBankModal] = useState(false);
     const [isLoadingVideoBank, setIsLoadingVideoBank] = useState(false);
     const [selectedVideoBankTitle, setSelectedVideoBankTitle] = useState('');
@@ -1033,6 +1695,43 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
             failedPendingBundleIds: failedPending,
         };
     }, [studentModules, paymentHistoryData]);
+    const moduleOptions = useMemo(() => {
+        const modules = bundleItems
+            .map((bundle: any) => bundle?.module || bundle?.category || bundle?.subject || bundle?.group || '')
+            .filter((value: string) => Boolean(String(value).trim()));
+
+        return Array.from(new Set(modules)).slice(0, 8);
+    }, [bundleItems]);
+    const enrolledCourseCount = useMemo(() => {
+        const enrolledSet = new Set(enrolledBundleIds);
+        return bundleItems.filter((bundle: any) => {
+            const bundleId = String(getBundleId(getBundlePayload(bundle)) || '');
+            return bundleId ? enrolledSet.has(bundleId) : false;
+        }).length;
+    }, [bundleItems, enrolledBundleIds]);
+
+    const clearPaymentSession = useCallback(async () => {
+        setActivePaymentSession(null);
+        setIsPaymentWebViewVisible(false);
+        setPendingEnrollmentId(null);
+        dispatch(clearPaymentSessionAction());
+    }, [dispatch]);
+
+    const verifyPaymentAndContinue = useCallback(async (bundleId: string) => {
+        if (!bundleId) {
+            return;
+        }
+
+        await clearPaymentSession();
+        setPendingEnrollmentId(null);
+        setEnrolledBundleOverrides(prev => {
+            const next = new Set(prev);
+            next.add(String(bundleId));
+            return next;
+        });
+        dispatch(paymentHistoryRequest({ page: 1, limit: 100 }));
+        dispatch(bundleIDRequest({ id: bundleId }));
+    }, [clearPaymentSession, dispatch]);
     useEffect(() => {
         dispatch(getBundleListRequest({ limit: 50, page: 1, ...(selectedModule ? { module: selectedModule } : {}) }));
     }, [dispatch, selectedModule]);
@@ -1051,20 +1750,34 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     }, [dispatch]);
 
     useEffect(() => {
-        if (selectedBundle) {
-            const bundleId = getBundleId(selectedBundle);
-            if (bundleId) {
-                const strId = String(bundleId);
-                const hasAccess =
-                    !failedPendingBundleIds.has(strId) &&
-                    (enrolledBundleIds.includes(strId) || enrolledBundleOverrides.has(strId));
-                
-                if (selectedBundle.isEnrolled !== hasAccess) {
-                    setSelectedBundle((prev: any) => prev ? { ...prev, isEnrolled: hasAccess } : null);
-                }
-            }
+        const session = normalizePaymentSession(paymentSession);
+        if (!session) {
+            return;
         }
-    }, [enrolledBundleIds, failedPendingBundleIds, enrolledBundleOverrides, selectedBundle]);
+
+        if (pendingEnrollmentId && String(session.resourceId || '') !== pendingEnrollmentId) {
+            return;
+        }
+
+        if (!pendingEnrollmentId && !isPaymentWebViewVisible) {
+            return;
+        }
+
+        setActivePaymentSession(session);
+        setIsPaymentWebViewVisible(true);
+    }, [isPaymentWebViewVisible, pendingEnrollmentId, paymentSession]);
+
+    useEffect(() => {
+        if (!activePaymentSession?.resourceId) {
+            return;
+        }
+
+        const interval = setInterval(() => {
+            dispatch(paymentHistoryRequest({ page: 1, limit: 100 }));
+        }, 5000);
+
+        return () => clearInterval(interval);
+    }, [activePaymentSession?.resourceId, dispatch]);
 
     useEffect(() => {
         if (!bundleDetails) {
@@ -1076,15 +1789,14 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
             !failedPendingBundleIds.has(resolvedBundleId) &&
             (Boolean(bundleDetails?.isEnrolled) ||
             (resolvedBundleId ? enrolledBundleIds.includes(resolvedBundleId) : false) ||
-            enrolledBundleOverrides.has(resolvedBundleId) ||
-            Boolean(selectedBundle?.isEnrolled));
+            enrolledBundleOverrides.has(resolvedBundleId));
 
         setSelectedExam(buildSelectedExam(bundleDetails, isEnrolled));
         if (resolvedBundleId) {
             setActiveBundleId(resolvedBundleId);
             dispatch(getSubBundleListRequest({ bundleId: resolvedBundleId }));
         }
-    }, [activeBundleId, bundleDetails, dispatch, enrolledBundleIds, enrolledBundleOverrides, selectedBundle, failedPendingBundleIds]);
+    }, [activeBundleId, bundleDetails, dispatch, enrolledBundleIds, enrolledBundleOverrides, failedPendingBundleIds]);
 
     useEffect(() => {
         if (!subBundleDetails) {
@@ -1104,24 +1816,20 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         if (
             status === enrollBundleSuccess.type ||
             status === enrollBundleFailure.type ||
-            status === paymentSuccess.type ||
             status === paymentFailure.type
         ) {
             setPendingEnrollmentId(null);
-            
-            if ((status === enrollBundleSuccess.type || status === paymentSuccess.type) && activeBundleId) {
+
+            if (status === enrollBundleSuccess.type && activeBundleId) {
                 dispatch(paymentHistoryRequest({ page: 1, limit: 100 }));
                 setEnrolledBundleOverrides(prev => {
                     const next = new Set(prev);
                     next.add(String(activeBundleId));
                     return next;
                 });
-                if (selectedBundle && String(getBundleId(selectedBundle)) === String(activeBundleId)) {
-                    setSelectedBundle({ ...selectedBundle, isEnrolled: true });
-                }
             }
         }
-    }, [status, activeBundleId, selectedBundle, dispatch]);
+    }, [status, activeBundleId, dispatch]);
 
     const openExternalVideoUrl = useCallback(async (rawUrl: string) => {
         if (!rawUrl) {
@@ -1154,6 +1862,42 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
             }
         }
 
+        return false;
+    }, []);
+
+    const handleShouldStartLoadWithRequest = useCallback((request: any) => {
+        const reqUrl = String(request?.url || '');
+        const upiSchemes = ['intent://', 'upi://', 'tez://', 'phonepe://', 'paytmmp://', 'gpay://'];
+        const isUpiScheme = upiSchemes.some(scheme => reqUrl.startsWith(scheme));
+
+        if (!reqUrl || !isUpiScheme) {
+            return true;
+        }
+
+        const openUpiApp = async () => {
+            try {
+                let finalUrl = reqUrl;
+                if (reqUrl.startsWith('intent://')) {
+                    const schemeMatch = reqUrl.match(/scheme=([^;]+)/);
+                    const scheme = schemeMatch ? schemeMatch[1] : 'upi';
+                    finalUrl = reqUrl.replace(/^intent/, scheme).split('#')[0];
+                }
+
+                const supported = await Linking.canOpenURL(finalUrl);
+                if (supported) {
+                    await Linking.openURL(finalUrl);
+                    return;
+                }
+
+                // If fallback fails, try just opening it anyway as Android can sometimes handle it
+                await Linking.openURL(finalUrl);
+            } catch (error) {
+                console.log('Error opening UPI URI:', error);
+                Toast.show({ type: 'error', text1: 'Unable to open UPI app.' });
+            }
+        };
+
+        openUpiApp().catch(() => undefined);
         return false;
     }, []);
 
@@ -1376,6 +2120,11 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
             return;
         }
 
+        if (activePaymentSession?.resourceId && !enrolledBundleIds.includes(String(activePaymentSession.resourceId))) {
+            Toast.show({ type: 'info', text1: 'Please complete the current payment first.' });
+            return;
+        }
+
         if (!detailScreen?.isEnrolled) {
             Toast.show({ type: 'error', text1: 'Please enroll in this course to access study materials' });
             return;
@@ -1394,7 +2143,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         if (sectionKey === 'video') {
             handleOpenVideoBank(item);
         }
-    }, [handleOpenNoteBank, handleOpenQuestionBank, handleOpenVideoBank, paymentHistoryLoading, detailScreen?.isEnrolled]);
+    }, [activePaymentSession?.resourceId, enrolledBundleIds, handleOpenNoteBank, handleOpenQuestionBank, handleOpenVideoBank, paymentHistoryLoading, detailScreen?.isEnrolled]);
 
     const renderMockSetCards = () => {
         if (!showingSubBundle && subBundleItems.length > 0) {
@@ -1518,50 +2267,81 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
         if (section.key === 'note') {
             return (
-                <Pressable style={styles.courseCard} onPress={() => handleOpenCourseItem(section.key, item)}>
-                    <View style={styles.courseCardBadge}>
-                        <Text style={styles.courseCardBadgeText}>NOTES</Text>
-                    </View>
-                    <Text style={styles.courseCardTitle}>{getItemTitle(item, 'Note Bank')}</Text>
-                    {getItemDescription(item) ? <Text style={styles.courseCardSubtitle}>{getItemDescription(item)}</Text> : null}
-                    <View style={styles.courseCardFooter}>
-                        <Feather name="book-open" size={normalize(16)} color={Colorpath.Primary} />
-                        <Text style={styles.courseCardFooterText}>Open note pages</Text>
-                    </View>
+                <Pressable style={styles.courseCardPressable} onPress={() => handleOpenCourseItem(section.key, item)}>
+                    <LinearGradient
+                        colors={['#ECFDF5', '#FFFFFF', '#E0F2FE']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.courseCard}
+                    >
+                        <LinearGradient
+                            colors={['#ECFDF5', '#D1FAE5', '#CCFBF1']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.courseCardBadge}
+                        >
+                            <Text style={styles.courseCardBadgeText}>NOTES</Text>
+                        </LinearGradient>
+                        <Text style={styles.courseCardTitle}>{getItemTitle(item, 'Note Bank')}</Text>
+                        {getItemDescription(item) ? <Text style={styles.courseCardSubtitle}>{getItemDescription(item)}</Text> : null}
+                        <View style={styles.courseCardFooter}>
+                            <Feather name="book-open" size={normalize(16)} color={Colorpath.Primary} />
+                            <Text style={styles.courseCardFooterText}>Open note pages</Text>
+                        </View>
+                    </LinearGradient>
                 </Pressable>
             );
         }
 
         if (section.key === 'question') {
             return (
-                <Pressable style={styles.courseCard} onPress={() => handleOpenCourseItem(section.key, item)}>
-                    <View style={styles.courseCardBadge}>
-                        <Text style={styles.courseCardBadgeText}>QUESTION BANK</Text>
-                    </View>
-                    <Text style={styles.courseCardTitle}>{getItemTitle(item, 'Question Bank')}</Text>
-                    {getQuestionBankYear(item) ? <Text style={styles.courseCardSubtitle}>Year: {getQuestionBankYear(item)}</Text> : null}
-                    <View style={styles.courseCardFooter}>
-                        <Feather name="help-circle" size={normalize(16)} color={Colorpath.Primary} />
-                        <Text style={styles.courseCardFooterText}>View questions & answers</Text>
-                    </View>
+                <Pressable style={styles.courseCardPressable} onPress={() => handleOpenCourseItem(section.key, item)}>
+                    <LinearGradient
+                        colors={['#F5F3FF', '#FFFFFF', '#FCE7F3']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.courseCard}
+                    >
+                        <LinearGradient
+                            colors={['#F5F3FF', '#E9D5FF', '#DBEAFE']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.courseCardBadge}
+                        >
+                            <Text style={styles.courseCardBadgeText}>QUESTION BANK</Text>
+                        </LinearGradient>
+                        <Text style={styles.courseCardTitle}>{getItemTitle(item, 'Question Bank')}</Text>
+                        {getQuestionBankYear(item) ? <Text style={styles.courseCardSubtitle}>Year: {getQuestionBankYear(item)}</Text> : null}
+                        <View style={styles.courseCardFooter}>
+                            <Feather name="help-circle" size={normalize(16)} color={Colorpath.Primary} />
+                            <Text style={styles.courseCardFooterText}>View questions & answers</Text>
+                        </View>
+                    </LinearGradient>
                 </Pressable>
             );
         }
 
         return (
-            <Pressable style={styles.courseCard} onPress={() => handleOpenCourseItem(section.key, item)}>
-                <View style={styles.courseCardBadge}>
-                    <Text style={styles.courseCardBadgeText}>VIDEOLINK BANK</Text>
-                </View>
-                <View style={styles.videoCardTitleRow}>
-                    <Feather name="play-circle" size={normalize(18)} color={Colorpath.Primary} />
-                    <Text style={styles.courseCardTitle}>{getItemTitle(item, 'Video Bank')}</Text>
-                </View>
-                {getItemDescription(item) ? <Text style={styles.courseCardSubtitle}>{getItemDescription(item)}</Text> : <Text style={styles.courseCardSubtitle}>YouTube Video</Text>}
-                <View style={styles.courseCardFooter}>
-                    <Feather name="youtube" size={normalize(16)} color="#FF0000" />
-                    <Text style={[styles.courseCardFooterText, { color: '#FF0000', marginLeft: normalize(4) }]}>Open in YouTube</Text>
-                </View>
+            <Pressable style={styles.courseCardPressable} onPress={() => handleOpenCourseItem(section.key, item)}>
+                <LinearGradient
+                    colors={['#FEF2F2', '#FFFFFF', '#EEF2FF']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.courseCard}
+                >
+                    <View style={styles.courseCardBadge}>
+                        <Text style={styles.courseCardBadgeText}>VIDEOLINK BANK</Text>
+                    </View>
+                    <View style={styles.videoCardTitleRow}>
+                        <Feather name="play-circle" size={normalize(18)} color={Colorpath.Primary} />
+                        <Text style={styles.courseCardTitle}>{getItemTitle(item, 'Video Bank')}</Text>
+                    </View>
+                    {getItemDescription(item) ? <Text style={styles.courseCardSubtitle}>{getItemDescription(item)}</Text> : <Text style={styles.courseCardSubtitle}>YouTube Video</Text>}
+                    <View style={styles.courseCardFooter}>
+                        <Feather name="youtube" size={normalize(16)} color="#FF0000" />
+                        <Text style={[styles.courseCardFooterText, { color: '#FF0000', marginLeft: normalize(4) }]}>Open in YouTube</Text>
+                    </View>
+                </LinearGradient>
             </Pressable>
         );
     }, [activeCourseSection, courseSections, handleOpenCourseItem]);
@@ -1581,35 +2361,73 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         return (
             <View style={styles.courseLayout}>
                 <View style={styles.courseLeftPanel}>
-                    <Text style={styles.coursePanelLabel}>Sections</Text>
+                    <View style={styles.coursePanelHeader}>
+                        <Text style={styles.coursePanelLabel}>Sections</Text>
+                        <View style={styles.coursePanelCountPill}>
+                            <Text style={styles.coursePanelCountText}>{courseSections.length}</Text>
+                        </View>
+                    </View>
                     <FlatList
                         data={courseSections}
                         keyExtractor={(item) => item.key}
                         scrollEnabled={false}
                         ItemSeparatorComponent={() => <View style={{ height: verticalScale(10) }} />}
-                        renderItem={({ item }) => (
-                            <Pressable
-                                onPress={() => setActiveCourseSection(item.key)}
-                                style={[
-                                    styles.courseSectionItem,
-                                    activeSection?.key === item.key && styles.courseSectionItemActive,
-                                ]}
-                            >
-                                <Text
-                                    style={[
-                                        styles.courseSectionText,
-                                        activeSection?.key === item.key && styles.courseSectionTextActive,
-                                    ]}
+                        renderItem={({ item }) => {
+                            const isActiveSection = activeSection?.key === item.key;
+                            const sectionColors: [string, string, string] = isActiveSection
+                                ? ['#0F766E', '#14B8A6', '#0EA5E9']
+                                : ['#F8FAFC', '#EEF2FF', '#E0F2FE'];
+
+                            return (
+                                <Pressable
+                                    onPress={() => setActiveCourseSection(item.key)}
+                                    style={styles.courseSectionItemPressable}
                                 >
-                                    {item.label}
-                                </Text>
-                            </Pressable>
-                        )}
+                                    <LinearGradient
+                                        colors={sectionColors}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 1 }}
+                                        style={[
+                                            styles.courseSectionItem,
+                                            isActiveSection && styles.courseSectionItemActive,
+                                        ]}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.courseSectionText,
+                                                isActiveSection && styles.courseSectionTextActive,
+                                            ]}
+                                        >
+                                            {item.label}
+                                        </Text>
+                                        <View style={[
+                                            styles.courseSectionItemDot,
+                                            isActiveSection && styles.courseSectionItemDotActive,
+                                        ]} />
+                                    </LinearGradient>
+                                </Pressable>
+                            );
+                        }}
                     />
                 </View>
 
-                <View style={styles.courseRightPanel}>
-                    <Text style={styles.coursePanelLabel}>{activeSection?.label}</Text>
+                <LinearGradient
+                    colors={['#FFFFFF', '#F8FAFC']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.courseRightPanel}
+                >
+                <LinearGradient
+                    colors={['#0F766E', '#14B8A6', '#0EA5E9']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.courseSectionBanner}
+                >
+                        <View style={styles.courseSectionBannerPillOnly}>
+                            <Text style={styles.courseSectionBannerPillValue}>{(activeSection?.items || []).length}</Text>
+                            <Text style={styles.courseSectionBannerPillLabel}>ITEMS</Text>
+                        </View>
+                    </LinearGradient>
                     <FlatList
                         data={activeSection?.items || []}
                         keyExtractor={(item: any, index: number) => String(getItemId(item) || index)}
@@ -1623,7 +2441,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                         )}
                         scrollEnabled={false}
                     />
-                </View>
+                </LinearGradient>
             </View>
         );
     };
@@ -1633,73 +2451,56 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     );
 
     const openBundleDetails = (bundle: any, mode: 'view' | 'enroll') => {
-                                        const normalizedBundle = getBundlePayload(bundle);
-                                        const bundleId = getBundleId(normalizedBundle);
-                                        const resolvedBundleId = bundleId ? String(bundleId) : null;
-                                
-                                        if (!resolvedBundleId) {
-                                            return;
-                                        }
-                                
-                                        const alreadyEnrolled =
-                                            !failedPendingBundleIds.has(resolvedBundleId) &&
-                                            (Boolean(normalizedBundle?.isEnrolled) ||
-                                            enrolledBundleIds.includes(resolvedBundleId) ||
-                                            enrolledBundleOverrides.has(resolvedBundleId));
-                                
-                                        setShowBundleActionModal(false);
-                                        setSelectedSubBundleExam(null);
-                                        setActiveSubBundleId(null);
-                                        setActiveBundleId(resolvedBundleId);
-                                
-                                        if (alreadyEnrolled) {
-                                            dispatch(bundleIDRequest({ id: resolvedBundleId }));
-                                            return;
-                                        }
-                                
-                                        if (mode === 'enroll') {
-                                            if (pendingEnrollmentId === resolvedBundleId) {
-                                                return;
-                                            }
-                                            setPendingEnrollmentId(resolvedBundleId);
-                                            const originalPrice = Number(normalizedBundle?.price || normalizedBundle?.amount || 0);
-                                            const discountPrice = Number(normalizedBundle?.discountPrice || 0);
-                                            const discountPercentage = Number(normalizedBundle?.discountPercentage || 0);
-                                
-                                            let finalPrice = originalPrice;
-                                            if (discountPrice > 0) {
-                                                finalPrice = discountPrice;
-                                            } else if (discountPercentage > 0) {
-                                                finalPrice = originalPrice - (originalPrice * discountPercentage) / 100;
-                                            }
-                                            finalPrice = Math.round(finalPrice);
-                                
-                                            if (finalPrice > 0) {
-                                                dispatch(paymentRequest({ id: resolvedBundleId, price: finalPrice }));
-                                            } else {
-                                                dispatch(enrollBundleRequest({ id: resolvedBundleId }));
-                                            }
-                                            return;
-                                        }
-                                
-                                        dispatch(bundleIDRequest({ id: resolvedBundleId }));
-                                    };
-                                
-                                    const handleBundlePress = (bundle: any) => {
-                                        const normalizedBundle = getBundlePayload(bundle);
-                                        const bundleId = getBundleId(normalizedBundle);
-                                        const hasEnrolledAccess =
-                                            !failedPendingBundleIds.has(String(bundleId)) &&
-                                            (Boolean(normalizedBundle?.isEnrolled) ||
-                                            (bundleId ? enrolledBundleIds.includes(String(bundleId)) : false) ||
-                                            (bundleId ? enrolledBundleOverrides.has(String(bundleId)) : false));
-                                
-                                        setSelectedBundle({
-                                            ...normalizedBundle,
-                                            isEnrolled: hasEnrolledAccess,
-                                        });
-                                        setShowBundleActionModal(true);
-                                    };
+        const normalizedBundle = getBundlePayload(bundle);
+        const bundleId = getBundleId(normalizedBundle);
+        const resolvedBundleId = bundleId ? String(bundleId) : null;
+
+        if (!resolvedBundleId) {
+            return;
+        }
+
+        if (activePaymentSession?.resourceId && String(activePaymentSession.resourceId) !== resolvedBundleId) {
+            Toast.show({ type: 'info', text1: 'Complete the current payment first.' });
+            return;
+        }
+
+        if (activePaymentSession?.resourceId === resolvedBundleId && !enrolledBundleIds.includes(resolvedBundleId)) {
+            setIsPaymentWebViewVisible(true);
+            return;
+        }
+
+        const alreadyEnrolled =
+            !failedPendingBundleIds.has(resolvedBundleId) &&
+            (Boolean(normalizedBundle?.isEnrolled) ||
+            enrolledBundleIds.includes(resolvedBundleId) ||
+            enrolledBundleOverrides.has(resolvedBundleId));
+
+        setSelectedSubBundleExam(null);
+        setActiveSubBundleId(null);
+        setActiveBundleId(resolvedBundleId);
+
+        if (alreadyEnrolled) {
+            dispatch(bundleIDRequest({ id: resolvedBundleId }));
+            return;
+        }
+
+        if (mode === 'enroll') {
+            if (pendingEnrollmentId === resolvedBundleId) {
+                return;
+            }
+            setPendingEnrollmentId(resolvedBundleId);
+            const pricing = resolveBundlePricing(normalizedBundle);
+
+            if (pricing.finalPrice > 0) {
+                dispatch(paymentRequest({ id: resolvedBundleId, price: pricing.finalPrice }));
+            } else {
+                dispatch(enrollBundleRequest({ id: resolvedBundleId }));
+            }
+            return;
+        }
+
+        dispatch(bundleIDRequest({ id: resolvedBundleId }));
+    };
 
     const handleSubBundlePress = (subBundle: any) => {
         const normalizedSubBundle = getBundlePayload(subBundle);
@@ -1711,6 +2512,11 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
         if (paymentHistoryLoading) {
             Toast.show({ type: 'info', text1: 'Verifying payment status, please wait...' });
+            return;
+        }
+
+        if (activePaymentSession?.resourceId && !enrolledBundleIds.includes(String(activePaymentSession.resourceId))) {
+            Toast.show({ type: 'info', text1: 'Please complete the current payment first.' });
             return;
         }
 
@@ -1773,47 +2579,95 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                 <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.detailScrollContent}>
                     <Text style={styles.sectionTitle}>Exam Pattern</Text>
 
-                    <View style={styles.patternCard}>
+                    <LinearGradient
+                        colors={['#F0FDFA', '#FFFFFF', '#ECFDF5']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.patternCard}
+                    >
+                        <View style={styles.sectionCardHeader}>
+                            <View style={styles.sectionCardHeaderText}>
+                                <Text style={styles.sectionCardKicker}>EXAM PATTERN</Text>
+                        <Text style={styles.sectionCardTitle}>What this course includes</Text>
+                            </View>
+                            <View style={styles.sectionCardPill}>
+                                <Text style={styles.sectionCardPillText}>{examPatternItems.length} ITEMS</Text>
+                            </View>
+                        </View>
+
                         <View style={styles.patternGrid}>
                             {examPatternItems.map((item) => (
-                                <View key={item.key} style={styles.patternItem}>
+                                <LinearGradient
+                                    key={item.key}
+                                    colors={[item.bg, '#FFFFFF']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                    style={styles.patternItemCard}
+                                >
                                     <View style={[styles.patternIconWrap, { backgroundColor: item.bg }]}>
                                         <Feather name={item.icon as any} size={normalize(18)} color={item.color} />
                                     </View>
                                     <View style={styles.patternTextWrap}>
                                         <Text style={styles.patternLabel}>{item.label}</Text>
                                     </View>
-                                </View>
+                                </LinearGradient>
                             ))}
                         </View>
-                    </View>
+                    </LinearGradient>
 
                     {detailTabs.length > 0 ? (
                         <>
-                            <ScrollView
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                contentContainerStyle={styles.dynamicTabsScrollContent}
+                            <LinearGradient
+                                colors={['#FFFFFF', '#F8FAFC']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.dynamicTabsCard}
                             >
-                                {detailTabs.map((tab: any) => (
-                                    <Pressable
-                                        key={tab.key}
-                                        onPress={() => setActiveDetailTab(tab.key)}
-                                        style={styles.dynamicTabItem}
-                                    >
-                                        <Text style={[
-                                            styles.dynamicTabText,
-                                            activeDetailTab === tab.key && styles.dynamicTabTextActive,
-                                        ]}>
-                                            {tab.label}
-                                        </Text>
-                                        <View style={[
-                                            styles.dynamicTabIndicator,
-                                            activeDetailTab === tab.key && styles.dynamicTabIndicatorActive,
-                                        ]} />
-                                    </Pressable>
-                                ))}
-                            </ScrollView>
+                                <ScrollView
+                                    horizontal
+                                    showsHorizontalScrollIndicator={false}
+                                    contentContainerStyle={styles.dynamicTabsScrollContent}
+                                >
+                                    {detailTabs.map((tab: any) => {
+                                        const isActiveTab = activeDetailTab === tab.key;
+                                        const tabColors: [string, string, string] = isActiveTab
+                                            ? ['#0F766E', '#14B8A6', '#0EA5E9']
+                                            : tab.key === 'mock'
+                                                ? ['#EEF2FF', '#E0F2FE', '#DBEAFE']
+                                                : ['#ECFDF5', '#CCFBF1', '#E0F2FE'];
+
+                                        return (
+                                            <Pressable
+                                                key={tab.key}
+                                                onPress={() => setActiveDetailTab(tab.key)}
+                                                style={styles.dynamicTabPressable}
+                                            >
+                                                <LinearGradient
+                                                    colors={tabColors as [string, string, string]}
+                                                    start={{ x: 0, y: 0 }}
+                                                    end={{ x: 1, y: 1 }}
+                                                    style={[
+                                                        styles.dynamicTabItem,
+                                                        isActiveTab && styles.dynamicTabItemActive,
+                                                        isActiveTab && styles.dynamicTabItemActiveGlow,
+                                                    ]}
+                                                >
+                                                    <Text style={[
+                                                        styles.dynamicTabText,
+                                                        isActiveTab && styles.dynamicTabTextActive,
+                                                    ]}>
+                                                        {tab.label}
+                                                    </Text>
+                                                    <View style={[
+                                                        styles.dynamicTabIndicator,
+                                                        isActiveTab && styles.dynamicTabIndicatorActive,
+                                                    ]} />
+                                                </LinearGradient>
+                                            </Pressable>
+                                        );
+                                    })}
+                                </ScrollView>
+                            </LinearGradient>
 
                             {renderDetailTabCards()}
                         </>
@@ -1833,24 +2687,29 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                         return (
                                             <Pressable
                                                 key={String(getBundleId(normalizedSubBundle) || index)}
-                                                style={styles.quizCard}
+                                                style={styles.quizCardPressable}
                                                 onPress={() => handleSubBundlePress(normalizedSubBundle)}
                                             >
-                                                {/* No SUB-BUNDLE badge displayed */}
+                                                <LinearGradient
+                                                    colors={['#ECFDF5', '#FFFFFF']}
+                                                    start={{ x: 0, y: 0 }}
+                                                    end={{ x: 1, y: 1 }}
+                                                    style={styles.quizCard}
+                                                >
+                                                    <Text style={styles.quizCardTitle}>{normalizedSubBundle?.title || normalizedSubBundle?.name || `Sub Bundle ${index + 1}`}</Text>
 
-                                                <Text style={styles.quizCardTitle}>{normalizedSubBundle?.title || normalizedSubBundle?.name || `Sub Bundle ${index + 1}`}</Text>
-
-                                                <View style={styles.quizMetaRow}>
-                                                    <View style={styles.quizMetaItem}>
-                                                        <Feather name="layers" size={normalize(14)} color="#667085" />
-                                                        <Text style={styles.quizMetaText}>{mockCount} Mock Test{mockCount === 1 ? '' : 's'}</Text>
+                                                    <View style={styles.quizMetaRow}>
+                                                        <View style={styles.quizMetaItem}>
+                                                            <Feather name="layers" size={normalize(14)} color="#667085" />
+                                                            <Text style={styles.quizMetaText}>{mockCount} Mock Test{mockCount === 1 ? '' : 's'}</Text>
+                                                        </View>
                                                     </View>
-                                                </View>
 
-                                                <View style={styles.quizActionButton}>
-                                                    <Text style={styles.quizActionText}>Explore Curriculum</Text>
-                                                    <Feather name="chevron-right" size={normalize(14)} color="#FFFFFF" />
-                                                </View>
+                                                    <View style={styles.quizActionButton}>
+                                                        <Text style={styles.quizActionText}>Explore Curriculum</Text>
+                                                        <Feather name="chevron-right" size={normalize(14)} color="#FFFFFF" />
+                                                    </View>
+                                                </LinearGradient>
                                             </Pressable>
                                         );
                                     })}
@@ -1868,58 +2727,75 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
                             <View style={styles.subjectList}>
                                 {detailScreen.quizGroups?.map((group: any, groupIndex: number) => (
-                                    <View key={`${group.title || 'group'}-${groupIndex}`} style={styles.quizSection}>
-                                        <View style={styles.topicRow}>
-                                            <View style={styles.topicDot} />
-                                            <Text style={styles.topicTitle}>{String(group.title || 'General').toUpperCase()}</Text>
+                                    <LinearGradient
+                                        key={`${group.title || 'group'}-${groupIndex}`}
+                                        colors={['#FFFFFF', '#F8FAFC', '#EEF2FF']}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 1 }}
+                                        style={styles.quizSectionCard}
+                                    >
+                                        <View style={styles.quizSectionHeader}>
+                                            <View style={styles.topicRow}>
+                                                <View style={styles.topicDot} />
+                                                <Text style={styles.topicTitle}>{String(group.title || 'General').toUpperCase()}</Text>
+                                            </View>
+                                            <View style={styles.topicCountPill}>
+                                                <Text style={styles.topicCountText}>{group.quizzes.length}</Text>
+                                            </View>
                                         </View>
 
                                         <View style={styles.quizCardsWrap}>
-                                            {group.quizzes.map((quiz: any, quizIndex: number) => (
-                                                <View key={String(quiz.id || quizIndex)} style={styles.quizCard}>
-                                                    <View style={styles.quizBadge}>
-                                                        <Text style={styles.quizBadgeText}>MOCK</Text>
-                                                    </View>
+                                            {group.quizzes.map((quiz: any, quizIndex: number) => {
+                                                const quizTheme = getMockCardTheme(groupIndex + quizIndex);
 
-                                                    <Text style={styles.quizCardTitle}>{quiz.title}</Text>
-
-                                                    <View style={styles.quizMetaRow}>
-                                                        <View style={styles.quizMetaItem}>
-                                                            <Feather name="book-open" size={normalize(14)} color="#667085" />
-                                                            <Text style={styles.quizMetaText}>{quiz.questionCount || 0} Qs</Text>
-                                                        </View>
-                                                        <View style={styles.quizMetaItem}>
-                                                            <Feather name="clock" size={normalize(14)} color="#667085" />
-                                                            <Text style={styles.quizMetaText}>{quiz.durationMinutes || 0}m</Text>
-                                                        </View>
-                                                        <Text style={styles.quizPriceText}>Rs. {quiz.price || 0}</Text>
-                                                    </View>
-
-                                                    {canAttemptMocks ? (
-                                                        <Pressable
-                                                            style={[styles.quizActionButton, isEnrollingBundle && styles.quizActionButtonDisabled]}
-                                                            disabled={isEnrollingBundle}
-                                                            onPress={() => handleQuizAction(quiz)}
+                                                return (
+                                                <Pressable key={String(quiz.id || quizIndex)} style={styles.quizCardPressable}>
+                                                    <LinearGradient
+                                                        colors={quizTheme.top as [string, string, string]}
+                                                        start={{ x: 0, y: 0 }}
+                                                        end={{ x: 1, y: 1 }}
+                                                        style={[styles.quizCard, { borderColor: quizTheme.border }]}
+                                                    >
+                                                        <LinearGradient
+                                                            colors={quizTheme.badge as [string, string, string]}
+                                                            start={{ x: 0, y: 0 }}
+                                                            end={{ x: 1, y: 1 }}
+                                                            style={styles.courseCardBadge}
                                                         >
-                                                            {isEnrollingBundle ? (
-                                                                <ActivityIndicator size="small" color="#FFFFFF" />
-                                                            ) : (
-                                                                <>
-                                                                    <Text style={styles.quizActionText}>Attempt</Text>
-                                                                    <Feather name="play" size={normalize(14)} color="#FFFFFF" />
-                                                                </>
-                                                            )}
-                                                        </Pressable>
-                                                    ) : (
-                                                        <View style={styles.quizViewOnlyTag}>
-                                                            <Feather name="eye" size={normalize(14)} color="#667085" />
-                                                            <Text style={styles.quizViewOnlyText}>View only</Text>
-                                                        </View>
-                                                    )}
-                                                </View>
-                                            ))}
+                                                            <Text style={styles.courseCardBadgeText}>MOCK</Text>
+                                                        </LinearGradient>
+                                                        <Text style={styles.quizCardTitle}>{quiz.title}</Text>
+                                                        <Text style={styles.quizCardSubtitle} numberOfLines={2}>
+                                                            {quiz.questionCount || 0} questions • {quiz.durationMinutes || 0} minutes
+                                                        </Text>
+
+                                                        {canAttemptMocks ? (
+                                                            <Pressable
+                                                                style={[styles.quizActionButton, isEnrollingBundle && styles.quizActionButtonDisabled]}
+                                                                disabled={isEnrollingBundle}
+                                                                onPress={() => handleQuizAction(quiz)}
+                                                            >
+                                                                {isEnrollingBundle ? (
+                                                                    <ActivityIndicator size="small" color="#FFFFFF" />
+                                                                ) : (
+                                                                    <>
+                                                                        <Text style={styles.quizActionText}>Attempt</Text>
+                                                                        <Feather name="play" size={normalize(14)} color="#FFFFFF" />
+                                                                    </>
+                                                                )}
+                                                            </Pressable>
+                                                        ) : (
+                                                            <View style={styles.quizViewOnlyTag}>
+                                                                <Feather name="eye" size={normalize(14)} color="#667085" />
+                                                                <Text style={styles.quizViewOnlyText}>View only</Text>
+                                                            </View>
+                                                        )}
+                                                    </LinearGradient>
+                                                </Pressable>
+                                                );
+                                            })}
                                         </View>
-                                    </View>
+                                    </LinearGradient>
                                 ))}
                             </View>
                         </>
@@ -2023,7 +2899,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                                         <Text style={styles.noteViewerDetailTitle}>{toDisplayText(currentPage?.title, `Page ${selectedNotePageIndex + 1}`)}</Text>
                                                     </View>
                                                     <Text style={styles.noteViewerDetailBody} numberOfLines={5} ellipsizeMode="tail">
-                                                        {htmlToPlainText(currentPage?.htmlContent || '') || 'No content available.'}
+                                                        {htmlToNoteText(currentPage?.htmlContent || '') || 'No content available.'}
                                                     </Text>
                                                     <Text style={styles.noteViewerDetailHint}>Tap View to read the full page.</Text>
                                                     <Pressable
@@ -2340,13 +3216,24 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                             </View>
                         </SafeAreaView>
 
-                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.notePageViewerScrollContent}>
+                        <View style={styles.notePageViewerContent}>
                             <View style={styles.notePageViewerCard}>
-                                <Text style={styles.notePageViewerBody}>
-                                    {htmlToPlainText(selectedNotePageDetail?.htmlContent || '') || 'No content available.'}
-                                </Text>
+                                {selectedNotePageDetail?.htmlContent ? (
+                                    <WebView
+                                        originWhitelist={['*']}
+                                        source={{ html: buildNoteHtmlDocument(selectedNotePageDetail.htmlContent) }}
+                                        javaScriptEnabled={false}
+                                        domStorageEnabled={false}
+                                        nestedScrollEnabled
+                                        style={styles.notePageViewerWebView}
+                                    />
+                                ) : (
+                                    <View style={styles.notePageViewerEmptyState}>
+                                        <Text style={styles.notePageViewerBody}>No content available.</Text>
+                                    </View>
+                                )}
                             </View>
-                        </ScrollView>
+                        </View>
                     </View>
                 </Modal>
             </View>
@@ -2357,186 +3244,234 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         <View style={styles.container}>
             <StatusBar backgroundColor={Colorpath.Primary} barStyle="light-content" />
 
-            <View style={styles.headerBackground}>
+            <LinearGradient
+                colors={['#0F766E', '#115E59', '#134E4A']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.headerBackground}
+            >
                 <SafeAreaView edges={['top']}>
                     <View style={styles.topBar}>
-                        {selectedModule && (
-                            <Pressable onPress={handleBackPress} style={{ padding: 8, marginLeft: -8, marginBottom: 8 }}>
-                                <Feather name="arrow-left" size={24} color="#FFFFFF" />
-                            </Pressable>
-                        )}
-                        <Text style={styles.titleText}>{selectedModule ? `${selectedModule} Bundles` : 'Courses'}</Text>
+                        <View style={styles.heroTopRow}>
+                            <View>
+                                <Text style={styles.heroKicker}>COURSE LIBRARY</Text>
+                                <Text style={styles.titleText}>{selectedModule ? `${selectedModule} Courses` : 'Courses'}</Text>
+                            </View>
+                            {selectedModule ? (
+                                <Pressable onPress={handleBackPress} style={styles.heroBackPill}>
+                                    <Feather name="arrow-left" size={normalize(16)} color="#0F766E" />
+                                    <Text style={styles.heroBackText}>All</Text>
+                                </Pressable>
+                            ) : null}
+                        </View>
+
                         <Text style={styles.subtitleText}>
-                            {selectedModule ? 'Select a bundle to view details & enroll' : 'Select a bundle to view details and enroll'}
+                            Explore exam-ready courses, study materials, and mock tests in one clean view.
                         </Text>
                     </View>
                 </SafeAreaView>
-            </View>
+            </LinearGradient>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                <View style={styles.searchContainer}>
-                    <Feather name="search" size={normalize(18)} color="#9CA3AF" style={styles.searchIcon} />
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="Search courses..."
-                        placeholderTextColor="#9CA3AF"
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                    />
+                <View style={styles.searchWrap}>
+                    <View style={styles.searchContainer}>
+                        <Feather name="search" size={normalize(18)} color="#94A3B8" style={styles.searchIcon} />
+                        <TextInput
+                            style={styles.searchInput}
+                            placeholder="Search courses or subjects"
+                            placeholderTextColor="#94A3B8"
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                        />
+                    </View>
                 </View>
+
+                <View style={styles.featureHighlightCard}>
+                    <View style={styles.featureHighlightIcon}>
+                        <Feather name="compass" size={normalize(20)} color="#0F766E" />
+                    </View>
+                    <View style={styles.featureHighlightBody}>
+                        <Text style={styles.featureHighlightTitle}>Find the right path faster</Text>
+                        <Text style={styles.featureHighlightSubtitle}>
+                            Browse by category, open a course detail, and jump straight into mocks or study materials.
+                        </Text>
+                    </View>
+                    <View style={styles.featureHighlightBadge}>
+                        <Text style={styles.featureHighlightBadgeText}>NEW</Text>
+                    </View>
+                </View>
+
+                {moduleOptions.length > 0 ? (
+                    <View style={styles.categoriesContainer}>
+                        <Text style={styles.filterLabel}>Quick filters</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScrollContent}>
+                            <Pressable
+                                onPress={() => setSelectedModule(null)}
+                                style={[styles.categoryChip, !selectedModule && styles.categoryChipActive]}
+                            >
+                                <Text style={[styles.categoryText, !selectedModule && styles.categoryTextActive]}>All</Text>
+                            </Pressable>
+                            {moduleOptions.map((moduleName) => (
+                                <Pressable
+                                    key={moduleName}
+                                    onPress={() => setSelectedModule(String(moduleName))}
+                                    style={[styles.categoryChip, selectedModule === moduleName && styles.categoryChipActive]}
+                                >
+                                    <Text style={[styles.categoryText, selectedModule === moduleName && styles.categoryTextActive]}>
+                                        {String(moduleName)}
+                                    </Text>
+                                </Pressable>
+                            ))}
+                        </ScrollView>
+                    </View>
+                ) : null}
 
                 <View style={styles.statsContainer}>
                     <View style={styles.statCard}>
-                        <Text style={[styles.statValue, { color: '#092948' }]}>{bundleItems.length}</Text>
-                        <Text style={styles.statLabel}>Exams</Text>
+                        <Feather name="grid" size={normalize(18)} color="#0F766E" />
+                        <Text style={styles.statValue}>{bundleItems.length}</Text>
+                        <Text style={styles.statLabel}>Courses</Text>
                     </View>
                     <View style={styles.statCard}>
-                        <Text style={[styles.statValue, { color: '#10B981' }]}>30+</Text>
-                        <Text style={styles.statLabel}>Subjects</Text>
+                        <Feather name="award" size={normalize(18)} color="#2563EB" />
+                        <Text style={styles.statValue}>{enrolledCourseCount}</Text>
+                        <Text style={styles.statLabel}>Enrolled</Text>
                     </View>
                     <View style={styles.statCard}>
-                        <Text style={[styles.statValue, { color: '#F0A335' }]}>500+</Text>
-                        <Text style={styles.statLabel}>Mock Tests</Text>
+                        <Feather name="layers" size={normalize(18)} color="#D97706" />
+                        <Text style={styles.statValue}>{moduleOptions.length || 0}</Text>
+                        <Text style={styles.statLabel}>Categories</Text>
                     </View>
                 </View>
 
-                <>
-                    <Text style={styles.allExamsTitle}>All Courses</Text>
-
-                    <View style={styles.gridContainer}>
-                        {filteredExams.map((bundle: any, index: number) => {
-                            const normalizedBundle = getBundlePayload(bundle);
-                            const exam = getExamMetaByTitle(normalizedBundle?.title || normalizedBundle?.name || '');
-                            return (
-                                <Pressable
-                                    key={String(getBundleId(normalizedBundle) || index)}
-                                    style={styles.gridItem}
-                                    onPress={() => handleBundlePress(bundle)}
-                                >
-                                    <View style={[styles.circleContainer, { backgroundColor: exam.bgColor }]}>
-                                        {renderIcon(exam.icon, exam.iconType, normalize(26), exam.iconColor)}
-                                    </View>
-                                    <Text style={styles.examLabel}>{normalizedBundle?.title || normalizedBundle?.name}</Text>
-                                </Pressable>
-                            );
-                        })}
+                <View style={styles.sectionHeaderRow}>
+                    <View>
+                        <Text style={styles.allExamsTitle}>Featured Courses</Text>
+                        <Text style={styles.sectionSubtitle}>Tap any card to open course details and enrollment options.</Text>
                     </View>
-                </>
+                    <View style={styles.sectionCountPill}>
+                        <Text style={styles.sectionCountText}>{filteredExams.length} items</Text>
+                    </View>
+                </View>
+
+                {filteredExams.length > 0 ? (
+                    <FlatList
+                        data={filteredExams}
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.coursesListContainer}
+                        keyExtractor={(bundle: any, index: number) => {
+                            const normalizedBundle = getBundlePayload(bundle);
+                            return String(getBundleId(normalizedBundle) || index);
+                        }}
+                        renderItem={({ item: bundle, index }) => {
+                            const normalizedBundle = getBundlePayload(bundle);
+                            const bundleId = String(getBundleId(normalizedBundle) || index);
+                            const hasEnrolledAccess =
+                                !failedPendingBundleIds.has(bundleId) &&
+                                (Boolean(normalizedBundle?.isEnrolled) ||
+                                enrolledBundleIds.includes(bundleId) ||
+                                enrolledBundleOverrides.has(bundleId));
+                            const isProcessing = paymentHistoryLoading || pendingEnrollmentId === bundleId;
+
+                            return (
+                                <View style={styles.horizontalCard}>
+                                    <CoursePosterCard
+                                        bundle={bundle}
+                                        index={index}
+                                        isEnrolled={hasEnrolledAccess}
+                                        isPending={isProcessing}
+                                        onView={() => openBundleDetails(bundle, 'view')}
+                                        onEnroll={() => openBundleDetails(bundle, 'enroll')}
+                                        onBuyAndEnroll={() => openBundleDetails(bundle, 'enroll')}
+                                    />
+                                </View>
+                            );
+                        }}
+                    />
+                ) : (
+                    <View style={styles.emptyCoursesCard}>
+                        <Feather name="search" size={normalize(22)} color="#94A3B8" />
+                        <Text style={styles.emptyCoursesTitle}>No courses matched your search</Text>
+                        <Text style={styles.emptyCoursesSubtitle}>Try a different keyword or clear the active filter.</Text>
+                    </View>
+                )}
 
                 <View style={{ height: verticalScale(100) }} />
             </ScrollView>
 
             <Modal
-                visible={showBundleActionModal}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setShowBundleActionModal(false)}
+                visible={isPaymentWebViewVisible && Boolean(activePaymentSession?.paymentUrl)}
+                animationType="slide"
+                onRequestClose={() => {
+                    clearPaymentSession().catch(() => undefined);
+                }}
             >
-                <View style={styles.modalOverlay}>
-                    <Pressable style={styles.modalBackdrop} onPress={() => setShowBundleActionModal(false)} />
-                    <View style={styles.modalCard}>
-                        <Text style={styles.modalLabel}>COURSE</Text>
-                        <Text style={styles.modalTitle}>{selectedBundle?.title || selectedBundle?.name || 'Course'}</Text>
-                        <Text style={styles.modalDescription}>
-                            {selectedBundle?.isEnrolled
-                                ? 'This course is already enrolled. Open the course to continue with its study materials.'
-                                : 'Choose `View` to open the course details, or `Enroll Now` to unlock attempts.'}
-                        </Text>
-
-                        {(() => {
-                            const originalPrice = Number(selectedBundle?.price || 0);
-                            const discountPrice = Number(selectedBundle?.discountPrice || 0);
-                            const discountPercentage = Number(selectedBundle?.discountPercentage || 0);
-
-                            let finalPrice = originalPrice;
-                            if (discountPrice > 0) {
-                                finalPrice = discountPrice;
-                            } else if (discountPercentage > 0) {
-                                finalPrice = originalPrice - (originalPrice * discountPercentage) / 100;
-                            }
-                            finalPrice = Math.round(finalPrice);
-
-                            if (selectedBundle?.isEnrolled || originalPrice === 0) {
-                                return null;
-                            }
-
-                            return (
-                                <View style={styles.modalPriceRow}>
-                                    <Text style={styles.modalPriceText}>
-                                        Price: <Text style={{ textDecorationLine: 'line-through', color: '#9CA3AF' }}>₹{originalPrice}</Text>
-                                        {discountPercentage > 0 ? ` | Discount: ${discountPercentage}%` : ''}
-                                        {` | Final: `}
-                                        <Text style={{ color: '#16A34A', fontWeight: 'bold' }}>₹{finalPrice}</Text>
-                                    </Text>
-                                </View>
-                            );
-                        })()}
-
-                        {selectedBundle?.isEnrolled ? (
+                <View style={styles.paymentWebViewContainer}>
+                    <SafeAreaView edges={['top']} style={styles.paymentWebViewSafeArea}>
+                        <View style={styles.paymentWebViewHeader}>
+                            <View style={styles.paymentWebViewHeaderText}>
+                                <Text style={styles.paymentWebViewLabel}>PAYMENT IN PROGRESS</Text>
+                                <Text style={styles.paymentWebViewTitle}>Complete your payment</Text>
+                                <Text style={styles.paymentWebViewSubtitle}>
+                                    Stay in this screen until payment is confirmed. The course will unlock automatically.
+                                </Text>
+                            </View>
                             <Pressable
-                                style={[styles.modalPrimaryButton, paymentHistoryLoading && styles.quizActionButtonDisabled]}
-                                disabled={paymentHistoryLoading}
-                                onPress={() => openBundleDetails(selectedBundle, 'view')}
+                                onPress={() => {
+                                    clearPaymentSession().catch(() => undefined);
+                                }}
+                                style={styles.paymentWebViewCloseBtn}
                             >
-                                {paymentHistoryLoading ? (
-                                    <ActivityIndicator size="small" color="#FFFFFF" />
-                                ) : (
-                                    <>
-                                        <Feather name="layers" size={normalize(16)} color="#FFFFFF" />
-                                        <Text style={styles.modalPrimaryButtonText}>View Course</Text>
-                                    </>
-                                )}
+                                <Feather name="x" size={normalize(20)} color="#0F172A" />
                             </Pressable>
+                        </View>
+                    </SafeAreaView>
+
+                    <View style={styles.paymentWebViewBody}>
+                        {activePaymentSession?.paymentUrl ? (
+                            <WebView
+                                source={{ uri: activePaymentSession.paymentUrl }}
+                                startInLoadingState
+                                originWhitelist={['*']}
+                                javaScriptEnabled={true}
+                                domStorageEnabled={true}
+                                thirdPartyCookiesEnabled={true}
+                                sharedCookiesEnabled={true}
+                                setSupportMultipleWindows={false}
+                                userAgent={
+                                    Platform.OS === 'android'
+                                        ? 'Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36'
+                                        : 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1'
+                                }
+                                renderLoading={() => (
+                                    <View style={styles.paymentWebViewLoading}>
+                                        <ActivityIndicator size="large" color={Colorpath.Primary} />
+                                        <Text style={styles.paymentWebViewLoadingText}>Loading checkout...</Text>
+                                    </View>
+                                )}
+                                onNavigationStateChange={(navState) => {
+                                    const currentUrl = String(navState.url || '');
+                                    const successHints = ['success', 'payment-success', 'verified', 'paid', 'thank', 'complete'];
+                                    if (successHints.some((hint) => currentUrl.toLowerCase().includes(hint))) {
+                                        verifyPaymentAndContinue(String(activePaymentSession.resourceId)).catch(() => undefined);
+                                    }
+                                }}
+                                onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
+                                onError={() => {
+                                    Toast.show({ type: 'error', text1: 'Unable to load payment page. Please try again.' });
+                                }}
+                            />
                         ) : (
-                            <>
-                                <Pressable
-                                    style={styles.modalSecondaryButton}
-                                    onPress={() => openBundleDetails(selectedBundle, 'view')}
-                                >
-                                    <Feather name="eye" size={normalize(16)} color="#0F172A" />
-                                    <Text style={styles.modalSecondaryButtonText}>View</Text>
-                                </Pressable>
-
-                                <Pressable
-                                    style={[
-                                        styles.modalPrimaryButton,
-                                        (pendingEnrollmentId || paymentHistoryLoading) ? styles.quizActionButtonDisabled : null
-                                    ]}
-                                    disabled={Boolean(pendingEnrollmentId) || paymentHistoryLoading}
-                                    onPress={() => openBundleDetails(selectedBundle, 'enroll')}
-                                >
-                                    {paymentHistoryLoading ? (
-                                        <ActivityIndicator size="small" color="#FFFFFF" />
-                                    ) : (
-                                        <>
-                                            <Feather name="check-circle" size={normalize(16)} color="#FFFFFF" />
-                                            <Text style={styles.modalPrimaryButtonText}>
-                                                {(() => {
-                                                    const originalPrice = Number(selectedBundle?.price || 0);
-                                                    const discountPrice = Number(selectedBundle?.discountPrice || 0);
-                                                    const discountPercentage = Number(selectedBundle?.discountPercentage || 0);
-
-                                                    let finalPrice = originalPrice;
-                                                    if (discountPrice > 0) {
-                                                        finalPrice = discountPrice;
-                                                    } else if (discountPercentage > 0) {
-                                                        finalPrice = originalPrice - (originalPrice * discountPercentage) / 100;
-                                                    }
-                                                    finalPrice = Math.round(finalPrice);
-
-                                                    return pendingEnrollmentId === String(getBundleId(selectedBundle)) 
-                                                        ? (finalPrice > 0 ? 'Processing...' : 'Enrolling...') 
-                                                        : (finalPrice > 0 ? `Buy & Enroll (₹${finalPrice})` : 'Enroll');
-                                                })()}
-                                            </Text>
-                                        </>
-                                    )}
-                                </Pressable>
-                            </>
+                            <View style={styles.paymentWebViewLoading}>
+                                <ActivityIndicator size="large" color={Colorpath.Primary} />
+                                <Text style={styles.paymentWebViewLoadingText}>Preparing checkout...</Text>
+                            </View>
                         )}
                     </View>
                 </View>
             </Modal>
+
         </View>
     );
 };
@@ -2547,82 +3482,251 @@ const styles = StyleSheet.create({
         backgroundColor: '#FAFBFF',
     },
     headerBackground: {
-        backgroundColor: Colorpath.Primary,
-        borderBottomLeftRadius: normalize(24),
-        borderBottomRightRadius: normalize(24),
-        paddingBottom: verticalScale(12),
+        paddingBottom: verticalScale(18),
     },
     topBar: {
-        paddingHorizontal: normalize(24),
+        paddingHorizontal: normalize(20),
         paddingTop: verticalScale(16),
-        paddingBottom: verticalScale(12),
+        paddingBottom: verticalScale(8),
     },
     titleText: {
-        fontSize: normalize(24),
-        fontWeight: '800',
+        fontSize: normalize(28),
+        fontWeight: '900',
         color: '#FFFFFF',
-        marginBottom: verticalScale(6),
+        letterSpacing: -0.6,
     },
     subtitleText: {
         fontSize: normalize(13),
         color: 'rgba(255, 255, 255, 0.85)',
         lineHeight: normalize(18),
+        marginTop: verticalScale(8),
+        maxWidth: '94%',
+    },
+    heroTopRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        gap: normalize(12),
+    },
+    heroKicker: {
+        fontSize: normalize(10),
+        fontWeight: '900',
+        color: '#D1FAE5',
+        letterSpacing: 1.8,
+        marginBottom: verticalScale(4),
+    },
+    heroBackPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: normalize(6),
+        backgroundColor: '#FFFFFF',
+        borderRadius: normalize(999),
+        paddingHorizontal: normalize(12),
+        paddingVertical: verticalScale(8),
+        marginTop: verticalScale(2),
+    },
+    heroBackText: {
+        fontSize: normalize(12),
+        fontWeight: '800',
+        color: '#0F766E',
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: normalize(20),
+        paddingTop: verticalScale(16),
+        paddingBottom: verticalScale(12),
+    },
+    headerTitle: {
+        fontSize: normalize(26),
+        fontWeight: '800',
+        color: '#1E293B',
+        letterSpacing: -0.5,
     },
     scrollContent: {
-        paddingHorizontal: normalize(20),
-        paddingTop: verticalScale(20),
+        paddingTop: verticalScale(14),
+        paddingBottom: verticalScale(16),
+    },
+    searchWrap: {
+        marginHorizontal: normalize(20),
+        marginTop: verticalScale(12),
+        marginBottom: verticalScale(14),
     },
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#FFFFFF',
-        borderRadius: normalize(12),
-        paddingHorizontal: normalize(14),
-        height: verticalScale(48),
+        borderRadius: normalize(20),
+        paddingHorizontal: normalize(16),
+        height: verticalScale(54),
         borderWidth: 1,
-        borderColor: '#E5E7EB',
-        marginBottom: verticalScale(20),
+        borderColor: '#E2E8F0',
     },
     searchIcon: {
         marginRight: normalize(8),
     },
     searchInput: {
         flex: 1,
+        marginLeft: normalize(12),
+        fontSize: normalize(15),
+        color: '#1E293B',
+        fontWeight: '500',
+    },
+    featureHighlightCard: {
+        marginHorizontal: normalize(20),
+        marginBottom: verticalScale(14),
+        borderRadius: normalize(20),
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#D1FAE5',
+        paddingHorizontal: normalize(14),
+        paddingVertical: verticalScale(14),
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    featureHighlightIcon: {
+        width: normalize(42),
+        height: normalize(42),
+        borderRadius: normalize(21),
+        backgroundColor: '#ECFEFF',
+        borderWidth: 1,
+        borderColor: '#99F6E4',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: normalize(12),
+    },
+    featureHighlightBody: {
+        flex: 1,
+        paddingRight: normalize(10),
+    },
+    featureHighlightTitle: {
         fontSize: normalize(14),
-        color: '#1F2937',
-        height: '100%',
-        paddingVertical: 0,
+        fontWeight: '900',
+        color: '#0F172A',
+        marginBottom: verticalScale(4),
+    },
+    featureHighlightSubtitle: {
+        fontSize: normalize(12),
+        color: '#64748B',
+        lineHeight: normalize(18),
+    },
+    featureHighlightBadge: {
+        alignSelf: 'flex-start',
+        borderRadius: normalize(999),
+        backgroundColor: '#0F766E',
+        paddingHorizontal: normalize(10),
+        paddingVertical: verticalScale(6),
+        marginLeft: normalize(8),
+    },
+    featureHighlightBadgeText: {
+        fontSize: normalize(10),
+        fontWeight: '900',
+        color: '#FFFFFF',
+        letterSpacing: 0.8,
+    },
+    categoriesContainer: {
+        paddingHorizontal: normalize(20),
+        paddingBottom: verticalScale(8),
+    },
+    filterLabel: {
+        fontSize: normalize(11),
+        fontWeight: '800',
+        color: '#64748B',
+        letterSpacing: 1.2,
+        textTransform: 'uppercase',
+        marginBottom: verticalScale(10),
+    },
+    categoryScrollContent: {
+        paddingRight: normalize(20),
+    },
+    categoryChip: {
+        paddingHorizontal: normalize(16),
+        paddingVertical: verticalScale(9),
+        borderRadius: normalize(999),
+        backgroundColor: '#FFFFFF',
+        marginRight: normalize(12),
+        borderWidth: 1,
+        borderColor: '#D0D5DD',
+    },
+    categoryChipActive: {
+        backgroundColor: '#0F766E',
+        borderColor: '#0F766E',
+    },
+    categoryText: {
+        fontSize: normalize(14),
+        fontWeight: '700',
+        color: '#64748B',
+    },
+    categoryTextActive: {
+        color: '#FFFFFF',
     },
     statsContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: verticalScale(24),
+        paddingHorizontal: normalize(20),
+        marginTop: verticalScale(6),
+        marginBottom: verticalScale(18),
+        gap: normalize(10),
     },
     statCard: {
         flex: 1,
         backgroundColor: '#FFFFFF',
-        borderRadius: normalize(12),
-        paddingVertical: verticalScale(12),
+        paddingVertical: verticalScale(16),
+        paddingHorizontal: normalize(12),
+        borderRadius: normalize(20),
         alignItems: 'center',
-        marginHorizontal: normalize(4),
+        justifyContent: 'center',
+        minHeight: verticalScale(102),
         borderWidth: 1,
         borderColor: '#E5E7EB',
     },
     statValue: {
-        fontSize: normalize(16),
+        fontSize: normalize(18),
         fontWeight: '800',
+        marginTop: verticalScale(8),
+        marginBottom: verticalScale(3),
+        color: '#0F172A',
     },
     statLabel: {
         fontSize: normalize(11),
-        color: '#6B7280',
+        color: '#64748B',
         fontWeight: '600',
-        marginTop: verticalScale(2),
+        textAlign: 'center',
+    },
+    sectionHeaderRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-end',
+        justifyContent: 'space-between',
+        paddingHorizontal: normalize(20),
+        marginBottom: verticalScale(8),
+        gap: normalize(12),
     },
     allExamsTitle: {
-        fontSize: normalize(16),
-        fontWeight: 'bold',
-        color: '#1F2937',
-        marginBottom: verticalScale(16),
+        fontSize: normalize(20),
+        fontWeight: '900',
+        color: '#1E293B',
+        letterSpacing: -0.3,
+    },
+    sectionSubtitle: {
+        fontSize: normalize(12),
+        color: '#64748B',
+        lineHeight: normalize(18),
+        marginTop: verticalScale(4),
+        maxWidth: '92%',
+    },
+    sectionCountPill: {
+        backgroundColor: '#ECFEFF',
+        borderWidth: 1,
+        borderColor: '#99F6E4',
+        paddingHorizontal: normalize(12),
+        paddingVertical: verticalScale(8),
+        borderRadius: normalize(999),
+    },
+    sectionCountText: {
+        fontSize: normalize(11),
+        fontWeight: '800',
+        color: '#0F766E',
     },
     gridContainer: {
         flexDirection: 'row',
@@ -2642,11 +3746,6 @@ const styles = StyleSheet.create({
         borderRadius: normalize(36),
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
-        elevation: 3,
         borderWidth: 1,
         borderColor: '#FFFFFF',
     },
@@ -2657,6 +3756,95 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginTop: verticalScale(8),
         lineHeight: normalize(15),
+    },
+    coursesListContainer: {
+        paddingHorizontal: normalize(20),
+        paddingTop: verticalScale(8),
+        paddingBottom: verticalScale(8),
+    },
+    horizontalCard: {
+        width: normalize(290),
+        marginRight: normalize(14),
+        borderRadius: normalize(28),
+        overflow: 'hidden',
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+    },
+    emptyCoursesCard: {
+        marginHorizontal: normalize(20),
+        marginTop: verticalScale(8),
+        marginBottom: verticalScale(10),
+        borderRadius: normalize(22),
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        backgroundColor: '#FFFFFF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: normalize(20),
+        paddingVertical: verticalScale(28),
+    },
+    emptyCoursesTitle: {
+        marginTop: verticalScale(10),
+        fontSize: normalize(15),
+        fontWeight: '800',
+        color: '#1E293B',
+        textAlign: 'center',
+    },
+    emptyCoursesSubtitle: {
+        marginTop: verticalScale(6),
+        fontSize: normalize(12),
+        color: '#64748B',
+        textAlign: 'center',
+        lineHeight: normalize(18),
+    },
+    posterImage: {
+        width: '100%',
+        aspectRatio: 3/4,
+        backgroundColor: '#F3F4F6',
+    },
+    fallbackPoster: {
+        width: '100%',
+        height: verticalScale(160),
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: normalize(16),
+    },
+    fallbackIconWrap: {
+        width: normalize(70),
+        height: normalize(70),
+        borderRadius: normalize(35),
+        backgroundColor: 'rgba(255,255,255,0.8)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: normalize(16),
+    },
+    fallbackTextWrap: {
+        flex: 1,
+        justifyContent: 'center',
+    },
+    fallbackTitle: {
+        fontSize: normalize(18),
+        fontWeight: 'bold',
+        color: '#111827',
+        marginBottom: verticalScale(8),
+    },
+    fallbackBadgesRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+    },
+    fallbackBadge: {
+        backgroundColor: 'rgba(0,0,0,0.05)',
+        paddingHorizontal: normalize(8),
+        paddingVertical: verticalScale(4),
+        borderRadius: normalize(4),
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.1)',
+    },
+    fallbackBadgeText: {
+        fontSize: normalize(10),
+        fontWeight: 'bold',
+        color: '#374151',
     },
     detailHeader: {
         backgroundColor: Colorpath.Primary,
@@ -2718,29 +3906,69 @@ const styles = StyleSheet.create({
         marginBottom: verticalScale(12),
     },
     patternCard: {
-        backgroundColor: '#FFFFFF',
         borderRadius: normalize(18),
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: 'rgba(15, 118, 110, 0.10)',
         padding: normalize(16),
         marginBottom: verticalScale(20),
-        shadowColor: '#101828',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.05,
-        shadowRadius: 20,
-        elevation: 3,
+        overflow: 'hidden',
+    },
+    sectionCardHeader: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        gap: normalize(12),
+        marginBottom: verticalScale(16),
+    },
+    sectionCardHeaderText: {
+        flex: 1,
+    },
+    sectionCardKicker: {
+        fontSize: normalize(10),
+        fontWeight: '800',
+        color: Colorpath.Primary,
+        letterSpacing: 1.2,
+        marginBottom: verticalScale(4),
+    },
+    sectionCardTitle: {
+        fontSize: normalize(18),
+        fontWeight: '800',
+        color: '#0F172A',
+    },
+    sectionCardPill: {
+        paddingHorizontal: normalize(10),
+        paddingVertical: verticalScale(5),
+        borderRadius: normalize(999),
+        backgroundColor: 'rgba(15, 118, 110, 0.10)',
+    },
+    sectionCardPillText: {
+        fontSize: normalize(10),
+        fontWeight: '800',
+        color: Colorpath.Primary,
+        letterSpacing: 0.8,
     },
     patternGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        marginHorizontal: -normalize(6),
+        justifyContent: 'space-between',
+        rowGap: verticalScale(12),
     },
-    patternItem: {
-        width: '50%',
+    patternItemCard: {
+        width: '48%',
+        flexBasis: '48%',
+        maxWidth: '48%',
+        borderRadius: normalize(16),
+        borderWidth: 1,
+        borderColor: 'rgba(15, 118, 110, 0.08)',
+        padding: normalize(12),
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: normalize(6),
-        marginBottom: verticalScale(12),
+        minHeight: verticalScale(72),
+        shadowColor: '#0F172A',
+        shadowOpacity: 0.04,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 1,
     },
     patternIconWrap: {
         width: normalize(40),
@@ -2768,30 +3996,71 @@ const styles = StyleSheet.create({
         marginBottom: verticalScale(12),
     },
     dynamicTabsScrollContent: {
-        paddingVertical: verticalScale(4),
-        marginBottom: verticalScale(8),
+        paddingVertical: verticalScale(6),
+        paddingHorizontal: normalize(6),
+        gap: normalize(10),
+    },
+    dynamicTabsCard: {
+        borderRadius: normalize(22),
+        borderWidth: 1,
+        borderColor: 'rgba(15, 118, 110, 0.10)',
+        paddingVertical: verticalScale(8),
+        paddingHorizontal: normalize(8),
+        marginBottom: verticalScale(10),
+        shadowColor: '#0F172A',
+        shadowOpacity: 0.04,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 1,
+        overflow: 'hidden',
+    },
+    dynamicTabPressable: {
+        marginRight: normalize(10),
     },
     dynamicTabItem: {
-        marginRight: normalize(22),
-        paddingBottom: verticalScale(8),
+        minWidth: normalize(112),
+        paddingHorizontal: normalize(16),
+        paddingVertical: verticalScale(10),
+        borderRadius: normalize(999),
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: 'rgba(15, 118, 110, 0.08)',
+    },
+    dynamicTabItemActive: {
+        borderColor: 'rgba(255,255,255,0.18)',
+        transform: [{ scale: 1.02 }],
+    },
+    dynamicTabItemActiveGlow: {
+        borderColor: 'rgba(255,255,255,0.16)',
+        shadowColor: '#0F172A',
+        shadowOpacity: 0.10,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 2,
     },
     dynamicTabText: {
-        fontSize: normalize(14),
+        fontSize: normalize(13),
         fontWeight: '800',
-        color: '#667085',
-        letterSpacing: 0.2,
+        color: '#475467',
+        letterSpacing: 0.4,
     },
     dynamicTabTextActive: {
-        color: Colorpath.Primary,
+        color: '#FFFFFF',
+        textShadowColor: 'rgba(0,0,0,0.12)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
     },
     dynamicTabIndicator: {
-        height: verticalScale(4),
+        height: verticalScale(6),
+        width: normalize(26),
         borderRadius: normalize(999),
-        backgroundColor: 'transparent',
+        backgroundColor: 'rgba(255,255,255,0.24)',
         marginTop: verticalScale(8),
     },
     dynamicTabIndicatorActive: {
-        backgroundColor: '#F0A335',
+        backgroundColor: 'rgba(255,255,255,0.92)',
     },
     subjectList: {
         marginBottom: verticalScale(20),
@@ -2799,10 +4068,30 @@ const styles = StyleSheet.create({
     quizSection: {
         marginBottom: verticalScale(22),
     },
+    quizSectionCard: {
+        borderRadius: normalize(22),
+        borderWidth: 1,
+        borderColor: 'rgba(15, 118, 110, 0.10)',
+        padding: normalize(16),
+        marginBottom: verticalScale(16),
+        overflow: 'hidden',
+        shadowColor: '#0F172A',
+        shadowOpacity: 0.05,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 2,
+    },
+    quizSectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: verticalScale(16),
+        gap: normalize(10),
+    },
     topicRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: verticalScale(14),
+        flex: 1,
     },
     topicDot: {
         width: normalize(10),
@@ -2816,44 +4105,110 @@ const styles = StyleSheet.create({
         fontWeight: '800',
         color: '#475467',
     },
+    topicCountPill: {
+        minWidth: normalize(34),
+        height: verticalScale(28),
+        borderRadius: normalize(999),
+        paddingHorizontal: normalize(10),
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#ECFDF5',
+        borderWidth: 1,
+        borderColor: '#A7F3D0',
+    },
+    topicCountText: {
+        fontSize: normalize(11),
+        fontWeight: '800',
+        color: Colorpath.Primary,
+    },
     quizCardsWrap: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
         gap: normalize(12),
     },
-    quizCard: {
+    quizCardPressable: {
         width: '48%',
         minWidth: normalize(140),
-        backgroundColor: '#FFFFFF',
-        borderRadius: normalize(18),
-        padding: normalize(14),
+    },
+    quizCard: {
+        width: '100%',
+        borderRadius: normalize(20),
+        padding: normalize(16),
         borderWidth: 1,
-        borderColor: '#E5E7EB',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.08,
-        shadowRadius: 18,
-        elevation: 4,
+        borderColor: 'rgba(15, 118, 110, 0.12)',
+        overflow: 'hidden',
+        minHeight: verticalScale(176),
+        shadowColor: '#0F172A',
+        shadowOpacity: 0.06,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 2,
+    },
+    courseCardPressable: {
+        width: '100%',
+    },
+    courseSectionBanner: {
+        borderRadius: normalize(22),
+        padding: normalize(16),
+        marginBottom: verticalScale(16),
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+    },
+    courseSectionBannerPillOnly: {
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    courseSectionBannerPill: {
+        minWidth: normalize(62),
+        borderRadius: normalize(18),
+        paddingHorizontal: normalize(12),
+        paddingVertical: verticalScale(10),
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(255,255,255,0.16)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.18)',
+    },
+    courseSectionBannerPillValue: {
+        fontSize: normalize(18),
+        fontWeight: '900',
+        color: '#FFFFFF',
+        lineHeight: normalize(20),
+    },
+    courseSectionBannerPillLabel: {
+        fontSize: normalize(9),
+        fontWeight: '800',
+        color: 'rgba(255,255,255,0.88)',
+        letterSpacing: 0.8,
+        marginTop: verticalScale(2),
     },
     quizBadge: {
         alignSelf: 'flex-start',
         paddingHorizontal: normalize(10),
         paddingVertical: verticalScale(4),
         borderRadius: normalize(999),
-        borderWidth: 1,
-        borderColor: '#CBD5E1',
         marginBottom: verticalScale(12),
+        borderWidth: 0,
+        overflow: 'hidden',
     },
     quizBadgeText: {
         fontSize: normalize(10),
         fontWeight: '800',
-        color: '#667085',
+        color: '#FFFFFF',
+        letterSpacing: 0.8,
     },
     quizCardTitle: {
         fontSize: normalize(16),
         fontWeight: '800',
         color: '#1D2939',
+        marginBottom: verticalScale(6),
+    },
+    quizCardSubtitle: {
+        fontSize: normalize(11),
+        color: '#667085',
+        lineHeight: normalize(16),
         marginBottom: verticalScale(14),
     },
     resourceCardSubtitle: {
@@ -2882,16 +4237,21 @@ const styles = StyleSheet.create({
     quizPriceText: {
         fontSize: normalize(12),
         fontWeight: '800',
-        color: '#344054',
+        color: Colorpath.Primary,
     },
     quizActionButton: {
         height: verticalScale(46),
-        borderRadius: normalize(12),
-        backgroundColor: '#0D9F6E',
+        borderRadius: normalize(14),
+        backgroundColor: '#0F766E',
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         gap: normalize(8),
+        shadowColor: '#0F172A',
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 3 },
+        elevation: 1,
     },
     quizActionButtonDisabled: {
         opacity: 0.7,
@@ -3088,11 +4448,6 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#D0D5DD',
         padding: normalize(20),
-        shadowColor: '#101828',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.06,
-        shadowRadius: 20,
-        elevation: 3,
     },
     noteViewerDetailTopRow: {
         flexDirection: 'row',
@@ -3193,17 +4548,27 @@ const styles = StyleSheet.create({
     notePageViewerScrollContent: {
         padding: normalize(18),
     },
+    notePageViewerContent: {
+        flex: 1,
+        padding: normalize(18),
+    },
     notePageViewerCard: {
+        flex: 1,
         backgroundColor: '#FFFFFF',
         borderRadius: normalize(22),
         borderWidth: 1,
         borderColor: '#D0D5DD',
+        overflow: 'hidden',
+    },
+    notePageViewerWebView: {
+        flex: 1,
+        backgroundColor: '#FFFFFF',
+    },
+    notePageViewerEmptyState: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
         padding: normalize(20),
-        shadowColor: '#101828',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.06,
-        shadowRadius: 20,
-        elevation: 3,
     },
     notePageViewerBody: {
         fontSize: normalize(14),
@@ -3245,18 +4610,34 @@ const styles = StyleSheet.create({
         width: '30%',
         minWidth: normalize(180),
         backgroundColor: '#FFFFFF',
-        borderRadius: normalize(18),
+        borderRadius: normalize(20),
         borderWidth: 1,
         borderColor: '#E5E7EB',
         padding: normalize(14),
+        shadowColor: '#0F172A',
+        shadowOpacity: 0.04,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 1,
+    },
+    coursePanelHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: verticalScale(12),
     },
     courseRightPanel: {
         flex: 1,
         backgroundColor: '#FFFFFF',
-        borderRadius: normalize(18),
+        borderRadius: normalize(20),
         borderWidth: 1,
         borderColor: '#E5E7EB',
         padding: normalize(14),
+        shadowColor: '#0F172A',
+        shadowOpacity: 0.04,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 1,
     },
     coursePanelLabel: {
         fontSize: normalize(11),
@@ -3264,46 +4645,74 @@ const styles = StyleSheet.create({
         color: '#667085',
         letterSpacing: 1.2,
         textTransform: 'uppercase',
-        marginBottom: verticalScale(12),
+    },
+    coursePanelCountPill: {
+        minWidth: normalize(32),
+        height: verticalScale(28),
+        borderRadius: normalize(999),
+        paddingHorizontal: normalize(10),
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#ECFDF5',
+        borderWidth: 1,
+        borderColor: '#A7F3D0',
+    },
+    coursePanelCountText: {
+        fontSize: normalize(11),
+        fontWeight: '900',
+        color: Colorpath.Primary,
+    },
+    courseSectionItemPressable: {
+        borderRadius: normalize(18),
+        overflow: 'hidden',
     },
     courseSectionItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        borderRadius: normalize(16),
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: 'rgba(15, 118, 110, 0.10)',
         backgroundColor: '#F8FAFC',
         paddingHorizontal: normalize(14),
         paddingVertical: verticalScale(14),
         minHeight: verticalScale(58),
+        justifyContent: 'space-between',
+        gap: normalize(12),
     },
     courseSectionItemActive: {
-        backgroundColor: Colorpath.Primary,
-        borderColor: Colorpath.Primary,
+        borderColor: 'rgba(255,255,255,0.14)',
     },
     courseSectionText: {
         flex: 1,
         fontSize: normalize(14),
         fontWeight: '700',
-        color: '#344054',
+        color: '#475467',
     },
     courseSectionTextActive: {
         color: '#FFFFFF',
     },
+    courseSectionItemDot: {
+        width: normalize(10),
+        height: normalize(10),
+        borderRadius: normalize(5),
+        backgroundColor: '#C7D2FE',
+    },
+    courseSectionItemDotActive: {
+        backgroundColor: '#FFFFFF',
+    },
     courseCard: {
         width: '100%',
-        minHeight: verticalScale(150),
-        backgroundColor: '#FFFFFF',
-        borderRadius: normalize(18),
+        minHeight: verticalScale(164),
+        borderRadius: normalize(20),
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: 'rgba(15, 118, 110, 0.10)',
         padding: normalize(16),
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.06,
-        shadowRadius: 18,
-        elevation: 3,
         justifyContent: 'space-between',
+        overflow: 'hidden',
+        shadowColor: '#0F172A',
+        shadowOpacity: 0.05,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 2,
     },
     courseCardBadge: {
         alignSelf: 'flex-start',
@@ -3492,8 +4901,6 @@ const styles = StyleSheet.create({
         backgroundColor: 'transparent',
         borderColor: 'transparent',
         borderWidth: 0,
-        elevation: 0,
-        shadowOpacity: 0,
     },
     questionBankListIndex: {
         fontSize: normalize(14),
@@ -3522,11 +4929,6 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#D0D5DD',
         padding: normalize(20),
-        shadowColor: '#101828',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.06,
-        shadowRadius: 20,
-        elevation: 3,
     },
     questionBankDetailTopRow: {
         flexDirection: 'row',
@@ -3685,11 +5087,6 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#D0D5DD',
         padding: normalize(20),
-        shadowColor: '#101828',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.06,
-        shadowRadius: 20,
-        elevation: 3,
     },
     questionAnswerBody: {
         fontSize: normalize(14),
@@ -3701,6 +5098,78 @@ const styles = StyleSheet.create({
         fontSize: normalize(14),
         color: '#334155',
         lineHeight: normalize(22),
+    },
+    paymentWebViewContainer: {
+        flex: 1,
+        backgroundColor: '#F8FAFC',
+    },
+    paymentWebViewSafeArea: {
+        backgroundColor: '#FFFFFF',
+    },
+    paymentWebViewHeader: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        paddingHorizontal: normalize(20),
+        paddingVertical: verticalScale(16),
+        borderBottomWidth: 1,
+        borderBottomColor: '#E2E8F0',
+        backgroundColor: '#FFFFFF',
+    },
+    paymentWebViewHeaderText: {
+        flex: 1,
+        paddingRight: normalize(12),
+    },
+    paymentWebViewLabel: {
+        alignSelf: 'flex-start',
+        borderRadius: normalize(999),
+        borderWidth: 1,
+        borderColor: '#BFDBFE',
+        backgroundColor: '#EFF6FF',
+        color: '#1D4ED8',
+        fontSize: normalize(10),
+        fontWeight: '800',
+        letterSpacing: 1,
+        paddingHorizontal: normalize(12),
+        paddingVertical: verticalScale(5),
+        marginBottom: verticalScale(10),
+    },
+    paymentWebViewTitle: {
+        fontSize: normalize(22),
+        fontWeight: '900',
+        color: '#0F172A',
+        marginBottom: verticalScale(4),
+    },
+    paymentWebViewSubtitle: {
+        fontSize: normalize(12),
+        color: '#64748B',
+        lineHeight: normalize(18),
+    },
+    paymentWebViewCloseBtn: {
+        width: normalize(40),
+        height: normalize(40),
+        borderRadius: normalize(20),
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#F1F5F9',
+    },
+    paymentWebViewBody: {
+        flex: 1,
+        backgroundColor: '#FFFFFF',
+    },
+    paymentWebViewLoading: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: normalize(20),
+        backgroundColor: '#FFFFFF',
+    },
+    paymentWebViewLoadingText: {
+        marginTop: verticalScale(10),
+        fontSize: normalize(13),
+        color: '#64748B',
+        fontWeight: '600',
+        textAlign: 'center',
     },
     videoBankContainer: {
         flex: 1,
@@ -3789,11 +5258,6 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#E5E7EB',
         padding: normalize(16),
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.06,
-        shadowRadius: 18,
-        elevation: 3,
         minHeight: verticalScale(120),
         justifyContent: 'space-between',
     },
