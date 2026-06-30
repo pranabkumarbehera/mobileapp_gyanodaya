@@ -16,6 +16,9 @@ const initialState = {
     submitTestResponse: null as any,
     testResult: null as any,
     error: null as any,
+    documentLoading: false,
+    documentResponse: null as any,
+    documentError: null as any,
 };
 
 const MockTestSlice = createSlice({
@@ -201,6 +204,21 @@ const MockTestSlice = createSlice({
             state.isLoading = false;
             state.error = null;
         },
+        documentRequest(state, action) {
+            state.status = action.type;
+            state.documentLoading = true;
+            state.documentError = null;
+        },
+        documentSuccess(state, action) {
+            state.documentResponse = action.payload;
+            state.status = action.type;
+            state.documentLoading = false;
+        },
+        documentFailure(state, action: any) {
+            state.status = action.type;
+            state.documentError = action.error || action.payload;
+            state.documentLoading = false;
+        },
         clearStartTestState(state) {
             state.startTestResponse = null;
             state.status = '';
@@ -215,6 +233,8 @@ const MockTestSlice = createSlice({
             state.paymentSession = null;
             state.mockTestDetails = null;
             state.error = null;
+            state.documentResponse = null;
+            state.documentError = null;
         },
         clearMockTestData(_state) {
             return initialState;
@@ -264,6 +284,9 @@ export const {
     clearStartTestState,
     clearBundleFlowState,
     clearMockTestData,
+    documentRequest,
+    documentSuccess,
+    documentFailure,
 } = MockTestSlice.actions;
 
 export default MockTestSlice.reducer;

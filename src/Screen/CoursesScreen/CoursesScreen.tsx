@@ -8,9 +8,12 @@ import { WebView } from 'react-native-webview';
 import Colorpath from '../../Themes/Colorpath';
 import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
 import { getApi } from '../../Utils/Helpers/ApiRequest';
+import constants from '../../Utils/Helpers/constants';
 import { useDispatch, useSelector } from 'react-redux';
 import { useIsFocused } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
+import RNFS from 'react-native-fs';
+import FileViewer from 'react-native-file-viewer';
 import {
     bundleIDRequest,
     clearBundleFlowState,
@@ -24,6 +27,7 @@ import {
     getSubBundleListRequest,
     paymentRequest,
     paymentFailure,
+    documentRequest,
 } from '../../Redux/Reducers/MockTestReducer';
 import { RootState } from '../../Redux/Store';
 import { paymentHistoryRequest } from '../../Redux/Reducers/ProfileReducer';
@@ -220,6 +224,7 @@ const getDetailCollections = (bundle: any) => {
     const questionBanks = getCollection('question_banks', 'questionBanks', 'questions');
     const videoBanks = getCollection('video_banks', 'videoBanks', 'videos', 'youtube_banks', 'youtubeBanks', 'youtube');
     const youtubeBanks = getCollection('youtube_banks', 'youtubeBanks', 'youtube');
+    const documentFolders = getCollection('document_folders', 'documentFolders', 'documents');
     const quizCount = Number(
         firstDisplayValue(
             payload?.quizCount,
@@ -234,6 +239,7 @@ const getDetailCollections = (bundle: any) => {
         questionBanks,
         videoBanks,
         youtubeBanks,
+        documentFolders,
         quizCount,
     };
 };
@@ -530,6 +536,13 @@ const normalizeCourseSections = (bundle: any) => {
             badge: 'VIDEO BANK',
             items: collections.videoBanks,
             type: 'video' as const,
+        },
+        {
+            key: 'document',
+            label: 'Document',
+            badge: 'DOCUMENT',
+            items: collections.documentFolders,
+            type: 'document' as const,
         },
     ].filter(section => Array.isArray(section.items) && section.items.length > 0);
 };
@@ -1607,6 +1620,8 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         paymentSession,
         isLoading,
         status,
+        documentLoading,
+        documentResponse,
     } = useSelector((state: RootState) => state.MockTestReducer);
 
     const [searchQuery, setSearchQuery] = useState('');
@@ -1641,6 +1656,11 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     const [isLoadingVideoBank, setIsLoadingVideoBank] = useState(false);
     const [selectedVideoBankTitle, setSelectedVideoBankTitle] = useState('');
     const [selectedVideoBankItems, setSelectedVideoBankItems] = useState<any[]>([]);
+    
+    const [showDocumentFolderModal, setShowDocumentFolderModal] = useState(false);
+    const [selectedDocumentFolderTitle, setSelectedDocumentFolderTitle] = useState('');
+    const [downloadingDocId, setDownloadingDocId] = useState<string | null>(null);
+
     const authToken = useSelector((state: RootState) => state.AuthReducer.token);
     const { paymentHistoryData, paymentHistoryLoading } = useSelector((state: RootState) => state.ProfileReducer);
 
@@ -2114,6 +2134,70 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         }
     }, [authToken, openExternalVideoUrl]);
 
+    const handleOpenDocumentFolder = useCallback((item: any) => {
+        const folderId = getItemId(item);
+
+        if (!folderId) {
+            return;
+        }
+
+        setSelectedDocumentFolderTitle(getItemTitle(item, 'Document'));
+        setShowDocumentFolderModal(true);
+        dispatch(documentRequest(folderId));
+    }, [dispatch]);
+
+    const handleDownloadAndOpenDocument = useCallback(async (docId: string, url: string, fileName: string) => {
+        try {
+            console.log('[DocumentDownload] Started for docId:', docId);
+            console.log('[DocumentDownload] URL:', url);
+            setDownloadingDocId(docId);
+            
+            // On Android, save into an external cache location so the PDF viewer can read it.
+            const dirPath = Platform.OS === 'android'
+                ? RNFS.ExternalCachesDirectoryPath || RNFS.CachesDirectoryPath
+                : RNFS.DocumentDirectoryPath;
+            const hasExtension = /\.[a-z0-9]{1,5}$/i.test(fileName.trim());
+            let safeName = fileName.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+            if (!hasExtension) {
+                safeName += '.pdf';
+            }
+            const localFile = `${dirPath}/${safeName}`;
+            console.log('[DocumentDownload] Local file path:', localFile);
+            
+            const options = {
+                fromUrl: url,
+                toFile: localFile,
+                headers: {
+                    Authorization: `Bearer ${authToken}`,
+                }
+            };
+
+            const downloadResult = await RNFS.downloadFile(options).promise;
+            console.log('[DocumentDownload] Download result:', downloadResult);
+            
+            if (downloadResult.statusCode === 200) {
+                console.log('[DocumentDownload] Download successful, attempting to open with FileViewer');
+                await FileViewer.open(localFile, { showOpenWithDialog: true })
+                    .then(() => {
+                        console.log('[DocumentDownload] FileViewer opened successfully');
+                    })
+                    .catch((err) => {
+                        console.log('[DocumentDownload] FileViewer error caught internally:', err);
+                        Toast.show({ type: 'error', text1: 'Error in FileViewer', text2: String(err?.message || err) });
+                    });
+            } else {
+                console.log('[DocumentDownload] Download failed with status:', downloadResult.statusCode);
+                Toast.show({ type: 'error', text1: `Download failed with status ${downloadResult.statusCode}` });
+            }
+        } catch (error: any) {
+            console.log('[DocumentDownload] Exception caught:', error);
+            Toast.show({ type: 'error', text1: 'Error opening document', text2: String(error?.message || error) });
+        } finally {
+            console.log('[DocumentDownload] Finished');
+            setDownloadingDocId(null);
+        }
+    }, [authToken]);
+
     const handleOpenCourseItem = useCallback((sectionKey: string, item: any) => {
         if (paymentHistoryLoading) {
             Toast.show({ type: 'info', text1: 'Verifying payment status, please wait...' });
@@ -2142,8 +2226,14 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
         if (sectionKey === 'video') {
             handleOpenVideoBank(item);
+            return;
         }
-    }, [activePaymentSession?.resourceId, enrolledBundleIds, handleOpenNoteBank, handleOpenQuestionBank, handleOpenVideoBank, paymentHistoryLoading, detailScreen?.isEnrolled]);
+
+        if (sectionKey === 'document') {
+            handleOpenDocumentFolder(item);
+            return;
+        }
+    }, [activePaymentSession?.resourceId, enrolledBundleIds, handleOpenNoteBank, handleOpenQuestionBank, handleOpenVideoBank, handleOpenDocumentFolder, paymentHistoryLoading, detailScreen?.isEnrolled]);
 
     const renderMockSetCards = () => {
         if (!showingSubBundle && subBundleItems.length > 0) {
@@ -2203,7 +2293,13 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
                                 <View style={styles.quizCardsWrap}>
                                     {group.quizzes.map((quiz: any, quizIndex: number) => (
-                                        <View key={String(quiz.id || quizIndex)} style={styles.quizCard}>
+                                        <LinearGradient 
+                                            key={String(quiz.id || quizIndex)} 
+                                            style={styles.quizCard}
+                                            colors={['#FFFFFF', '#F8FAFC', '#F1F5F9']}
+                                            start={{ x: 0, y: 0 }}
+                                            end={{ x: 1, y: 1 }}
+                                        >
                                             <View style={styles.quizBadge}>
                                                 <Text style={styles.quizBadgeText}>MOCK</Text>
                                             </View>
@@ -2242,7 +2338,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                                     <Text style={styles.quizViewOnlyText}>View only</Text>
                                                 </View>
                                             )}
-                                        </View>
+                                        </LinearGradient>
                                     ))}
                                 </View>
                             </View>
@@ -2315,6 +2411,34 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                         <View style={styles.courseCardFooter}>
                             <Feather name="help-circle" size={normalize(16)} color={Colorpath.Primary} />
                             <Text style={styles.courseCardFooterText}>View questions & answers</Text>
+                        </View>
+                    </LinearGradient>
+                </Pressable>
+            );
+        }
+
+        if (section.key === 'document') {
+            return (
+                <Pressable style={styles.courseCardPressable} onPress={() => handleOpenCourseItem(section.key, item)}>
+                    <LinearGradient
+                        colors={['#F0FDF4', '#FFFFFF', '#DCFCE7']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.courseCard}
+                    >
+                        <LinearGradient
+                            colors={['#DCFCE7', '#BBF7D0', '#86EFAC']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.courseCardBadge}
+                        >
+                            <Text style={styles.courseCardBadgeText}>DOCUMENT</Text>
+                        </LinearGradient>
+                        <Text style={styles.courseCardTitle}>{getItemTitle(item, 'Document')}</Text>
+                        {getItemDescription(item) ? <Text style={styles.courseCardSubtitle}>{getItemDescription(item)}</Text> : <Text style={styles.courseCardSubtitle}>PDF Document</Text>}
+                        <View style={styles.courseCardFooter}>
+                            <Feather name="file-text" size={normalize(16)} color="#16A34A" />
+                            <Text style={[styles.courseCardFooterText, { color: '#16A34A', marginLeft: normalize(4) }]}>Open Document</Text>
                         </View>
                     </LinearGradient>
                 </Pressable>
@@ -3194,6 +3318,82 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                         )}
                     </View>
                 </Modal>
+
+                <Modal
+                    visible={showDocumentFolderModal}
+                    transparent={false}
+                    animationType="slide"
+                    onRequestClose={() => setShowDocumentFolderModal(false)}
+                >
+                    <View style={styles.videoBankContainer}>
+                        <SafeAreaView edges={['top']} style={styles.videoBankSafeArea}>
+                            <View style={styles.videoBankHeader}>
+                                <View style={styles.videoBankHeaderText}>
+                                    <Text style={styles.videoBankLabel}>DOCUMENT FOLDER</Text>
+                                    <Text style={styles.videoBankTitle}>{selectedDocumentFolderTitle || 'Documents'}</Text>
+                                    <Text style={styles.videoBankSubtitle}>Select a document to open</Text>
+                                </View>
+                                <Pressable onPress={() => setShowDocumentFolderModal(false)} style={styles.videoBankCloseBtn}>
+                                    <Feather name="x" size={normalize(22)} color="#0F172A" />
+                                </Pressable>
+                            </View>
+                        </SafeAreaView>
+
+                        {documentLoading ? (
+                            <View style={styles.videoBankLoadingState}>
+                                <ActivityIndicator size="large" color={Colorpath.Primary} />
+                                <Text style={styles.videoBankLoadingText}>Loading documents...</Text>
+                            </View>
+                        ) : !documentResponse || documentResponse.length === 0 ? (
+                            <View style={styles.videoBankEmptyState}>
+                                <Feather name="file-text" size={normalize(28)} color="#94A3B8" />
+                                <Text style={styles.videoBankEmptyText}>No Data Available</Text>
+                            </View>
+                        ) : (
+                            <FlatList
+                                data={documentResponse}
+                                keyExtractor={(docItem: any, index: number) => `${docItem?._id || docItem?.id || index}`}
+                                contentContainerStyle={styles.videoBankListContent}
+                                ItemSeparatorComponent={() => <View style={{ height: verticalScale(12) }} />}
+                                renderItem={({ item, index }) => {
+                                    const fallbackTitle = getItemTitle(item, `Document ${index + 1}`);
+                                    const title = item?.originalName || toDisplayText(fallbackTitle, `Document ${index + 1}`);
+                                    const documentId = getItemId(item);
+                                    const documentUrl = documentId ? `${constants.BASE_URL}/documents/student/stream/${documentId}` : null;
+
+                                    return (
+                                        <Pressable
+                                            style={styles.videoBankCard}
+                                        onPress={() => {
+                                                if (downloadingDocId === documentId) return;
+                                                if (!documentUrl) {
+                                                    Toast.show({ type: 'info', text1: 'Document URL not found.' });
+                                                    return;
+                                                }
+                                                const fileName = item?.originalName || item?.fileName || `${documentId}.pdf`;
+                                                handleDownloadAndOpenDocument(String(documentId), documentUrl, fileName);
+                                            }}
+                                        >
+                                            <View style={styles.videoBankCardTopRow}>
+                                                <View style={styles.videoBankPlayIconWrap}>
+                                                    {downloadingDocId === documentId ? (
+                                                        <ActivityIndicator size="small" color={Colorpath.Primary} />
+                                                    ) : (
+                                                        <Feather name="file-text" size={normalize(18)} color={Colorpath.Primary} />
+                                                    )}
+                                                </View>
+                                                <View style={styles.videoBankCardTextWrap}>
+                                                    <Text style={styles.videoBankCardTitle} numberOfLines={2}>{title}</Text>
+                                                </View>
+                                            </View>
+                                        </Pressable>
+                                    );
+                                }}
+                            />
+                        )}
+                    </View>
+                </Modal>
+
 
                 <Modal
                     visible={showNotePageModal}
@@ -4139,11 +4339,6 @@ const styles = StyleSheet.create({
         borderColor: 'rgba(15, 118, 110, 0.12)',
         overflow: 'hidden',
         minHeight: verticalScale(176),
-        shadowColor: '#0F172A',
-        shadowOpacity: 0.06,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: 4 },
-        elevation: 2,
     },
     courseCardPressable: {
         width: '100%',

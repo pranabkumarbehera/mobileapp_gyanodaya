@@ -94,6 +94,12 @@ export const normalizeProfileData = (profile: any) => {
             source?.profile?.image,
             source?.profile?.photo,
         ) || '',
+        email: firstDefined(
+            source?.email,
+            source?.emailId,
+            source?.user?.email,
+            source?.profile?.email,
+        ) || '',
     };
 };
 

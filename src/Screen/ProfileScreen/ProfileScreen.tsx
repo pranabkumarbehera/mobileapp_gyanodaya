@@ -12,6 +12,7 @@ import {
     TextInput,
     Linking,
     Share,
+    Alert,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { logoutRequest, logoutSuccess } from '../../Redux/Reducers/AuthReducer';
@@ -47,6 +48,7 @@ type EditableProfile = {
     phone: string;
     bio: string;
     avatarUrl: string;
+    email: string;
 };
 
 const DEFAULT_FORM: EditableProfile = {
@@ -55,6 +57,7 @@ const DEFAULT_FORM: EditableProfile = {
     phone: '',
     bio: '',
     avatarUrl: '',
+    email: '',
 };
 
 const formatPhoneForDisplay = (phone?: string | null) => {
@@ -92,10 +95,31 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     const openDeleteModal = () => {
-        setDeleteEmail('');
-        setDeleteOtp('');
-        dispatch(setDeleteAccountStep('email'));
-        setIsDeleteVisible(true);
+        Alert.alert(
+            "Delete Account",
+            "Are you sure you want to delete your account from GYANODAYA?",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Yes, Delete",
+                    style: "destructive",
+                    onPress: () => {
+                        const userEmail = mappedProfile.email || profileData?.email || profileData?.user?.email || '';
+                        setDeleteEmail(userEmail);
+                        setDeleteOtp('');
+                        
+                        if (userEmail) {
+                            dispatch(setDeleteAccountStep('otp'));
+                            setIsDeleteVisible(true);
+                            dispatch(sendDeleteAccountOtpRequest({ email: userEmail }));
+                        } else {
+                            dispatch(setDeleteAccountStep('email'));
+                            setIsDeleteVisible(true);
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     const handleSendOtp = () => {
@@ -722,7 +746,7 @@ const styles = StyleSheet.create({
     headerTitle: { flex: 1, fontSize: normalize(18), fontWeight: 'bold', color: '#FFFFFF', textAlign: 'center' },
     headerRightSpacer: { width: normalize(40), height: normalize(40) },
     profileCardWrapper: { paddingHorizontal: normalize(24), marginTop: -verticalScale(80) },
-    profileCard: { backgroundColor: '#FFFFFF', borderRadius: normalize(20), padding: normalize(24), alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 15, elevation: 5 },
+    profileCard: { backgroundColor: '#FFFFFF', borderRadius: normalize(20), padding: normalize(24), alignItems: 'center', borderWidth: 1, borderColor: '#F3F4F6', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
     avatarContainer: { width: normalize(80), height: normalize(80), borderRadius: normalize(40), backgroundColor: '#E0E7FF', justifyContent: 'center', alignItems: 'center', marginBottom: verticalScale(12), borderWidth: 4, borderColor: '#FFFFFF', marginTop: -normalize(40), overflow: 'hidden' },
     avatarImage: { width: '100%', height: '100%' },
     avatarFallbackText: { fontSize: normalize(24), fontWeight: '700', color: '#FFFFFF' },
@@ -733,17 +757,17 @@ const styles = StyleSheet.create({
     badgeText: { color: '#D97706', fontSize: normalize(12), fontWeight: 'bold' },
     mainContent: { paddingHorizontal: normalize(24), paddingTop: verticalScale(24) },
     statsRow: { flexDirection: 'row', justifyContent: 'space-between', gap: normalize(12), marginBottom: verticalScale(24) },
-    statBox: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', padding: normalize(16), borderRadius: normalize(16), shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
+    statBox: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', padding: normalize(16), borderRadius: normalize(16), borderWidth: 1, borderColor: '#F3F4F6' },
     statIconWrapper: { width: normalize(40), height: normalize(40), borderRadius: normalize(12), backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginRight: normalize(12) },
     statBoxLabel: { fontSize: normalize(11), color: '#6B7280', marginBottom: verticalScale(2) },
     statBoxValue: { fontSize: normalize(16), fontWeight: 'bold', color: Colorpath.Primary },
     sectionTitle: { fontSize: normalize(18), fontWeight: 'bold', color: Colorpath.Primary, marginBottom: verticalScale(16) },
-    performanceCard: { backgroundColor: '#FFFFFF', borderRadius: normalize(16), padding: normalize(20), marginBottom: verticalScale(24), shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
+    performanceCard: { backgroundColor: '#FFFFFF', borderRadius: normalize(16), padding: normalize(20), marginBottom: verticalScale(24), borderWidth: 1, borderColor: '#F3F4F6' },
     detailRow: { gap: verticalScale(6) },
     detailDivider: { height: 1, backgroundColor: '#F3F4F6', marginVertical: verticalScale(16) },
     detailLabel: { fontSize: normalize(12), color: '#6B7280', fontWeight: '600' },
     detailValue: { fontSize: normalize(14), color: '#111827', lineHeight: normalize(20) },
-    settingsContainer: { backgroundColor: '#FFFFFF', borderRadius: normalize(16), paddingHorizontal: normalize(16), marginBottom: verticalScale(24), shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
+    settingsContainer: { backgroundColor: '#FFFFFF', borderRadius: normalize(16), paddingHorizontal: normalize(16), marginBottom: verticalScale(24), borderWidth: 1, borderColor: '#F3F4F6' },
     settingItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: verticalScale(16), borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
     settingItemLast: { borderBottomWidth: 0 },
     settingIconBg: { width: normalize(36), height: normalize(36), borderRadius: normalize(10), backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginRight: normalize(12) },

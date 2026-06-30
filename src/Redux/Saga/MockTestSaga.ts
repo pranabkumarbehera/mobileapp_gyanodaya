@@ -36,6 +36,9 @@ import {
     getTestResultRequest,
     getTestResultSuccess,
     getTestResultFailure,
+    documentRequest,
+    documentSuccess,
+    documentFailure,
 } from '../Reducers/MockTestReducer';
 import { getApi, postApi } from '../../Utils/Helpers/ApiRequest';
 import Toast from 'react-native-toast-message';
@@ -402,6 +405,27 @@ export function* getTestResultSaga(action: any): Generator<any, void, any> {
     }
 }
 
+export function* documentSaga(action: any): Generator<any, void, any> {
+    const auth = yield select(getAuth);
+    const header = {
+        Accept: 'application/json',
+        contenttype: 'application/json',
+        authorization: auth.token,
+    };
+    try {
+        const response = yield call(getApi, `documents/student/folders/${action.payload}/documents`, header);
+        if (response?.data?.success === true || response?.status === 200) {
+            yield put(documentSuccess(response?.data?.data || response?.data));
+        } else {
+            yield put(documentFailure(response?.data));
+            Toast.show({ type: 'error', text1: response?.data?.message || 'Failed to fetch documents' });
+        }
+    } catch (error: any) {
+        yield put(documentFailure(error));
+        Toast.show({ type: 'error', text1: error?.response?.data?.message || '!Oops something went wrong' });
+    }
+}
+
 const MockTestSaga = [
     takeLatest(getMockTestListRequest.type, getMockTestListSaga),
     takeLatest(getBundleListRequest.type, getBundleListSaga),
@@ -415,6 +439,7 @@ const MockTestSaga = [
     takeLatest(startTestRequest.type, startTestSaga),
     takeLatest(submitTestRequest.type, submitTestSaga),
     takeLatest(getTestResultRequest.type, getTestResultSaga),
+    takeLatest(documentRequest.type, documentSaga),
 ];
 
 export default MockTestSaga;
