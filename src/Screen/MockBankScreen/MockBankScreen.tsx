@@ -133,7 +133,7 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
         const correctMarks = mock?.positiveMarks ?? mock?.correctMarks ?? mock?.defaultMarks ?? mock?.marksPerQuestion ?? mock?.quiz?.positiveMarks ?? mock?.quiz?.defaultMarks ?? mock?.quiz?.marksPerQuestion ?? 1;
         const rawNeg = mock?.negativeMarks ?? mock?.negativeMarking ?? mock?.penalty ?? mock?.quiz?.negativeMarks ?? mock?.quiz?.negativeMarking ?? 0;
         const negVal = typeof rawNeg === 'object' && rawNeg !== null ? rawNeg.value : rawNeg;
-        
+
         let markingStr = `+${correctMarks}`;
         if (Number(negVal) > 0) {
             markingStr += `/-${Number(negVal)}`;
@@ -144,7 +144,7 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
         }
 
         const price = Number(mock?.price || mock?.quiz?.price || 0);
-        
+
         // Find if this mock test belongs to any module that is enrolled
         const mockModuleId = String(mock?.moduleId || mock?.quiz?.moduleId || mock?.bundleId || mock?.quiz?.bundleId || mock?.module?._id || mock?.module?.id || selectedModuleId || '');
         const isUnlocked = mockModuleId ? enrolledBundleIds.includes(mockModuleId) : false;

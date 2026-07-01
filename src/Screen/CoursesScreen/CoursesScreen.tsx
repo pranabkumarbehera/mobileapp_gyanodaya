@@ -22,6 +22,7 @@ import {
     enrollBundleRequest,
     enrollBundleSuccess,
     getBundleListRequest,
+    getMockTestDetailsRequest,
     getStudentModulesRequest,
     getSubBundleDetailsRequest,
     getSubBundleListRequest,
@@ -31,6 +32,7 @@ import {
 } from '../../Redux/Reducers/MockTestReducer';
 import { RootState } from '../../Redux/Store';
 import { paymentHistoryRequest } from '../../Redux/Reducers/ProfileReducer';
+import Fonts from '../../Themes/Fonts';
 
 type CoursesScreenProps = {
     navigation: any;
@@ -152,11 +154,15 @@ const getBundleQuizzes = (bundle: any) => {
     const parsedBundleItems = parseMaybeJson(payload?.bundleItems);
     const parsedExamData = parseMaybeJson(payload?.examData);
     const quizCollections = [
+        payload?.displayData,
+        payload?.mock?.displayData,
         payload?.mockTests,
         payload?.quizzes,
         payload?.quizIds,
         payload?.tests,
         parsedBundleItems,
+        parsedPayloadData?.displayData,
+        parsedPayloadData?.mock?.displayData,
         payload?.items,
         parsedPayloadData?.quizzes,
         parsedPayloadData?.mockTests,
@@ -164,6 +170,8 @@ const getBundleQuizzes = (bundle: any) => {
         parsedPayloadData?.tests,
         parsedPayloadData?.bundleItems,
         parsedPayloadData?.items,
+        parsedExamData?.displayData,
+        parsedExamData?.mock?.displayData,
         parsedExamData?.quizzes,
         parsedExamData?.mockTests,
         parsedExamData?.tests,
@@ -749,6 +757,42 @@ const getQuizDuration = (quiz: any) =>
 const getQuizPrice = (quiz: any) =>
     Number(quiz?.price || 0);
 
+const getQuizMarking = (quiz: any) => {
+    const directMarking = quiz?.marking ?? quiz?.mock?.marking ?? quiz?.quiz?.marking;
+    if (typeof directMarking === 'string' && directMarking.trim()) {
+        return directMarking.trim();
+    }
+
+    const correctMarks =
+        quiz?.positiveMarks ??
+        quiz?.correctMarks ??
+        quiz?.defaultMarks ??
+        quiz?.marksPerQuestion ??
+        quiz?.quiz?.positiveMarks ??
+        quiz?.quiz?.defaultMarks ??
+        quiz?.quiz?.marksPerQuestion ??
+        1;
+    const rawNeg =
+        quiz?.negativeMarks ??
+        quiz?.negativeMarking ??
+        quiz?.penalty ??
+        quiz?.quiz?.negativeMarks ??
+        quiz?.quiz?.negativeMarking ??
+        0;
+    const negVal = typeof rawNeg === 'object' && rawNeg !== null ? rawNeg.value : rawNeg;
+
+    let markingStr = `+${correctMarks}`;
+    if (Number(negVal) > 0) {
+        markingStr += `/-${Number(negVal)}`;
+    } else if (Number(negVal) < 0) {
+        markingStr += `/${Number(negVal)}`;
+    } else {
+        markingStr += `/0`;
+    }
+
+    return markingStr;
+};
+
 const getQuizTotalMarks = (quiz: any) =>
     Number(
         quiz?.totalMarks ||
@@ -780,13 +824,19 @@ const getQuizMarksPerQuestion = (quiz: any) => {
 };
 
 const getQuizNegativeMarking = (quiz: any) => {
-    const negativeMarking = quiz?.negativeMarking ?? quiz?.negativeMarks ?? quiz?.penalty;
+    const rawNeg =
+        quiz?.negativeMarks ??
+        quiz?.negativeMarking ??
+        quiz?.penalty ??
+        quiz?.quiz?.negativeMarks ??
+        quiz?.quiz?.negativeMarking ??
+        0;
 
-    if (typeof negativeMarking === 'object' && negativeMarking !== null) {
-        return negativeMarking?.value ?? '-';
+    if (typeof rawNeg === 'object' && rawNeg !== null) {
+        return rawNeg?.value ?? '-';
     }
 
-    return negativeMarking ?? '-';
+    return rawNeg ?? '-';
 };
 
 const hasDisplayValue = (value: any) =>
@@ -981,6 +1031,7 @@ const buildQuizCards = (bundle: any) =>
                 price: getQuizPrice(quiz),
                 totalMarks: getQuizTotalMarks(quiz),
                 negativeMarking: getQuizNegativeMarking(quiz),
+                marking: getQuizMarking(quiz),
                 rawQuiz: quiz,
             };
         })
@@ -1471,7 +1522,24 @@ const CoursePosterCard = ({
         { label: `${collections.noteBanks.length || 0} notes`, icon: 'book-open' },
         { label: `${collections.questionBanks.length || 0} banks`, icon: 'help-circle' },
     ];
-    
+
+    const availableFeatures = [];
+    if (collections.videoBanks.length > 0 || collections.youtubeBanks.length > 0) {
+        availableFeatures.push({ id: 'video', icon: 'monitor', title: 'VIDEO BANK', desc: 'Curated video links for focused revision' });
+    }
+    if (quizzes.length > 0) {
+        availableFeatures.push({ id: 'mock', icon: 'clipboard', title: 'MOCK TESTS', desc: 'Practice with a clean, exam-first flow' });
+    }
+    if (collections.noteBanks.length > 0) {
+        availableFeatures.push({ id: 'note', icon: 'book-open', title: 'NOTE BANK', desc: 'Topic-wise notes made easy to scan' });
+    }
+    if (collections.questionBanks.length > 0) {
+        availableFeatures.push({ id: 'question', icon: 'help-circle', title: 'QUESTION BANK', desc: 'Practice with comprehensive questions' });
+    }
+    if (collections.documentFolders.length > 0) {
+        availableFeatures.push({ id: 'document', icon: 'file-text', title: 'DOCUMENT', desc: 'Essential study documents and materials' });
+    }
+
     return (
         <View style={posterStyles.container}>
             <LinearGradient
@@ -1536,39 +1604,20 @@ const CoursePosterCard = ({
             </View>
 
             <View style={posterStyles.featuresSection}>
-                <View style={posterStyles.featureRow}>
-                    <View style={[posterStyles.featureIconWrap, { backgroundColor: theme.accent }]}>
-                        <Feather name="monitor" size={normalize(18)} color="#FFF" />
-                    </View>
-                    <View style={posterStyles.featureTextWrap}>
-                        <Text style={[posterStyles.featureTitle, { color: theme.accent }]}>VIDEO BANK</Text>
-                        <Text style={posterStyles.featureDesc}>Curated video links for focused revision</Text>
-                    </View>
-                </View>
-
-                <View style={posterStyles.featureDivider} />
-
-                <View style={posterStyles.featureRow}>
-                    <View style={[posterStyles.featureIconWrap, { backgroundColor: theme.accent }]}>
-                        <Feather name="book-open" size={normalize(18)} color="#FFF" />
-                    </View>
-                    <View style={posterStyles.featureTextWrap}>
-                        <Text style={[posterStyles.featureTitle, { color: theme.accent }]}>NOTE BANK</Text>
-                        <Text style={posterStyles.featureDesc}>Topic-wise notes made easy to scan</Text>
-                    </View>
-                </View>
-
-                <View style={posterStyles.featureDivider} />
-
-                <View style={posterStyles.featureRow}>
-                    <View style={[posterStyles.featureIconWrap, { backgroundColor: theme.accent }]}>
-                        <Feather name="clipboard" size={normalize(18)} color="#FFF" />
-                    </View>
-                    <View style={posterStyles.featureTextWrap}>
-                        <Text style={[posterStyles.featureTitle, { color: theme.accent }]}>MOCK TESTS</Text>
-                        <Text style={posterStyles.featureDesc}>Practice with a clean, exam-first flow</Text>
-                    </View>
-                </View>
+                {availableFeatures.map((feature, idx) => (
+                    <React.Fragment key={feature.id}>
+                        <View style={posterStyles.featureRow}>
+                            <View style={[posterStyles.featureIconWrap, { backgroundColor: theme.accent }]}>
+                                <Feather name={feature.icon as any} size={normalize(18)} color="#FFF" />
+                            </View>
+                            <View style={posterStyles.featureTextWrap}>
+                                <Text style={[posterStyles.featureTitle, { color: theme.accent }]}>{feature.title}</Text>
+                                <Text style={posterStyles.featureDesc}>{feature.desc}</Text>
+                            </View>
+                        </View>
+                        {idx < availableFeatures.length - 1 && <View style={posterStyles.featureDivider} />}
+                    </React.Fragment>
+                ))}
             </View>
 
             <View style={[posterStyles.actionBar, { backgroundColor: theme.footer }]}>
@@ -1650,13 +1699,14 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     const [_showQuestionAnswer, setShowQuestionAnswer] = useState(false);
     const [showQuestionAnswerModal, setShowQuestionAnswerModal] = useState(false);
     const [selectedQuestionAnswerDetail, setSelectedQuestionAnswerDetail] = useState<any>(null);
+    const [mockMarkingMap, setMockMarkingMap] = useState<Record<string, any>>({});
     const [isPaymentWebViewVisible, setIsPaymentWebViewVisible] = useState(false);
     const [activePaymentSession, setActivePaymentSession] = useState<any>(null);
     const [showVideoBankModal, setShowVideoBankModal] = useState(false);
     const [isLoadingVideoBank, setIsLoadingVideoBank] = useState(false);
     const [selectedVideoBankTitle, setSelectedVideoBankTitle] = useState('');
     const [selectedVideoBankItems, setSelectedVideoBankItems] = useState<any[]>([]);
-    
+
     const [showDocumentFolderModal, setShowDocumentFolderModal] = useState(false);
     const [selectedDocumentFolderTitle, setSelectedDocumentFolderTitle] = useState('');
     const [downloadingDocId, setDownloadingDocId] = useState<string | null>(null);
@@ -1670,7 +1720,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         const collectedIds = collectEnrolledBundleIds(studentModules);
         const paymentsList = paymentHistoryData?.data?.items || paymentHistoryData?.items || [];
         const failedPending = new Set<string>();
-        
+
         if (Array.isArray(paymentsList) && paymentsList.length > 0) {
             const paymentStatusMap = new Map<string, boolean>();
             paymentsList.forEach((item: any) => {
@@ -1808,8 +1858,8 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         const isEnrolled =
             !failedPendingBundleIds.has(resolvedBundleId) &&
             (Boolean(bundleDetails?.isEnrolled) ||
-            (resolvedBundleId ? enrolledBundleIds.includes(resolvedBundleId) : false) ||
-            enrolledBundleOverrides.has(resolvedBundleId));
+                (resolvedBundleId ? enrolledBundleIds.includes(resolvedBundleId) : false) ||
+                enrolledBundleOverrides.has(resolvedBundleId));
 
         setSelectedExam(buildSelectedExam(bundleDetails, isEnrolled));
         if (resolvedBundleId) {
@@ -1827,8 +1877,8 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         const isEnrolled =
             !failedPendingBundleIds.has(parentBundleId) &&
             (Boolean(subBundleDetails?.isEnrolled) ||
-            Boolean(selectedExam?.isEnrolled) ||
-            (parentBundleId ? enrolledBundleIds.includes(parentBundleId) : false));
+                Boolean(selectedExam?.isEnrolled) ||
+                (parentBundleId ? enrolledBundleIds.includes(parentBundleId) : false));
         setSelectedSubBundleExam(buildSelectedExam(subBundleDetails, isEnrolled));
     }, [activeBundleId, enrolledBundleIds, subBundleDetails, selectedExam, failedPendingBundleIds]);
 
@@ -1935,14 +1985,31 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         () => normalizeCourseSections(detailScreen?.rawBundle || detailScreen),
         [detailScreen],
     );
-    const examPatternItems = useMemo(() => [
-        { key: 'mock', label: 'Mock Bank', icon: 'layers', color: '#1D4ED8', bg: '#EFF6FF' },
-        { key: 'crack', label: 'Crack', icon: 'zap', color: '#D97706', bg: '#FEF3C7' },
-        { key: 'note', label: 'Note Bank Content', icon: 'book-open', color: '#059669', bg: '#ECFDF5' },
-        { key: 'question', label: 'Question Bank', icon: 'help-circle', color: '#7C3AED', bg: '#F5F3FF' },
-        { key: 'youtube', label: 'YouTube Video Bank URL', icon: 'youtube', color: '#FF0000', bg: '#FEF2F2' },
-        { key: 'security', label: 'No Screen Record & Screenshot Denied', icon: 'shield', color: '#DC2626', bg: '#FEE2E2' },
-    ], []);
+    const examPatternItems = useMemo(() => {
+        if (!detailScreen) return [];
+
+        const collections = getDetailCollections(detailScreen?.rawBundle || detailScreen);
+        const quizzes = getBundleQuizzes(detailScreen?.rawBundle || detailScreen);
+        const items = [];
+
+        if (collections.videoBanks.length > 0 || collections.youtubeBanks.length > 0) {
+            items.push({ key: 'youtube', label: 'Video Bank', icon: 'youtube', color: '#FF0000', bg: '#FEF2F2' });
+        }
+        if (quizzes.length > 0) {
+            items.push({ key: 'mock', label: 'Mock Bank', icon: 'layers', color: '#1D4ED8', bg: '#EFF6FF' });
+        }
+        if (collections.noteBanks.length > 0) {
+            items.push({ key: 'note', label: 'Note Bank Content', icon: 'book-open', color: '#059669', bg: '#ECFDF5' });
+        }
+        if (collections.questionBanks.length > 0) {
+            items.push({ key: 'question', label: 'Question Bank', icon: 'help-circle', color: '#7C3AED', bg: '#F5F3FF' });
+        }
+        if (collections.documentFolders.length > 0) {
+            items.push({ key: 'document', label: 'Document', icon: 'file-text', color: '#0F766E', bg: '#CCFBF1' });
+        }
+
+        return items;
+    }, [detailScreen]);
     const mockContentAvailable = Boolean(
         detailScreen?.quizGroups?.length ||
         showSubBundleList ||
@@ -1956,6 +2023,53 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         [courseSections.length, mockContentAvailable],
     );
     const detailTabs = availableDetailTabs;
+
+    const fetchMockMarkings = useCallback(async () => {
+        const quizIds = detailScreen?.quizIds;
+        if (!quizIds || !Array.isArray(quizIds) || quizIds.length === 0) return;
+
+        try {
+            const header = {
+                Accept: 'application/json',
+                contenttype: 'application/json',
+                authorization: authToken,
+            };
+
+            // Extract the string ID safely whether the array contains objects { id: '...' } or string IDs
+            const validIds = quizIds.map((item: any) => {
+                if (typeof item === 'object' && item !== null) {
+                    return item.id || item._id || item.quizId;
+                }
+                return item;
+            }).filter(Boolean);
+
+            if (validIds.length === 0) return;
+
+            const results = await Promise.all(
+                validIds.map((id: string) =>
+                    getApi(`quizzes/${id}`, header).catch(() => null)
+                )
+            );
+
+            const newMap: Record<string, any> = {};
+            results.forEach((res, index) => {
+                if (res?.data?.success === true || res?.status === 200) {
+                    const quizData = res?.data?.data || res?.data;
+                    const id = validIds[index];
+                    newMap[id] = quizData;
+                }
+            });
+
+            // Only update state once after all network requests finish to prevent multiple re-renders
+            setMockMarkingMap(prev => ({ ...prev, ...newMap }));
+        } catch (e) {
+            console.log('Error fetching mock markings in bulk', e);
+        }
+    }, [detailScreen, authToken]);
+
+    useEffect(() => {
+        fetchMockMarkings();
+    }, [fetchMockMarkings]);
 
     useEffect(() => {
         if (availableDetailTabs.length === 0) {
@@ -2015,7 +2129,12 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     };
 
     const handleQuizAction = (quiz: any) => {
-        const quizId = getQuizId(quiz?.rawQuiz || quiz) || quiz?.id;
+        let quizId = getQuizId(quiz?.rawQuiz || quiz) || quiz?.id;
+
+        if (typeof quizId === 'object' && quizId !== null) {
+            quizId = quizId.id || quizId._id || quizId.quizId || quizId.testId;
+        }
+
         if (!quizId) {
             return;
         }
@@ -2025,9 +2144,12 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
             return;
         }
 
+        const fetchedQuiz = mockMarkingMap[quizId];
+        const targetQuiz = fetchedQuiz || quiz?.rawQuiz || quiz;
+
         navigation.navigate('MockTestRules', {
             testId: quizId,
-            testData: quiz?.rawQuiz || quiz,
+            testData: targetQuiz,
         });
     };
 
@@ -2151,7 +2273,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
             console.log('[DocumentDownload] Started for docId:', docId);
             console.log('[DocumentDownload] URL:', url);
             setDownloadingDocId(docId);
-            
+
             // On Android, save into an external cache location so the PDF viewer can read it.
             const dirPath = Platform.OS === 'android'
                 ? RNFS.ExternalCachesDirectoryPath || RNFS.CachesDirectoryPath
@@ -2163,7 +2285,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
             }
             const localFile = `${dirPath}/${safeName}`;
             console.log('[DocumentDownload] Local file path:', localFile);
-            
+
             const options = {
                 fromUrl: url,
                 toFile: localFile,
@@ -2174,7 +2296,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
             const downloadResult = await RNFS.downloadFile(options).promise;
             console.log('[DocumentDownload] Download result:', downloadResult);
-            
+
             if (downloadResult.statusCode === 200) {
                 console.log('[DocumentDownload] Download successful, attempting to open with FileViewer');
                 await FileViewer.open(localFile, { showOpenWithDialog: true })
@@ -2279,8 +2401,8 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                     <Text style={styles.sectionTitle}>Mock Bank</Text>
                     <Text style={styles.subjectSubtitle}>
                         {detailScreen.quizGroups?.length > 0
-                             ? `${detailScreen.quizIds?.length || 0} quizzes in this ${showingSubBundle ? 'course' : 'category'}`
-                             : 'No quizzes returned from the API'}
+                            ? `${detailScreen.quizIds?.length || 0} quizzes in this ${showingSubBundle ? 'course' : 'category'}`
+                            : 'No quizzes returned from the API'}
                     </Text>
 
                     <View style={styles.subjectList}>
@@ -2292,54 +2414,81 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                 </View>
 
                                 <View style={styles.quizCardsWrap}>
-                                    {group.quizzes.map((quiz: any, quizIndex: number) => (
-                                        <LinearGradient 
-                                            key={String(quiz.id || quizIndex)} 
-                                            style={styles.quizCard}
-                                            colors={['#FFFFFF', '#F8FAFC', '#F1F5F9']}
-                                            start={{ x: 0, y: 0 }}
-                                            end={{ x: 1, y: 1 }}
-                                        >
-                                            <View style={styles.quizBadge}>
-                                                <Text style={styles.quizBadgeText}>MOCK</Text>
-                                            </View>
+                                    {group.quizzes.map((quiz: any, quizIndex: number) => {
+                                        const fetchedQuiz = mockMarkingMap[quiz.id || quiz._id || quiz.quizId || quiz.testId];
+                                        const targetQuiz = fetchedQuiz || quiz?.rawQuiz || quiz;
 
-                                            <Text style={styles.quizCardTitle}>{quiz.title}</Text>
-                                            <View style={styles.quizMetaRow}>
-                                                <View style={styles.quizMetaItem}>
-                                                    <Feather name="clock" size={normalize(14)} color="#667085" />
-                                                    <Text style={styles.quizMetaText}>{quiz.durationMinutes || 0}m</Text>
-                                                </View>
-                                                <View style={styles.quizMetaItem}>
-                                                    <Feather name="book-open" size={normalize(14)} color="#667085" />
-                                                    <Text style={styles.quizMetaText}>{quiz.questionCount || 0} Qs</Text>
-                                                </View>
-                                            </View>
-                                            <Text style={styles.quizPriceText}>Rs. {quiz.price || 0}</Text>
+                                        const calculatedTotalMarks = getQuizTotalMarks(targetQuiz) || (getQuizQuestionCount(targetQuiz) * (getQuizMarksPerQuestion(targetQuiz) || 1));
+                                        const markingStr = fetchedQuiz?.marking || quiz?.marking || getQuizMarking(targetQuiz);
 
-                                            {canAttemptMocks ? (
-                                                <Pressable
-                                                    style={[styles.quizActionButton, isEnrollingBundle && styles.quizActionButtonDisabled]}
-                                                    disabled={isEnrollingBundle}
-                                                    onPress={() => handleQuizAction(quiz)}
-                                                >
-                                                    {isEnrollingBundle ? (
-                                                        <ActivityIndicator size="small" color="#FFFFFF" />
-                                                    ) : (
-                                                        <>
-                                                            <Text style={styles.quizActionText}>Attempt</Text>
-                                                            <Feather name="play" size={normalize(14)} color="#FFFFFF" />
-                                                        </>
+                                        const attemptsDisplay = quiz.attempts !== undefined && quiz.attempts !== null
+                                            ? (String(quiz.attempts).toLowerCase() === 'unlimited' ? 'Unlimited' : quiz.attempts)
+                                            : null;
+
+                                        return (
+                                            <LinearGradient
+                                                key={String(quiz.id || quizIndex)}
+                                                style={styles.quizCard}
+                                                colors={['#FFFFFF', '#F8FAFC', '#F1F5F9']}
+                                                start={{ x: 0, y: 0 }}
+                                                end={{ x: 1, y: 1 }}
+                                            >
+                                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: normalize(4) }}>
+                                                    <View style={styles.quizBadge}>
+                                                        <Text style={styles.quizBadgeText}>MOCK</Text>
+                                                    </View>
+                                                    {/* <View style={{ backgroundColor: '#FEF08A', paddingHorizontal: normalize(6), paddingVertical: normalize(3), borderRadius: normalize(4) }}>
+                                                        <Text style={{ fontSize: normalize(10), color: '#A16207', fontWeight: 'bold' }}>{markingStr}</Text>
+                                                    </View> */}
+                                                </View>
+
+                                                <Text style={styles.quizCardTitle}>{quiz.title || quiz.name || 'Mock Bank'}</Text>
+
+                                                <View style={{ marginVertical: normalize(12), gap: normalize(6) }}>
+                                                    {calculatedTotalMarks !== null && calculatedTotalMarks > 0 && (
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                            <Feather name="award" size={normalize(14)} color="#0F766E" style={{ marginRight: normalize(6) }} />
+                                                            <Text style={{ fontSize: normalize(12), color: '#334155', fontWeight: 'bold', fontFamily: Fonts.InterMedium }}>Full Marks: <Text style={{ color: '#64748B', fontWeight: 'bold', fontFamily: Fonts.InterMedium }}>{calculatedTotalMarks}</Text></Text>
+                                                        </View>
                                                     )}
-                                                </Pressable>
-                                            ) : (
-                                                <View style={styles.quizViewOnlyTag}>
-                                                    <Feather name="eye" size={normalize(14)} color="#667085" />
-                                                    <Text style={styles.quizViewOnlyText}>View only</Text>
+                                                    {quiz.durationMinutes ? (
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                            <Feather name="clock" size={normalize(14)} color="#0EA5E9" style={{ marginRight: normalize(6) }} />
+                                                            <Text style={{ fontSize: normalize(12), color: '#334155', fontWeight: 'bold', fontFamily: Fonts.InterMedium }}>Time: <Text style={{ color: '#64748B', fontWeight: 'bold', fontFamily: Fonts.InterMedium }}>{quiz.durationMinutes} Minutes</Text></Text>
+                                                        </View>
+                                                    ) : null}
+                                                    {attemptsDisplay ? (
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                            <Feather name="rotate-ccw" size={normalize(14)} color="#D97706" style={{ marginRight: normalize(6) }} />
+                                                            <Text style={{ fontSize: normalize(12), color: '#334155', fontWeight: 'bold', fontFamily: Fonts.InterMedium }}>Attempts: <Text style={{ color: '#64748B', fontWeight: 'bold', fontFamily: Fonts.InterMedium }}>{attemptsDisplay}</Text></Text>
+                                                        </View>
+                                                    ) : null}
                                                 </View>
-                                            )}
-                                        </LinearGradient>
-                                    ))}
+
+                                                {canAttemptMocks ? (
+                                                    <Pressable
+                                                        style={[styles.quizActionButton, isEnrollingBundle && styles.quizActionButtonDisabled]}
+                                                        disabled={isEnrollingBundle}
+                                                        onPress={() => handleQuizAction(quiz)}
+                                                    >
+                                                        {isEnrollingBundle ? (
+                                                            <ActivityIndicator size="small" color="#FFFFFF" />
+                                                        ) : (
+                                                            <>
+                                                                <Text style={styles.quizActionText}>Attempt</Text>
+                                                                <Feather name="play" size={normalize(14)} color="#FFFFFF" />
+                                                            </>
+                                                        )}
+                                                    </Pressable>
+                                                ) : (
+                                                    <View style={styles.quizViewOnlyTag}>
+                                                        <Feather name="eye" size={normalize(14)} color="#667085" />
+                                                        <Text style={styles.quizViewOnlyText}>View only</Text>
+                                                    </View>
+                                                )}
+                                            </LinearGradient>
+                                        );
+                                    })}
                                 </View>
                             </View>
                         ))}
@@ -2541,12 +2690,12 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                     end={{ x: 1, y: 1 }}
                     style={styles.courseRightPanel}
                 >
-                <LinearGradient
-                    colors={['#0F766E', '#14B8A6', '#0EA5E9']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.courseSectionBanner}
-                >
+                    <LinearGradient
+                        colors={['#0F766E', '#14B8A6', '#0EA5E9']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.courseSectionBanner}
+                    >
                         <View style={styles.courseSectionBannerPillOnly}>
                             <Text style={styles.courseSectionBannerPillValue}>{(activeSection?.items || []).length}</Text>
                             <Text style={styles.courseSectionBannerPillLabel}>ITEMS</Text>
@@ -2596,8 +2745,8 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         const alreadyEnrolled =
             !failedPendingBundleIds.has(resolvedBundleId) &&
             (Boolean(normalizedBundle?.isEnrolled) ||
-            enrolledBundleIds.includes(resolvedBundleId) ||
-            enrolledBundleOverrides.has(resolvedBundleId));
+                enrolledBundleIds.includes(resolvedBundleId) ||
+                enrolledBundleOverrides.has(resolvedBundleId));
 
         setSelectedSubBundleExam(null);
         setActiveSubBundleId(null);
@@ -2712,7 +2861,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                         <View style={styles.sectionCardHeader}>
                             <View style={styles.sectionCardHeaderText}>
                                 <Text style={styles.sectionCardKicker}>EXAM PATTERN</Text>
-                        <Text style={styles.sectionCardTitle}>What this course includes</Text>
+                                <Text style={styles.sectionCardTitle}>What this course includes</Text>
                             </View>
                             <View style={styles.sectionCardPill}>
                                 <Text style={styles.sectionCardPillText}>{examPatternItems.length} ITEMS</Text>
@@ -2870,52 +3019,84 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
 
                                         <View style={styles.quizCardsWrap}>
                                             {group.quizzes.map((quiz: any, quizIndex: number) => {
+                                                const fetchedQuiz = mockMarkingMap[quiz.id || quiz._id || quiz.quizId || quiz.testId];
+                                                const targetQuiz = fetchedQuiz || quiz?.rawQuiz || quiz;
                                                 const quizTheme = getMockCardTheme(groupIndex + quizIndex);
 
+                                                const calculatedTotalMarks = getQuizTotalMarks(targetQuiz) || (getQuizQuestionCount(targetQuiz) * (getQuizMarksPerQuestion(targetQuiz) || 1));
+                                                const markingStr = fetchedQuiz?.marking || quiz?.marking || getQuizMarking(targetQuiz);
+                                                const attemptsDisplay = quiz.attempts !== undefined && quiz.attempts !== null
+                                                    ? (String(quiz.attempts).toLowerCase() === 'unlimited' ? 'Unlimited' : quiz.attempts)
+                                                    : null;
+
                                                 return (
-                                                <Pressable key={String(quiz.id || quizIndex)} style={styles.quizCardPressable}>
-                                                    <LinearGradient
-                                                        colors={quizTheme.top as [string, string, string]}
-                                                        start={{ x: 0, y: 0 }}
-                                                        end={{ x: 1, y: 1 }}
-                                                        style={[styles.quizCard, { borderColor: quizTheme.border }]}
-                                                    >
+                                                    <Pressable key={String(quiz.id || quizIndex)} style={styles.quizCardPressable}>
                                                         <LinearGradient
-                                                            colors={quizTheme.badge as [string, string, string]}
+                                                            colors={quizTheme.top as [string, string, string]}
                                                             start={{ x: 0, y: 0 }}
                                                             end={{ x: 1, y: 1 }}
-                                                            style={styles.courseCardBadge}
+                                                            style={[styles.quizCard, { borderColor: quizTheme.border }]}
                                                         >
-                                                            <Text style={styles.courseCardBadgeText}>MOCK</Text>
-                                                        </LinearGradient>
-                                                        <Text style={styles.quizCardTitle}>{quiz.title}</Text>
-                                                        <Text style={styles.quizCardSubtitle} numberOfLines={2}>
-                                                            {quiz.questionCount || 0} questions • {quiz.durationMinutes || 0} minutes
-                                                        </Text>
-
-                                                        {canAttemptMocks ? (
-                                                            <Pressable
-                                                                style={[styles.quizActionButton, isEnrollingBundle && styles.quizActionButtonDisabled]}
-                                                                disabled={isEnrollingBundle}
-                                                                onPress={() => handleQuizAction(quiz)}
-                                                            >
-                                                                {isEnrollingBundle ? (
-                                                                    <ActivityIndicator size="small" color="#FFFFFF" />
-                                                                ) : (
-                                                                    <>
-                                                                        <Text style={styles.quizActionText}>Attempt</Text>
-                                                                        <Feather name="play" size={normalize(14)} color="#FFFFFF" />
-                                                                    </>
-                                                                )}
-                                                            </Pressable>
-                                                        ) : (
-                                                            <View style={styles.quizViewOnlyTag}>
-                                                                <Feather name="eye" size={normalize(14)} color="#667085" />
-                                                                <Text style={styles.quizViewOnlyText}>View only</Text>
+                                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: normalize(4) }}>
+                                                                <LinearGradient
+                                                                    colors={quizTheme.badge as [string, string, string]}
+                                                                    start={{ x: 0, y: 0 }}
+                                                                    end={{ x: 1, y: 1 }}
+                                                                    style={styles.courseCardBadge}
+                                                                >
+                                                                    <Text style={styles.courseCardBadgeText}>MOCK</Text>
+                                                                </LinearGradient>
+                                                                <View style={{ backgroundColor: '#FEF08A', paddingHorizontal: normalize(6), paddingVertical: normalize(3), borderRadius: normalize(4) }}>
+                                                                    <Text style={{ fontSize: normalize(10), color: '#A16207', fontWeight: 'bold' }}>{markingStr}</Text>
+                                                                </View>
                                                             </View>
-                                                        )}
-                                                    </LinearGradient>
-                                                </Pressable>
+
+                                                            <Text style={styles.quizCardTitle}>{quiz.title || quiz.name || 'Mock Bank'}</Text>
+
+                                                            <View style={{ marginVertical: normalize(12), gap: normalize(6) }}>
+                                                                {calculatedTotalMarks !== null && calculatedTotalMarks > 0 && (
+                                                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                                        <Feather name="award" size={normalize(14)} color="#0F766E" style={{ marginRight: normalize(6) }} />
+                                                                        <Text style={{ fontSize: normalize(12), color: '#334155', fontWeight: '500' }}>Full Marks: <Text style={{ color: '#64748B', fontWeight: '400' }}>{calculatedTotalMarks}</Text></Text>
+                                                                    </View>
+                                                                )}
+                                                                {quiz.durationMinutes ? (
+                                                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                                        <Feather name="clock" size={normalize(14)} color="#0EA5E9" style={{ marginRight: normalize(6) }} />
+                                                                        <Text style={{ fontSize: normalize(12), color: '#334155', fontWeight: '500' }}>Time: <Text style={{ color: '#64748B', fontWeight: '400' }}>{quiz.durationMinutes} Minutes</Text></Text>
+                                                                    </View>
+                                                                ) : null}
+                                                                {attemptsDisplay ? (
+                                                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                                        <Feather name="rotate-ccw" size={normalize(14)} color="#D97706" style={{ marginRight: normalize(6) }} />
+                                                                        <Text style={{ fontSize: normalize(12), color: '#334155', fontWeight: '500' }}>Attempts: <Text style={{ color: '#64748B', fontWeight: '400' }}>{attemptsDisplay}</Text></Text>
+                                                                    </View>
+                                                                ) : null}
+                                                            </View>
+
+                                                            {canAttemptMocks ? (
+                                                                <Pressable
+                                                                    style={[styles.quizActionButton, isEnrollingBundle && styles.quizActionButtonDisabled]}
+                                                                    disabled={isEnrollingBundle}
+                                                                    onPress={() => handleQuizAction(quiz)}
+                                                                >
+                                                                    {isEnrollingBundle ? (
+                                                                        <ActivityIndicator size="small" color="#FFFFFF" />
+                                                                    ) : (
+                                                                        <>
+                                                                            <Text style={styles.quizActionText}>Attempt</Text>
+                                                                            <Feather name="play" size={normalize(14)} color="#FFFFFF" />
+                                                                        </>
+                                                                    )}
+                                                                </Pressable>
+                                                            ) : (
+                                                                <View style={styles.quizViewOnlyTag}>
+                                                                    <Feather name="eye" size={normalize(14)} color="#667085" />
+                                                                    <Text style={styles.quizViewOnlyText}>View only</Text>
+                                                                </View>
+                                                            )}
+                                                        </LinearGradient>
+                                                    </Pressable>
                                                 );
                                             })}
                                         </View>
@@ -3364,7 +3545,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                     return (
                                         <Pressable
                                             style={styles.videoBankCard}
-                                        onPress={() => {
+                                            onPress={() => {
                                                 if (downloadingDocId === documentId) return;
                                                 if (!documentUrl) {
                                                     Toast.show({ type: 'info', text1: 'Document URL not found.' });
@@ -3570,8 +3751,8 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                             const hasEnrolledAccess =
                                 !failedPendingBundleIds.has(bundleId) &&
                                 (Boolean(normalizedBundle?.isEnrolled) ||
-                                enrolledBundleIds.includes(bundleId) ||
-                                enrolledBundleOverrides.has(bundleId));
+                                    enrolledBundleIds.includes(bundleId) ||
+                                    enrolledBundleOverrides.has(bundleId));
                             const isProcessing = paymentHistoryLoading || pendingEnrollmentId === bundleId;
 
                             return (
@@ -4000,7 +4181,7 @@ const styles = StyleSheet.create({
     },
     posterImage: {
         width: '100%',
-        aspectRatio: 3/4,
+        aspectRatio: 3 / 4,
         backgroundColor: '#F3F4F6',
     },
     fallbackPoster: {

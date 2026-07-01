@@ -18,10 +18,10 @@ const getResolvedTestId = (value: any) =>
     value?.id || value?._id || value?.testId || value?.quizId || null;
 
 const getQuizQuestionCount = (quiz: any) =>
-    Number(quiz?.questionCount || quiz?.questionsCount || quiz?.totalQuestions || quiz?.questions?.length || 0);
+    Number(quiz?.questionCount || quiz?.questionsCount || quiz?.totalQuestions || quiz?.questions?.length || quiz?.quiz?.questionCount || quiz?.quiz?.questionsCount || quiz?.quiz?.totalQuestions || quiz?.quiz?.questions?.length || 0);
 
 const getQuizDuration = (quiz: any) =>
-    Number(quiz?.durationMinutes || quiz?.duration || quiz?.timeLimit || 0);
+    Number(quiz?.durationMinutes || quiz?.duration || quiz?.timeLimit || quiz?.quiz?.durationMinutes || quiz?.quiz?.duration || quiz?.quiz?.timeLimit || 0);
 
 const getQuizTotalMarks = (quiz: any) =>
     Number(
@@ -29,17 +29,27 @@ const getQuizTotalMarks = (quiz: any) =>
         quiz?.maxMarks ||
         quiz?.fullMarks ||
         quiz?.marks ||
+        quiz?.quiz?.totalMarks ||
+        quiz?.quiz?.maxMarks ||
+        quiz?.quiz?.fullMarks ||
+        quiz?.quiz?.marks ||
         0
     );
 
 const getQuizNegativeMarking = (quiz: any) => {
-    const negativeMarking = quiz?.negativeMarking ?? quiz?.negativeMarks ?? quiz?.penalty;
-
-    if (typeof negativeMarking === 'object' && negativeMarking !== null) {
-        return negativeMarking?.value ?? '-';
+    const rawNeg =
+        quiz?.negativeMarks ??
+        quiz?.negativeMarking ??
+        quiz?.penalty ??
+        quiz?.quiz?.negativeMarks ??
+        quiz?.quiz?.negativeMarking ??
+        0;
+    
+    if (typeof rawNeg === 'object' && rawNeg !== null) {
+        return rawNeg?.value ?? '-';
     }
 
-    return negativeMarking ?? '-';
+    return rawNeg ?? '-';
 };
 
 const MockTestRulesScreen = ({ navigation, route }: MockTestRulesScreenProps) => {
