@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     Dimensions,
     FlatList,
@@ -75,15 +76,17 @@ const OnboardingScreen = ({ navigation }: OnboardingScreenProps) => {
 
     const primaryLabel = 'Continue';
 
-    const handleMomentumPress = () => {
+    const handleMomentumPress = async () => {
         if (!isLastSlide) {
             flatListRef.current?.scrollToIndex({ index: currentIndex + 1, animated: true });
             return;
         }
+        await AsyncStorage.setItem('hasSeenOnboarding', 'true');
         navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
     };
 
-    const handleSkip = () => {
+    const handleSkip = async () => {
+        await AsyncStorage.setItem('hasSeenOnboarding', 'true');
         navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
     };
 

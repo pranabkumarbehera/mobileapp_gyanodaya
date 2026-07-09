@@ -127,7 +127,7 @@ const ProfileSlice = createSlice({
             state.deleteAccountStep = action.payload;
         },
         clearProfile(state) {
-            return initialState;
+            return { ...initialState };
         },
     }
 });

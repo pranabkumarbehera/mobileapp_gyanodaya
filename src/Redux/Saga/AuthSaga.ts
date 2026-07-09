@@ -26,10 +26,12 @@ import {
     resetPasswordSuccess,
     resetPasswordFailure,
 } from '../Reducers/AuthReducer';
-import { getProfileRequest, getProfileSuccess } from '../Reducers/ProfileReducer';
+import { getProfileRequest, getProfileSuccess, clearProfile } from '../Reducers/ProfileReducer';
 import { postApi } from '../../Utils/Helpers/ApiRequest';
 import constants from '../../Utils/Helpers/constants';
 import Toast from 'react-native-toast-message';
+import { clearMockTestData } from '../Reducers/MockTestReducer';
+import { clearHomeData } from '../Reducers/HomeReducer';
 
 const getAuth = (state: any) => state.AuthReducer;
 const getAccessToken = (response: any) =>
@@ -191,9 +193,9 @@ export function* logoutSaga(): Generator<any, void, any> {
         }
         yield put(tokenSuccess(null));
         yield put(logoutSuccess('logout'));
-        yield put({ type: 'Profile/clearProfile' });
-        yield put({ type: 'MockTest/clearMockTestData' });
-        yield put({ type: 'Home/clearHomeData' });
+        yield put(clearProfile());
+        yield put(clearMockTestData());
+        yield put(clearHomeData());
         Toast.show({ type: 'success', text1: 'Logout successfully !' });
     }
 }

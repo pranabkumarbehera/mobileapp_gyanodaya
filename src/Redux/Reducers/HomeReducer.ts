@@ -32,7 +32,7 @@ const HomeSlice = createSlice({
             state.error = action.error || action.payload;
         },
         clearHomeData() {
-            return initialState;
+            return { ...initialState };
         },
     },
 });

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, Modal, TextInput } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import Colorpath from '../../Themes/Colorpath';
@@ -27,7 +27,9 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
     const [activeTab, setActiveTab] = useState('Free Mock');
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [selectedMock, setSelectedMock] = useState<any>(null);
-
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+    const insets = useSafeAreaInsets();
     const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
     const [selectedSubModuleId, setSelectedSubModuleId] = useState<string | null>(null);
     const [searchInput, setSearchInput] = useState('');
@@ -381,7 +383,7 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
             <Modal visible={showPaymentModal} animationType="slide" transparent={true}>
                 <View style={styles.modalOverlay}>
                     <Pressable style={styles.modalBg} onPress={() => setShowPaymentModal(false)} />
-                    <View style={styles.bottomSheetContent}>
+                    <View style={[styles.bottomSheetContent, { paddingBottom: Math.max(insets.bottom, verticalScale(40)) }]}>
                         <View style={styles.modalIconContainer}>
                             <FontAwesome5 name="crown" size={normalize(28)} color="#F59E0B" />
                         </View>
@@ -433,7 +435,7 @@ const styles = StyleSheet.create({
     premiumBadge: { backgroundColor: '#FEF3C7', padding: normalize(4), borderRadius: normalize(8), borderWidth: 1, borderColor: '#FDE68A' },
     modalOverlay: { flex: 1, justifyContent: 'flex-end' },
     modalBg: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)' },
-    bottomSheetContent: { backgroundColor: '#FFFFFF', borderTopLeftRadius: normalize(24), borderTopRightRadius: normalize(24), padding: normalize(24), paddingBottom: verticalScale(40), alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
+    bottomSheetContent: { backgroundColor: '#FFFFFF', borderTopLeftRadius: normalize(24), borderTopRightRadius: normalize(24), padding: normalize(24), alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
     modalIconContainer: { width: normalize(60), height: normalize(60), borderRadius: normalize(30), backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center', marginBottom: verticalScale(16) },
     modalTitle: { fontSize: normalize(20), fontWeight: 'bold', color: '#111827', marginBottom: verticalScale(8) },
     modalSubtitle: { fontSize: normalize(13), color: '#6B7280', textAlign: 'center', lineHeight: normalize(20), marginBottom: verticalScale(20) },

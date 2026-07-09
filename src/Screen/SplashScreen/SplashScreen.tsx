@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View, Text, StyleSheet, StatusBar, Image, Animated, Easing, Dimensions } from 'react-native';
 import { StackScreenProps } from '@react-navigation/stack';
 import { useDispatch, useSelector } from 'react-redux';
@@ -182,9 +183,17 @@ const SplashScreen = ({ navigation }: SplashScreenProps) => {
         }
 
         if (status === tokenFailure.type || (status === tokenSuccess.type && !token)) {
-          setTimeout(() => {
-            navigation.replace('Onboarding');
-          }, 3500); // Delay navigation to allow splash animations to complete
+          const checkOnboarding = async () => {
+            const hasSeen = await AsyncStorage.getItem('hasSeenOnboarding');
+            setTimeout(() => {
+              if (hasSeen === 'true') {
+                navigation.replace('Login');
+              } else {
+                navigation.replace('Onboarding');
+              }
+            }, 3500); // Delay navigation to allow splash animations to complete
+          };
+          checkOnboarding();
         }
     }, [navigation, status, token]);
 

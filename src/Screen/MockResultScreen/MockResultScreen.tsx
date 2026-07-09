@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, StatusBar, FlatList, Image, Animated, Easing } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import Colorpath from '../../Themes/Colorpath';
 import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
@@ -215,6 +215,7 @@ const AnimatedSkeleton = ({ style }: { style?: any }) => {
 const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
     const dispatch = useDispatch();
     const { testResult, isLoading, submitTestResponse, startTestResponse, status } = useSelector((state: RootState) => state.MockTestReducer);
+    const insets = useSafeAreaInsets();
     const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
     const routeResultData = route.params?.resultData;
     const [isTransitioning, setIsTransitioning] = useState(true);
@@ -551,7 +552,7 @@ const MockResultScreen = ({ navigation, route }: MockResultScreenProps) => {
                 onEndReachedThreshold={0.5}
             />
 
-            <View style={styles.bottomBar}>
+            <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, verticalScale(16)) }]}>
                 <Pressable style={styles.retryBtn} onPress={() => navigation.goBack()}>
                     <Icon name="rotate-ccw" size={normalize(16)} color="#4B5563" style={{ marginRight: normalize(6) }} />
                     <Text style={styles.retryBtnText}>Retry</Text>
@@ -643,7 +644,7 @@ const styles = StyleSheet.create({
     footerSpace: { paddingHorizontal: normalize(20), paddingBottom: verticalScale(16) },
     loadMoreBtn: { alignSelf: 'center', backgroundColor: '#EEF2FF', paddingHorizontal: normalize(18), paddingVertical: verticalScale(10), borderRadius: normalize(999) },
     loadMoreText: { color: Colorpath.Primary, fontSize: normalize(13), fontWeight: '700' },
-    bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: normalize(20), paddingVertical: verticalScale(16), backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#F3F4F6', gap: normalize(12) },
+    bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: normalize(20), paddingTop: verticalScale(16), backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#F3F4F6', gap: normalize(12) },
     retryBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: verticalScale(12), borderRadius: normalize(10), borderWidth: 1, borderColor: '#D1D5DB' },
     retryBtnText: { color: '#374151', fontSize: normalize(15), fontWeight: '600' },
     homeBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: Colorpath.Primary, paddingVertical: verticalScale(12), paddingHorizontal: normalize(14), borderRadius: normalize(10) },

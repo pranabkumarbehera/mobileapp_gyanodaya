@@ -1787,6 +1787,25 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         dispatch(clearPaymentSessionAction());
     }, [dispatch]);
 
+    useEffect(() => {
+        if (authToken) {
+            return;
+        }
+
+        // Make sure a logout leaves no stale course flow state behind for the next login.
+        setSelectedExam(null);
+        setSelectedSubBundleExam(null);
+        setActiveBundleId(null);
+        setActiveSubBundleId(null);
+        setPendingEnrollmentId(null);
+        setEnrolledBundleOverrides(new Set());
+        setActiveDetailTab('mock');
+        setActiveCourseSection('');
+        setIsPaymentWebViewVisible(false);
+        setActivePaymentSession(null);
+        dispatch(clearBundleFlowState());
+    }, [authToken, dispatch]);
+
     const verifyPaymentAndContinue = useCallback(async (bundleId: string) => {
         if (!bundleId) {
             return;

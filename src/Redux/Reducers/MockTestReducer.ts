@@ -237,7 +237,7 @@ const MockTestSlice = createSlice({
             state.documentError = null;
         },
         clearMockTestData(_state) {
-            return initialState;
+            return { ...initialState };
         },
     }
 });

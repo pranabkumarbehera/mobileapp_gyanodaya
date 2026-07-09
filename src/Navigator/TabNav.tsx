@@ -22,7 +22,7 @@ const Tab = createBottomTabNavigator<TabParamList>();
 
 const TabNav = () => {
   const insets = useSafeAreaInsets();
-  const bottomInset = Math.max(insets.bottom, verticalScale(8));
+  const bottomInset = Math.max(insets.bottom, verticalScale(16));
 
   return (
     <Tab.Navigator

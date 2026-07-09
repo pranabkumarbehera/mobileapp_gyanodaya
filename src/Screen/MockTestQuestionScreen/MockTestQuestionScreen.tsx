@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import { StackScreenProps } from '@react-navigation/stack';
 import { useDispatch, useSelector } from 'react-redux';
@@ -155,6 +155,7 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
     const { testId, duration, acceptedTerms } = route.params || {};
     const dispatch = useDispatch();
     const { startTestResponse, submitTestResponse, testResult, isLoading, error, status } = useSelector((state: RootState) => state.MockTestReducer);
+    const insets = useSafeAreaInsets();
 
     const [rawQuestions, setRawQuestions] = useState<any[]>([]);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -708,7 +709,7 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
                 )}
             </ScrollView>
 
-            <View style={styles.bottomBar}>
+            <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, verticalScale(16)) }]}>
                 <Pressable style={[styles.prevButton, isSubmittingExam && styles.disabledButton]} onPress={handlePrev} disabled={isSubmittingExam}>
                     <Icon name="chevron-left" size={normalize(18)} color="#4B5563" />
                     <Text style={styles.prevButtonText}>Prev</Text>
@@ -747,7 +748,7 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
             {showPalette && (
                 <View style={styles.paletteOverlay}>
                     <Pressable style={styles.paletteBg} onPress={() => setShowPalette(false)} />
-                    <View style={styles.paletteContainer}>
+                    <View style={[styles.paletteContainer, { paddingBottom: Math.max(insets.bottom, verticalScale(20)) }]}>
                         <View style={styles.paletteHeader}>
                             <Text style={styles.paletteTitle}>Question Palette</Text>
                             <Pressable onPress={() => setShowPalette(false)}>
@@ -871,7 +872,7 @@ const styles = StyleSheet.create({
     radioDot: { width: normalize(10), height: normalize(10), borderRadius: normalize(5), backgroundColor: Colorpath.Primary },
     optionLetter: { fontSize: normalize(15), color: '#374151', fontWeight: '600', marginRight: normalize(8) },
     optionText: { fontSize: normalize(15), color: '#374151', flex: 1 },
-    bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: normalize(20), paddingVertical: verticalScale(16), backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#F3F4F6', shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 10 },
+    bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: normalize(20), paddingTop: verticalScale(16), backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#F3F4F6', shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 10 },
     prevButton: { flexDirection: 'row', alignItems: 'center', paddingVertical: verticalScale(10), paddingHorizontal: normalize(12) },
     prevButtonText: { color: '#4B5563', fontSize: normalize(15), fontWeight: '600', marginLeft: normalize(4) },
     reviewButton: { flexDirection: 'row', alignItems: 'center', paddingVertical: verticalScale(10), paddingHorizontal: normalize(20), borderRadius: normalize(10), borderWidth: 1, borderColor: '#F59E0B' },
@@ -885,7 +886,7 @@ const styles = StyleSheet.create({
     submittingButton: { minWidth: normalize(150), justifyContent: 'center' },
     paletteOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100 },
     paletteBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
-    paletteContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, height: height * 0.6, backgroundColor: '#FFFFFF', borderTopLeftRadius: normalize(24), borderTopRightRadius: normalize(24), padding: normalize(24), paddingBottom: verticalScale(20) },
+    paletteContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, height: height * 0.6, backgroundColor: '#FFFFFF', borderTopLeftRadius: normalize(24), borderTopRightRadius: normalize(24), padding: normalize(24) },
     paletteHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: verticalScale(20) },
     paletteTitle: { fontSize: normalize(18), fontWeight: 'bold', color: '#111827' },
     gridContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: normalize(10), justifyContent: 'flex-start' },
