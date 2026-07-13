@@ -155,7 +155,7 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
             id: mock.id || mock._id || mock.testId,
             title: mock.title || mock?.quiz?.title || 'Untitled Test',
             subjects: mock.subjects || mock.description || mock?.quiz?.description || 'General Syllabus',
-            questions: mock.questionsCount || mock.questions?.length || mock?.quiz?.questionsCount || mock?.quiz?.questions?.length || 50,
+            questions: mock.questionCount || mock.questionsCount || mock.questions?.length || mock?.quiz?.questionCount || mock?.quiz?.questionsCount || mock?.quiz?.questions?.length || 50,
             duration: mock.durationMinutes || mock.duration || mock?.quiz?.durationMinutes || mock?.quiz?.duration || 60,
             marking: markingStr,
             type: price > 0 ? 'premium' : 'free',
