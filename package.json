@@ -8,7 +8,7 @@
     "lint": "eslint .",
     "start": "react-native start",
     "test": "jest",
-    "delete":"adb uninstall com.gyanodaya.newapp",
+    "delete": "adb uninstall com.gyanodaya.newapp",
     "debug-build": "react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res && cd android && gradlew assembleDebug && cd..",
     "release-build": "cd android && ./gradlew clean  && ./gradlew assembleRelease && cd ..",
     "adb-build": "adb uninstall com.gyanodaya.newapp && cd android && ./gradlew clean  && ./gradlew assembleRelease && cd .."
@@ -42,7 +42,8 @@
     "react-native-webview": "^14.0.1",
     "react-redux": "^9.2.0",
     "redux-logger": "^3.0.6",
-    "redux-saga": "^1.4.2"
+    "redux-saga": "^1.4.2",
+    "sp-react-native-in-app-updates": "^2.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
