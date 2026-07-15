@@ -34,6 +34,7 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
     const [selectedSubModuleId, setSelectedSubModuleId] = useState<string | null>(null);
     const [searchInput, setSearchInput] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
+    const hasMockTestResponse = mockTestList !== null && mockTestList !== undefined;
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -120,16 +121,9 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
     const activeModuleObj = modules.find((m: any) => String(m?.id || m?._id) === String(selectedModuleId));
     const subModules = activeModuleObj?.subModules || activeModuleObj?.sub_modules || activeModuleObj?.submodules || activeModuleObj?.childModules || activeModuleObj?.children || [];
 
-    const fallbackData = [
-        { id: 1, title: 'JEE Full Mock 1', subjects: 'Physics, Chemistry, Maths', questions: 90, duration: 180, marking: '+4/-1', type: 'free' },
-        { id: 2, title: 'NEET Biology 4', subjects: 'Biology, Zoology', questions: 90, duration: 45, marking: '+4/-1', type: 'free' },
-        { id: 3, title: 'Advanced Physics Pro', subjects: 'Physics', questions: 50, duration: 60, marking: '+4/-1', type: 'premium', price: 100 },
-        { id: 4, title: 'Chemistry Elite Mock', subjects: 'Chemistry', questions: 50, duration: 60, marking: '+4/-1', type: 'premium', price: 100 },
-    ];
-
     const rawData = Array.isArray(mockTestList)
         ? mockTestList
-        : mockTestList?.data || mockTestList?.quizzes || mockTestList?.items || fallbackData;
+        : mockTestList?.data || mockTestList?.quizzes || mockTestList?.items || [];
 
     const displayData = rawData.map((mock: any) => {
         const correctMarks = mock?.positiveMarks ?? mock?.correctMarks ?? mock?.defaultMarks ?? mock?.marksPerQuestion ?? mock?.quiz?.positiveMarks ?? mock?.quiz?.defaultMarks ?? mock?.quiz?.marksPerQuestion ?? 1;
@@ -155,8 +149,8 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
             id: mock.id || mock._id || mock.testId,
             title: mock.title || mock?.quiz?.title || 'Untitled Test',
             subjects: mock.subjects || mock.description || mock?.quiz?.description || 'General Syllabus',
-            questions: mock.questionCount || mock.questionsCount || mock.questions?.length || mock?.quiz?.questionCount || mock?.quiz?.questionsCount || mock?.quiz?.questions?.length || 50,
-            duration: mock.durationMinutes || mock.duration || mock?.quiz?.durationMinutes || mock?.quiz?.duration || 60,
+            questions: mock.questionCount ?? mock.questionsCount ?? mock.questions?.length ?? mock?.quiz?.questionCount ?? mock?.quiz?.questionsCount ?? mock?.quiz?.questions?.length ?? null,
+            duration: mock.durationMinutes ?? mock.duration ?? mock?.quiz?.durationMinutes ?? mock?.quiz?.duration ?? null,
             marking: markingStr,
             type: price > 0 ? 'premium' : 'free',
             isUnlocked: isUnlocked,
@@ -327,7 +321,7 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
                     </Pressable>
                 </View>
 
-                {isLoading ? (
+                {!hasMockTestResponse || isLoading ? (
                     <View style={{ marginTop: verticalScale(40), alignItems: 'center' }}>
                         <Text style={{ color: '#6B7280' }}>Loading tests...</Text>
                     </View>
@@ -360,11 +354,15 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
                         <View style={styles.metaRow}>
                             <View style={styles.metaItem}>
                                 <Icon name="clock" size={normalize(14)} color="#6B7280" />
-                                <Text style={styles.metaText}>{mock.duration} Mins</Text>
+                                <Text style={styles.metaText}>
+                                    {mock.duration !== null && mock.duration !== undefined ? `${mock.duration} Mins` : 'Duration unavailable'}
+                                </Text>
                             </View>
                             <View style={styles.metaItem}>
                                 <Icon name="file-text" size={normalize(14)} color="#6B7280" />
-                                <Text style={styles.metaText}>{mock.questions} Qs</Text>
+                                <Text style={styles.metaText}>
+                                    {mock.questions !== null && mock.questions !== undefined ? `${mock.questions} Qs` : 'Questions unavailable'}
+                                </Text>
                             </View>
                         </View>
 
