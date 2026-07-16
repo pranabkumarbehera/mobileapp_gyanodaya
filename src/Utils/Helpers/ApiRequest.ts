@@ -63,11 +63,11 @@ const refreshAccessToken = async () => {
                 return null;
             }
 
-            const response = await axios.post(
-                `${constants.BASE_URL}/auth/refresh`,
-                { refreshToken: storedRefreshToken },
-                { headers: { 'X-Client-Type': 'mobile' } }
-            );
+            const response = await axios.post(`${constants.BASE_URL}/auth/refresh`, {
+                refreshToken: storedRefreshToken,
+            }, {
+                headers: { 'X-Client-Type': 'mobile' }
+            });
 
             const nextAccessToken = getAccessToken(response);
             const nextRefreshToken = getRefreshToken(response);
