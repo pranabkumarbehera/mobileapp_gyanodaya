@@ -4,7 +4,7 @@ import NetInfo from '@react-native-community/netinfo';
 import Toast from 'react-native-toast-message';
 import constants from './constants';
 import Store from '../../Redux/Store';
-import { logoutSuccess } from '../../Redux/Reducers/AuthReducer';
+import { logoutSuccess, tokenSuccess } from '../../Redux/Reducers/AuthReducer';
 
 const normalizeUrl = (url: string) => url.replace(/^\/+/, '');
 
@@ -77,6 +77,7 @@ const refreshAccessToken = async () => {
             }
 
             await AsyncStorage.setItem(constants.TOKEN, nextAccessToken);
+            Store.dispatch(tokenSuccess(nextAccessToken));
             if (nextRefreshToken) {
                 await AsyncStorage.setItem(constants.REFRESH_TOKEN, nextRefreshToken);
             }
@@ -145,8 +146,11 @@ axiosInstance.interceptors.response.use(
                 notifySessionExpiredOnce(typeof serverMessage === 'string' ? serverMessage : undefined);
                 return Promise.reject(error);
             } catch (refreshError: any) {
-                await clearSessionData();
-                notifySessionExpiredOnce(refreshError?.response?.data?.message);
+                const status = refreshError?.response?.status;
+                if (status === 401 || status === 403) {
+                    await clearSessionData();
+                    notifySessionExpiredOnce(refreshError?.response?.data?.message);
+                }
                 return Promise.reject(refreshError);
             }
         }

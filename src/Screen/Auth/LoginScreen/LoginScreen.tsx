@@ -147,7 +147,21 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
         }
 
         const deviceName = Platform.OS === 'ios' ? 'iOS Device' : 'Android Device';
-        const deviceId = Platform.OS === 'ios' ? 'ios-device' : 'android-device';
+        let deviceId = Platform.OS === 'ios' ? 'ios-device' : 'android-device';
+        try {
+            let id = await AsyncStorage.getItem('device_id');
+            if (!id) {
+                id = 'xxxx-xxxx-4xxx-yxxx-xxxx'.replace(/[xy]/g, (c) => {
+                    const r = (Math.random() * 16) | 0;
+                    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+                    return v.toString(16);
+                });
+                await AsyncStorage.setItem('device_id', id);
+            }
+            deviceId = id;
+        } catch {
+            // Ignore
+        }
 
         dispatch(loginRequest({ 
             email: email.trim(), 
