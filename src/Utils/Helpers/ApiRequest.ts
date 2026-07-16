@@ -63,9 +63,11 @@ const refreshAccessToken = async () => {
                 return null;
             }
 
-            const response = await axios.post(`${constants.BASE_URL}/auth/refresh`, {
-                refreshToken: storedRefreshToken,
-            });
+            const response = await axios.post(
+                `${constants.BASE_URL}/auth/refresh`,
+                { refreshToken: storedRefreshToken },
+                { headers: { 'X-Client-Type': 'mobile' } }
+            );
 
             const nextAccessToken = getAccessToken(response);
             const nextRefreshToken = getRefreshToken(response);
@@ -103,6 +105,7 @@ axiosInstance.interceptors.request.use(
             }
 
             if (!config.headers) config.headers = {} as any;
+            config.headers['X-Client-Type'] = 'mobile';
             const token = await AsyncStorage.getItem(constants.TOKEN);
             if (token) {
                 config.headers.Authorization = `Bearer ${token}`;
@@ -117,7 +120,10 @@ axiosInstance.interceptors.request.use(
 
 // Response Interceptor for Refresh Token Handling
 axiosInstance.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        hasShownSessionExpiredMessage = false;
+        return response;
+    },
     async (error) => {
         const originalRequest = error.config || {};
         const isRefreshRequest = String(originalRequest.url || '').includes('auth/refresh');
