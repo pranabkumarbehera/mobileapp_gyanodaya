@@ -27,10 +27,23 @@ const MockTestSlice = createSlice({
     reducers: {
         getMockTestListRequest(state, action) {
             state.status = action.type;
-            state.isLoading = true;
+            state.isLoading = action.payload?.page === 1 || !action.payload?.page; // only set primary loader on first page
         },
         getMockTestListSuccess(state, action) {
-            state.mockTestList = action.payload;
+            const incoming = action.payload;
+            const existingList = state.mockTestList?.items || state.mockTestList?.quizzes || state.mockTestList?.data || (Array.isArray(state.mockTestList) ? state.mockTestList : []);
+            if (incoming?.page > 1 && existingList.length > 0) {
+                const newItems = incoming.items || incoming.quizzes || incoming.data || (Array.isArray(incoming) ? incoming : []);
+                const merged = [...existingList, ...newItems];
+                state.mockTestList = {
+                    ...incoming,
+                    items: merged,
+                    quizzes: merged,
+                    data: merged,
+                };
+            } else {
+                state.mockTestList = incoming;
+            }
             state.status = action.type;
             state.isLoading = false;
         },
@@ -41,10 +54,23 @@ const MockTestSlice = createSlice({
         },
         getBundleListRequest(state, action) {
             state.status = action.type;
-            state.isLoading = true;
+            state.isLoading = action.payload?.page === 1 || !action.payload?.page; // only set primary loader on first page
         },
         getBundleListSuccess(state, action) {
-            state.bundleList = action.payload;
+            const incoming = action.payload;
+            const existingList = state.bundleList?.items || state.bundleList?.bundles || state.bundleList?.data || (Array.isArray(state.bundleList) ? state.bundleList : []);
+            if (incoming?.page > 1 && existingList.length > 0) {
+                const newItems = incoming.items || incoming.bundles || incoming.data || (Array.isArray(incoming) ? incoming : []);
+                const merged = [...existingList, ...newItems];
+                state.bundleList = {
+                    ...incoming,
+                    items: merged,
+                    bundles: merged,
+                    data: merged,
+                };
+            } else {
+                state.bundleList = incoming;
+            }
             state.status = action.type;
             state.isLoading = false;
         },

@@ -1674,6 +1674,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
     } = useSelector((state: RootState) => state.MockTestReducer);
 
     const [searchQuery, setSearchQuery] = useState('');
+    const [bundlePage, setBundlePage] = useState(1);
     const [selectedModule, setSelectedModule] = useState<string | null>(null);
     const [selectedExam, setSelectedExam] = useState<any>(null);
     const [selectedSubBundleExam, setSelectedSubBundleExam] = useState<any>(null);
@@ -1822,8 +1823,12 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         dispatch(bundleIDRequest({ id: bundleId }));
     }, [clearPaymentSession, dispatch]);
     useEffect(() => {
-        dispatch(getBundleListRequest({ limit: 50, page: 1, ...(selectedModule ? { module: selectedModule } : {}) }));
-    }, [dispatch, selectedModule]);
+        setBundlePage(1);
+    }, [selectedModule]);
+
+    useEffect(() => {
+        dispatch(getBundleListRequest({ limit: 10, page: bundlePage, ...(selectedModule ? { module: selectedModule } : {}) }));
+    }, [dispatch, selectedModule, bundlePage]);
 
     useEffect(() => {
         if (isFocused) {
@@ -3764,6 +3769,13 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                             const normalizedBundle = getBundlePayload(bundle);
                             return String(getBundleId(normalizedBundle) || index);
                         }}
+                        onEndReached={() => {
+                            const totalPages = bundleList?.totalPages || 1;
+                            if (bundlePage < totalPages && !isLoading) {
+                                setBundlePage((prev) => prev + 1);
+                            }
+                        }}
+                        onEndReachedThreshold={0.5}
                         renderItem={({ item: bundle, index }) => {
                             const normalizedBundle = getBundlePayload(bundle);
                             const bundleId = String(getBundleId(normalizedBundle) || index);

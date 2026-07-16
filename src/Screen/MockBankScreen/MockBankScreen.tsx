@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, Modal, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
@@ -34,6 +34,7 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
     const [selectedSubModuleId, setSelectedSubModuleId] = useState<string | null>(null);
     const [searchInput, setSearchInput] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [mockPage, setMockPage] = useState(1);
     const hasMockTestResponse = mockTestList !== null && mockTestList !== undefined;
 
     useEffect(() => {
@@ -51,12 +52,30 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
     }, [dispatch, isFocused]);
 
     useEffect(() => {
+        setMockPage(1);
+    }, [selectedModuleId, selectedSubModuleId, debouncedSearch]);
+
+    useEffect(() => {
         dispatch(getMockTestListRequest({
             moduleId: selectedModuleId || '',
             subModuleId: selectedSubModuleId || '',
             search: debouncedSearch,
+            page: mockPage,
+            limit: 10,
         }));
-    }, [dispatch, selectedModuleId, selectedSubModuleId, debouncedSearch]);
+    }, [dispatch, selectedModuleId, selectedSubModuleId, debouncedSearch, mockPage]);
+
+    const handleLoadMore = () => {
+        const totalPages = mockTestList?.totalPages || 1;
+        if (mockPage < totalPages && !isLoading) {
+            setMockPage((prev) => prev + 1);
+        }
+    };
+
+    const isCloseToBottom = ({ layoutMeasurement, contentOffset, contentSize }: any) => {
+        const paddingToBottom = 20;
+        return layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom;
+    };
 
     const { enrolledBundleIds, failedPendingBundleIds } = useMemo(() => {
         const collectedIds = studentModules?.data?.modules || studentModules?.modules || studentModules?.data || (Array.isArray(studentModules) ? studentModules : []);
@@ -173,7 +192,15 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
                 </Pressable>
             </View>
 
-            <ScrollView contentContainerStyle={styles.scrollContent}>
+            <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                onScroll={({ nativeEvent }) => {
+                    if (isCloseToBottom(nativeEvent)) {
+                        handleLoadMore();
+                    }
+                }}
+                scrollEventThrottle={400}
+            >
                 <Text style={styles.headerTitle}>Test Series</Text>
                 <Text style={styles.sectionSubtitle}>Practice with real exam scenarios.</Text>
 
@@ -374,6 +401,12 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
                         </Pressable>
                     </View>
                 ))}
+
+                {mockPage < (mockTestList?.totalPages || 1) && (
+                    <View style={{ paddingVertical: verticalScale(20), alignItems: 'center' }}>
+                        <ActivityIndicator size="small" color={Colorpath.Primary} />
+                    </View>
+                )}
 
                 <View style={{ height: verticalScale(100) }} />
             </ScrollView>
