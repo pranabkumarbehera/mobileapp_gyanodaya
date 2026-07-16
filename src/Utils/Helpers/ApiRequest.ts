@@ -59,31 +59,42 @@ const refreshAccessToken = async () => {
     if (!refreshPromise) {
         refreshPromise = (async () => {
             const storedRefreshToken = await AsyncStorage.getItem(constants.REFRESH_TOKEN);
+            console.log('[Auth Debug] Stored refresh token:', storedRefreshToken ? 'exists' : 'null');
             if (!storedRefreshToken) {
                 return null;
             }
 
-            const response = await axios.post(`${constants.BASE_URL}/auth/refresh`, {
-                refreshToken: storedRefreshToken,
-            }, {
-                headers: { 'X-Client-Type': 'mobile' }
-            });
+            try {
+                console.log(`[Auth Debug] Calling refresh API: ${constants.BASE_URL}/auth/refresh`);
+                const response = await axios.post(`${constants.BASE_URL}/auth/refresh`, {
+                    refreshToken: storedRefreshToken,
+                }, {
+                    headers: { 'X-Client-Type': 'mobile' }
+                });
 
-            const nextAccessToken = getAccessToken(response);
-            const nextRefreshToken = getRefreshToken(response);
+                console.log('[Auth Debug] Refresh API Response Status:', response.status);
 
-            if (!nextAccessToken) {
-                return null;
+                const nextAccessToken = getAccessToken(response);
+                const nextRefreshToken = getRefreshToken(response);
+
+                if (!nextAccessToken) {
+                    console.log('[Auth Debug] Refresh API succeeded but could not parse new accessToken from response data:', response.data);
+                    return null;
+                }
+
+                console.log('[Auth Debug] Successfully received new access token');
+                await AsyncStorage.setItem(constants.TOKEN, nextAccessToken);
+                Store.dispatch(tokenSuccess(nextAccessToken));
+                if (nextRefreshToken) {
+                    await AsyncStorage.setItem(constants.REFRESH_TOKEN, nextRefreshToken);
+                }
+                hasShownSessionExpiredMessage = false;
+
+                return nextAccessToken;
+            } catch (err: any) {
+                console.log('[Auth Debug] Refresh API failed with error:', err.response?.status, err.response?.data || err.message);
+                throw err;
             }
-
-            await AsyncStorage.setItem(constants.TOKEN, nextAccessToken);
-            Store.dispatch(tokenSuccess(nextAccessToken));
-            if (nextRefreshToken) {
-                await AsyncStorage.setItem(constants.REFRESH_TOKEN, nextRefreshToken);
-            }
-            hasShownSessionExpiredMessage = false;
-
-            return nextAccessToken;
         })().finally(() => {
             refreshPromise = null;
         });
@@ -230,4 +241,3 @@ export async function deleteApi(url: string, payload?: any, header: any = {}) {
 
     return axiosInstance.delete(normalizedUrl, { headers: reqHeaders, data: payload });
 }
-
