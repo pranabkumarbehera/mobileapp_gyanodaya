@@ -1,6 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
+import { AppState } from 'react-native';
 import Toast from 'react-native-toast-message';
 import constants from './constants';
 import Store from '../../Redux/Store';
@@ -14,6 +15,13 @@ const axiosInstance = axios.create({
 
 let refreshPromise: Promise<string | null> | null = null;
 let hasShownSessionExpiredMessage = false;
+let appStateListenerAttached = false;
+let sessionBootstrapStarted = false;
+let lastForegroundRefreshAt = 0;
+
+const TOKEN_REFRESH_WINDOW_MS = 2 * 60 * 1000;
+const APP_STATE_STORAGE_KEY = 'APP_SESSION_STATE';
+const APP_LAST_BACKGROUND_AT_KEY = 'APP_LAST_BACKGROUND_AT';
 
 const getAccessToken = (response: any) =>
     response?.data?.accessToken ||
@@ -33,10 +41,74 @@ const getRefreshToken = (response: any) =>
     response?.data?.data?.tokens?.refresh_token ||
     null;
 
+const stripBearer = (token: string) => token.replace(/^Bearer\s+/i, '').trim();
+
+const decodeBase64Url = (value: string) => {
+    const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+    const runtimeGlobal = globalThis as any;
+
+    try {
+        if (typeof runtimeGlobal.atob === 'function') {
+            return runtimeGlobal.atob(padded);
+        }
+    } catch {
+        // Ignore
+    }
+
+    try {
+        if (runtimeGlobal.Buffer?.from) {
+            return runtimeGlobal.Buffer.from(padded, 'base64').toString('utf8');
+        }
+    } catch {
+        return null;
+    }
+
+    return null;
+};
+
+const getTokenExpiryMs = (token?: string | null) => {
+    if (!token) {
+        return null;
+    }
+
+    const parts = stripBearer(token).split('.');
+    if (parts.length < 2) {
+        return null;
+    }
+
+    const payload = decodeBase64Url(parts[1]);
+    if (!payload) {
+        return null;
+    }
+
+    try {
+        const parsed = JSON.parse(payload);
+        const exp = Number(parsed?.exp);
+        if (!Number.isFinite(exp) || exp <= 0) {
+            return null;
+        }
+        return exp * 1000;
+    } catch {
+        return null;
+    }
+};
+
+const shouldRefreshTokenSoon = (token?: string | null) => {
+    const expiryMs = getTokenExpiryMs(token);
+    if (!expiryMs) {
+        return false;
+    }
+
+    return expiryMs - Date.now() <= TOKEN_REFRESH_WINDOW_MS;
+};
+
 const clearSessionData = async () => {
     await AsyncStorage.removeItem(constants.TOKEN);
     await AsyncStorage.removeItem(constants.REFRESH_TOKEN);
     await AsyncStorage.removeItem(constants.USER_DATA);
+    await AsyncStorage.removeItem(APP_STATE_STORAGE_KEY);
+    await AsyncStorage.removeItem(APP_LAST_BACKGROUND_AT_KEY);
     Store.dispatch(logoutSuccess('Session expired'));
     Store.dispatch({ type: 'Profile/clearProfile' });
     Store.dispatch({ type: 'MockTest/clearMockTestData' });
@@ -59,30 +131,24 @@ const refreshAccessToken = async () => {
     if (!refreshPromise) {
         refreshPromise = (async () => {
             const storedRefreshToken = await AsyncStorage.getItem(constants.REFRESH_TOKEN);
-            console.log('[Auth Debug] Stored refresh token:', storedRefreshToken ? 'exists' : 'null');
             if (!storedRefreshToken) {
                 return null;
             }
 
             try {
-                console.log(`[Auth Debug] Calling refresh API: ${constants.BASE_URL}/auth/refresh`);
                 const response = await axios.post(`${constants.BASE_URL}/auth/refresh`, {
                     refreshToken: storedRefreshToken,
                 }, {
                     headers: { 'X-Client-Type': 'mobile' }
                 });
 
-                console.log('[Auth Debug] Refresh API Response Status:', response.status);
-
                 const nextAccessToken = getAccessToken(response);
                 const nextRefreshToken = getRefreshToken(response);
 
                 if (!nextAccessToken) {
-                    console.log('[Auth Debug] Refresh API succeeded but could not parse new accessToken from response data:', response.data);
                     return null;
                 }
 
-                console.log('[Auth Debug] Successfully received new access token');
                 await AsyncStorage.setItem(constants.TOKEN, nextAccessToken);
                 Store.dispatch(tokenSuccess(nextAccessToken));
                 if (nextRefreshToken) {
@@ -92,7 +158,6 @@ const refreshAccessToken = async () => {
 
                 return nextAccessToken;
             } catch (err: any) {
-                console.log('[Auth Debug] Refresh API failed with error:', err.response?.status, err.response?.data || err.message);
                 throw err;
             }
         })().finally(() => {
@@ -102,6 +167,68 @@ const refreshAccessToken = async () => {
 
     return refreshPromise;
 };
+
+const warmUpSessionIfNeeded = async () => {
+    const currentToken = await AsyncStorage.getItem(constants.TOKEN);
+    if (!currentToken || !shouldRefreshTokenSoon(currentToken)) {
+        return currentToken;
+    }
+
+    try {
+        return await refreshAccessToken();
+    } catch {
+        return null;
+    }
+};
+
+const storeAppStateSnapshot = async (nextState: string) => {
+    await AsyncStorage.setItem(APP_STATE_STORAGE_KEY, nextState);
+    if (nextState !== 'active') {
+        await AsyncStorage.setItem(APP_LAST_BACKGROUND_AT_KEY, String(Date.now()));
+    }
+};
+
+const bootstrapSessionOnLaunch = async () => {
+    if (sessionBootstrapStarted) {
+        return;
+    }
+    sessionBootstrapStarted = true;
+
+    const currentToken = await AsyncStorage.getItem(constants.TOKEN);
+    if (!currentToken) {
+        return;
+    }
+
+    await warmUpSessionIfNeeded();
+    await storeAppStateSnapshot('active');
+};
+
+if (!appStateListenerAttached) {
+    appStateListenerAttached = true;
+    AppState.addEventListener('change', (nextState) => {
+        void storeAppStateSnapshot(nextState).catch(() => {
+            // Ignore state persistence failures.
+        });
+
+        if (nextState !== 'active') {
+            return;
+        }
+
+        const now = Date.now();
+        if (now - lastForegroundRefreshAt < 15000) {
+            return;
+        }
+
+        lastForegroundRefreshAt = now;
+        warmUpSessionIfNeeded().catch(() => {
+            // Ignore background warm-up failures; request-time handling will still run.
+        });
+    });
+
+    void bootstrapSessionOnLaunch().catch(() => {
+        // Ignore launch warm-up failures; request-time handling will still run.
+    });
+}
 
 axiosInstance.interceptors.request.use(
     async (config) => {
@@ -118,7 +245,24 @@ axiosInstance.interceptors.request.use(
 
             if (!config.headers) config.headers = {} as any;
             config.headers['X-Client-Type'] = 'mobile';
-            const token = await AsyncStorage.getItem(constants.TOKEN);
+            const normalizedUrl = String(config.url || '');
+            const isAuthRoute =
+                normalizedUrl.includes('auth/login') ||
+                normalizedUrl.includes('auth/student/login') ||
+                normalizedUrl.includes('auth/refresh') ||
+                normalizedUrl.includes('auth/logout') ||
+                normalizedUrl.includes('auth/forgot-password') ||
+                normalizedUrl.includes('auth/verify-otp') ||
+                normalizedUrl.includes('auth/reset-password');
+
+            let token = await AsyncStorage.getItem(constants.TOKEN);
+            if (token && !isAuthRoute && shouldRefreshTokenSoon(token)) {
+                const refreshedToken = await refreshAccessToken();
+                if (refreshedToken) {
+                    token = refreshedToken;
+                }
+            }
+
             if (token) {
                 config.headers.Authorization = `Bearer ${token}`;
             }
