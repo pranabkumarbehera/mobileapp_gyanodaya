@@ -1807,13 +1807,20 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         dispatch(clearBundleFlowState());
     }, [authToken, dispatch]);
 
-    const verifyPaymentAndContinue = useCallback(async (bundleId: string) => {
+    const verifyPaymentAndContinue = useCallback(async (bundleId: string, isSuccess?: boolean) => {
         if (!bundleId) {
             return;
         }
 
         await clearPaymentSession();
         setPendingEnrollmentId(null);
+
+        if (isSuccess === false) {
+            Toast.show({ type: 'error', text1: 'Payment Failed', text2: 'Please try again.' });
+            return;
+        }
+
+        Toast.show({ type: 'success', text1: 'Payment Successful', text2: 'Unlocking your course...' });
         setEnrolledBundleOverrides(prev => {
             const next = new Set(prev);
             next.add(String(bundleId));
@@ -1821,6 +1828,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
         });
         dispatch(paymentHistoryRequest({ page: 1, limit: 100 }));
         dispatch(bundleIDRequest({ id: bundleId }));
+        dispatch(getStudentModulesRequest({}));
     }, [clearPaymentSession, dispatch]);
     useEffect(() => {
         setBundlePage(1);
@@ -1991,7 +1999,7 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
             }
         };
 
-        openUpiApp().catch(() => undefined);
+        openUpiApp();
         return false;
     }, []);
 
@@ -3863,12 +3871,13 @@ const CoursesScreen = ({ navigation }: CoursesScreenProps) => {
                                     </View>
                                 )}
                                 onNavigationStateChange={(navState) => {
-                                    const currentUrl = String(navState.url || '');
-                                    const successHints = ['success', 'payment-success', 'verified', 'paid', 'thank', 'complete'];
-                                    if (successHints.some((hint) => currentUrl.toLowerCase().includes(hint))) {
-                                        verifyPaymentAndContinue(String(activePaymentSession.resourceId)).catch(() => undefined);
-                                    }
-                                }}
+                                     const currentUrl = String(navState.url || '');
+                                     if (currentUrl.toLowerCase().includes('payment_status=success')) {
+                                         verifyPaymentAndContinue(String(activePaymentSession.resourceId), true).catch(() => undefined);
+                                     } else if (currentUrl.toLowerCase().includes('payment_status=failed')) {
+                                         verifyPaymentAndContinue(String(activePaymentSession.resourceId), false).catch(() => undefined);
+                                     }
+                                 }}
                                 onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
                                 onError={() => {
                                     Toast.show({ type: 'error', text1: 'Unable to load payment page. Please try again.' });
