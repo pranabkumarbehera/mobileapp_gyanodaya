@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
-    AppState,
-    AppStateStatus,
+    BackHandler,
     Animated,
     Dimensions,
     Pressable,
@@ -32,7 +31,7 @@ const { height } = Dimensions.get('window');
 
 type MockTestQuestionScreenProps = StackScreenProps<RootStackParamList, 'MockTestQuestion'>;
 
-const PAGE_BUFFER_SECONDS = 15;
+const PAGE_BUFFER_SECONDS = 0;
 const FIVE_MIN_WARNING_SECONDS = 5 * 60;
 const SESSION_PREFIX = 'MOCK_TEST_SESSION_';
 const DEFAULT_DURATION_SECONDS = 3 * 60;
@@ -175,7 +174,6 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
     const reviewedRef = useRef<Set<number>>(new Set());
     const currentIndexRef = useRef(0);
     const sessionMetaRef = useRef<typeof sessionMeta>(null);
-    const appStateRef = useRef<AppStateStatus>(AppState.currentState);
     const autoSubmitTriggeredRef = useRef(false);
     const submittingRef = useRef(false);
     const fiveMinuteWarningShownRef = useRef(false);
@@ -291,6 +289,11 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
             isMounted = false;
         };
     }, [dispatch, testId]);
+
+    useEffect(() => {
+        const subscription = BackHandler.addEventListener('hardwareBackPress', () => true);
+        return () => subscription.remove();
+    }, []);
 
     useEffect(() => {
         if (!sessionLoaded || sessionMetaRef.current) {
@@ -430,23 +433,6 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
 
         return () => clearInterval(timerId);
     }, [sessionMeta]);
-
-    useEffect(() => {
-        const subscription = AppState.addEventListener('change', (nextState) => {
-            const previousState = appStateRef.current;
-            appStateRef.current = nextState;
-
-            if ((previousState === 'background' || previousState === 'inactive') && nextState === 'active' && sessionMetaRef.current) {
-                const secondsLeft = Math.max(0, Math.ceil((sessionMetaRef.current.endTimestamp - Date.now()) / 1000));
-                setRemainingSeconds(secondsLeft);
-                if (secondsLeft <= PAGE_BUFFER_SECONDS && !autoSubmitTriggeredRef.current) {
-                    submitLatestAnswers(true);
-                }
-            }
-        });
-
-        return () => subscription.remove();
-    }, []);
 
     useEffect(() => {
         if (isSubmittingExam && submitTestResponse && submittedAttemptId && hasResultPayload(testResult)) {
@@ -611,7 +597,7 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
             <View style={styles.headerBackground}>
                 <SafeAreaView edges={['top']}>
                     <View style={styles.topBar}>
-                        <Pressable onPress={() => navigation.goBack()} style={styles.iconButton}>
+                        <Pressable disabled onPress={() => null} style={[styles.iconButton, styles.iconButtonDisabled]}>
                             <Icon name="arrow-left" size={normalize(24)} color="#FFFFFF" />
                         </Pressable>
                         <Text style={styles.headerTitle}>{sessionMeta?.title || startTestResponse?.title || startTestResponse?.quiz?.title || 'Mock Test'}</Text>
@@ -841,6 +827,7 @@ const styles = StyleSheet.create({
     headerBackground: { backgroundColor: Colorpath.Primary },
     topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: normalize(24), paddingTop: verticalScale(10), paddingBottom: verticalScale(16) },
     iconButton: { padding: normalize(4) },
+    iconButtonDisabled: { opacity: 0.4 },
     jumpButton: { flexDirection: 'row', alignItems: 'center', padding: normalize(4) },
     jumpButtonText: { color: '#FF4D4F', fontSize: normalize(14), fontWeight: '800', marginRight: normalize(8) },
     headerTitle: { fontSize: normalize(18), fontWeight: 'bold', color: '#FFFFFF' },

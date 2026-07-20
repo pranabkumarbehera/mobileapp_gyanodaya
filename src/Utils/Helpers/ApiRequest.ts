@@ -297,21 +297,15 @@ axiosInstance.interceptors.response.use(
                     return axiosInstance(originalRequest);
                 }
 
-                await clearSessionData();
                 notifySessionExpiredOnce(typeof serverMessage === 'string' ? serverMessage : undefined);
                 return Promise.reject(error);
             } catch (refreshError: any) {
-                const status = refreshError?.response?.status;
-                if (status === 401 || status === 403) {
-                    await clearSessionData();
-                    notifySessionExpiredOnce(refreshError?.response?.data?.message);
-                }
+                notifySessionExpiredOnce(refreshError?.response?.data?.message);
                 return Promise.reject(refreshError);
             }
         }
 
         if (error.response?.status === 401 && isRefreshRequest) {
-            await clearSessionData();
             notifySessionExpiredOnce(typeof serverMessage === 'string' ? serverMessage : undefined);
         }
 

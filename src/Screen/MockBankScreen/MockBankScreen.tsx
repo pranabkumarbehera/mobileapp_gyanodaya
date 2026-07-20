@@ -1,16 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, StatusBar, Modal, TextInput } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import Colorpath from '../../Themes/Colorpath';
 import { normalize, verticalScale } from '../../Utils/Helpers/normalize';
-import { StackScreenProps } from '@react-navigation/stack';
-import { RootStackParamList } from '../../Navigator/StackNav';
-import { useDispatch, useSelector } from 'react-redux';
-import { getMockTestListRequest, getStudentModulesRequest } from '../../Redux/Reducers/MockTestReducer';
+import { getApi } from '../../Utils/Helpers/ApiRequest';
+import { useSelector } from 'react-redux';
 import { RootState } from '../../Redux/Store';
-import { paymentHistoryRequest } from '../../Redux/Reducers/ProfileReducer';
 import { useIsFocused } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 
@@ -18,23 +15,62 @@ type MockBankScreenProps = {
     navigation: any;
 };
 
-const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
-    const dispatch = useDispatch();
-    const isFocused = useIsFocused();
-    const { mockTestList, studentModules, isLoading } = useSelector((state: RootState) => state.MockTestReducer);
-    const { paymentHistoryData, paymentHistoryLoading } = useSelector((state: RootState) => state.ProfileReducer);
+const parseApiItems = (response: any) => {
+    const payload = response?.data?.data ?? response?.data ?? response;
 
-    const [activeTab, setActiveTab] = useState('Free Mock');
-    const [showPaymentModal, setShowPaymentModal] = useState(false);
-    const [selectedMock, setSelectedMock] = useState<any>(null);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+    if (Array.isArray(payload)) {
+        return payload;
+    }
+
+    if (Array.isArray(payload?.items)) {
+        return payload.items;
+    }
+
+    if (Array.isArray(payload?.modules)) {
+        return payload.modules;
+    }
+
+    if (Array.isArray(payload?.subModules)) {
+        return payload.subModules;
+    }
+
+    if (Array.isArray(payload?.sub_modules)) {
+        return payload.sub_modules;
+    }
+
+    if (Array.isArray(payload?.quizzes)) {
+        return payload.quizzes;
+    }
+
+    if (Array.isArray(payload?.data)) {
+        return payload.data;
+    }
+
+    return [];
+};
+
+const buildAuthHeader = (token: string | null) => ({
+    Accept: 'application/json',
+    contenttype: 'application/json',
+    authorization: token,
+});
+
+const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
+    const isFocused = useIsFocused();
+    const authToken = useSelector((state: RootState) => state.AuthReducer.token);
     const insets = useSafeAreaInsets();
+    const [modules, setModules] = useState<any[]>([]);
+    const [subModules, setSubModules] = useState<any[]>([]);
+    const [mockTests, setMockTests] = useState<any[]>([]);
+    const [isModulesLoading, setIsModulesLoading] = useState(false);
+    const [isSubModulesLoading, setIsSubModulesLoading] = useState(false);
+    const [isMockTestsLoading, setIsMockTestsLoading] = useState(false);
     const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
     const [selectedSubModuleId, setSelectedSubModuleId] = useState<string | null>(null);
     const [searchInput, setSearchInput] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
-    const hasMockTestResponse = mockTestList !== null && mockTestList !== undefined;
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [selectedMock, setSelectedMock] = useState<any>(null);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -43,91 +79,89 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
         return () => clearTimeout(timer);
     }, [searchInput]);
 
+    const fetchModules = useCallback(async () => {
+        if (!authToken) {
+            setModules([]);
+            return;
+        }
+
+        try {
+            setIsModulesLoading(true);
+            const response = await getApi('student/modules', buildAuthHeader(authToken));
+            setModules(parseApiItems(response));
+        } catch (error: any) {
+            setModules([]);
+            Toast.show({
+                type: 'error',
+                text1: error?.response?.data?.message || 'Failed to fetch courses',
+            });
+        } finally {
+            setIsModulesLoading(false);
+        }
+    }, [authToken]);
+
+    const fetchSubModules = useCallback(async (moduleId: string | null) => {
+        if (!authToken || !moduleId) {
+            setSubModules([]);
+            return;
+        }
+
+        try {
+            setIsSubModulesLoading(true);
+            const response = await getApi(`student/sub-modules?moduleId=${encodeURIComponent(moduleId)}`, buildAuthHeader(authToken));
+            setSubModules(parseApiItems(response));
+        } catch (error: any) {
+            setSubModules([]);
+            Toast.show({
+                type: 'error',
+                text1: error?.response?.data?.message || 'Failed to fetch categories',
+            });
+        } finally {
+            setIsSubModulesLoading(false);
+        }
+    }, [authToken]);
+
+    const fetchMockTests = useCallback(async (moduleId: string | null, subModuleId: string | null, search: string) => {
+        if (!authToken) {
+            setMockTests([]);
+            return;
+        }
+
+        try {
+            setIsMockTestsLoading(true);
+            const query = new URLSearchParams({
+                moduleId: moduleId || '',
+                subModuleId: subModuleId || '',
+                search: search || '',
+            }).toString();
+            const response = await getApi(`quizzes?${query}`, buildAuthHeader(authToken));
+            setMockTests(parseApiItems(response));
+        } catch (error: any) {
+            setMockTests([]);
+            Toast.show({
+                type: 'error',
+                text1: error?.response?.data?.message || 'Failed to fetch mock tests',
+            });
+        } finally {
+            setIsMockTestsLoading(false);
+        }
+    }, [authToken]);
+
     useEffect(() => {
         if (isFocused) {
-            dispatch(getStudentModulesRequest({}));
-            dispatch(paymentHistoryRequest({ page: 1, limit: 100 }));
+            void fetchModules();
         }
-    }, [dispatch, isFocused]);
+    }, [fetchModules, isFocused]);
 
     useEffect(() => {
-        dispatch(getMockTestListRequest({
-            moduleId: selectedModuleId || '',
-            subModuleId: selectedSubModuleId || '',
-            search: debouncedSearch,
-            page: 1,
-            limit: 10,
-        }));
-    }, [dispatch, selectedModuleId, selectedSubModuleId, debouncedSearch]);
+        void fetchSubModules(selectedModuleId);
+    }, [fetchSubModules, selectedModuleId]);
 
-    const { enrolledBundleIds, failedPendingBundleIds } = useMemo(() => {
-        const collectedIds = studentModules?.data?.modules || studentModules?.modules || studentModules?.data || (Array.isArray(studentModules) ? studentModules : []);
-        const paymentsList = paymentHistoryData?.data?.items || paymentHistoryData?.items || [];
-        const failedPending = new Set<string>();
+    useEffect(() => {
+        void fetchMockTests(selectedModuleId, selectedSubModuleId, debouncedSearch);
+    }, [debouncedSearch, fetchMockTests, selectedModuleId, selectedSubModuleId]);
 
-        const collectedBundleIds = collectedIds.map((item: any) => {
-            const bundleId = item?.bundleId || item?.bundle?.id || item?.bundle?._id || item?.id || item?._id;
-            return String(bundleId || '');
-        }).filter(Boolean);
-
-        if (Array.isArray(paymentsList) && paymentsList.length > 0) {
-            const paymentStatusMap = new Map<string, boolean>();
-            paymentsList.forEach((item: any) => {
-                const bundleId = String(item?.resourceId || item?.course?._id || item?.course?.id || item?.course || '');
-                if (bundleId) {
-                    const status = String(item?.status || '').toLowerCase();
-                    const isSuccess = status === 'captured' || status === 'success' || status === 'paid' || status === 'completed';
-                    if (isSuccess || !paymentStatusMap.has(bundleId)) {
-                        paymentStatusMap.set(bundleId, isSuccess);
-                    }
-                }
-            });
-
-            paymentStatusMap.forEach((isSuccess, bundleId) => {
-                if (!isSuccess) {
-                    failedPending.add(bundleId);
-                }
-            });
-
-            const filteredIds = collectedBundleIds.filter((id: string) => {
-                if (paymentStatusMap.has(id)) {
-                    return paymentStatusMap.get(id);
-                }
-                return true;
-            });
-
-            paymentStatusMap.forEach((isSuccess, bundleId) => {
-                if (isSuccess && !filteredIds.includes(bundleId)) {
-                    filteredIds.push(bundleId);
-                }
-            });
-
-            return {
-                enrolledBundleIds: Array.from(new Set(filteredIds)),
-                failedPendingBundleIds: failedPending,
-            };
-        }
-
-        return {
-            enrolledBundleIds: Array.from(new Set(collectedBundleIds)),
-            failedPendingBundleIds: failedPending,
-        };
-    }, [studentModules, paymentHistoryData]);
-
-    const rawModules = studentModules?.data?.modules || studentModules?.modules || studentModules?.data || (Array.isArray(studentModules) ? studentModules : []);
-    const modules = rawModules.filter((m: any) => {
-        const id = String(m?.id || m?._id || '');
-        return enrolledBundleIds.includes(id);
-    });
-
-    const activeModuleObj = modules.find((m: any) => String(m?.id || m?._id) === String(selectedModuleId));
-    const subModules = activeModuleObj?.subModules || activeModuleObj?.sub_modules || activeModuleObj?.submodules || activeModuleObj?.childModules || activeModuleObj?.children || [];
-
-    const rawData = Array.isArray(mockTestList)
-        ? mockTestList
-        : mockTestList?.data || mockTestList?.quizzes || mockTestList?.items || [];
-
-    const displayData = rawData.map((mock: any) => {
+    const displayData = useMemo(() => mockTests.map((mock: any) => {
         const correctMarks = mock?.positiveMarks ?? mock?.correctMarks ?? mock?.defaultMarks ?? mock?.marksPerQuestion ?? mock?.quiz?.positiveMarks ?? mock?.quiz?.defaultMarks ?? mock?.quiz?.marksPerQuestion ?? 1;
         const rawNeg = mock?.negativeMarks ?? mock?.negativeMarking ?? mock?.penalty ?? mock?.quiz?.negativeMarks ?? mock?.quiz?.negativeMarking ?? 0;
         const negVal = typeof rawNeg === 'object' && rawNeg !== null ? rawNeg.value : rawNeg;
@@ -143,26 +177,25 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
 
         const price = Number(mock?.price || mock?.quiz?.price || 0);
 
-        // Find if this mock test belongs to any module that is enrolled
-        const mockModuleId = String(mock?.moduleId || mock?.quiz?.moduleId || mock?.bundleId || mock?.quiz?.bundleId || mock?.module?._id || mock?.module?.id || selectedModuleId || '');
-        const isUnlocked = mockModuleId ? enrolledBundleIds.includes(mockModuleId) : false;
-
         return {
-            id: mock.id || mock._id || mock.testId,
-            title: mock.title || mock?.quiz?.title || 'Untitled Test',
-            subjects: mock.subjects || mock.description || mock?.quiz?.description || 'General Syllabus',
+            id: mock.id || mock._id || mock.testId || mock.quizId || mock?.quiz?.id || mock?.quiz?._id,
+            title: mock.name || mock.title || mock?.quiz?.name || mock?.quiz?.title || 'Untitled Test',
+            subjects: mock.description || mock.subjects || mock?.quiz?.description || 'General Syllabus',
             questions: mock.questionCount ?? mock.questionsCount ?? mock.questions?.length ?? mock?.quiz?.questionCount ?? mock?.quiz?.questionsCount ?? mock?.quiz?.questions?.length ?? null,
             duration: mock.durationMinutes ?? mock.duration ?? mock?.quiz?.durationMinutes ?? mock?.quiz?.duration ?? null,
             marking: markingStr,
             type: price > 0 ? 'premium' : 'free',
-            isUnlocked: isUnlocked,
-            price: price,
-            originalData: mock
+            price,
+            originalData: mock,
         };
-    }).filter((mock: any) => activeTab === 'Free Mock' ? mock.type === 'free' : mock.type === 'premium');
+    }), [mockTests]);
 
     const handleStartTest = (mock: any) => {
-        navigation.navigate('MockTestRules', { testId: mock.id });
+        if (!mock?.id) {
+            return;
+        }
+
+        navigation.navigate('MockTestRules', { testId: mock.id, testData: mock.originalData });
     };
 
     return (
@@ -182,24 +215,24 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
                 {/* Search Bar */}
                 <View style={styles.searchBarContainer}>
                     <Icon name="search" size={normalize(18)} color="#9CA3AF" style={styles.searchIcon} />
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="Search tests..."
-                        placeholderTextColor="#9CA3AF"
-                        value={searchInput}
-                        onChangeText={setSearchInput}
-                    />
-                    {searchInput.length > 0 && (
+                        <TextInput
+                            style={styles.searchInput}
+                            placeholder="Search tests..."
+                            placeholderTextColor="#9CA3AF"
+                            value={searchInput || ''}
+                            onChangeText={setSearchInput}
+                        />
+                    {(searchInput?.length || 0) > 0 && (
                         <Pressable onPress={() => setSearchInput('')}>
                             <Icon name="x" size={normalize(18)} color="#9CA3AF" />
                         </Pressable>
                     )}
                 </View>
 
-                {/* Modules Filter */}
+                {/* All Course Filter */}
                 {modules.length > 0 && (
                     <View style={styles.filterSection}>
-                        <Text style={styles.filterLabel}>Modules</Text>
+                        <Text style={styles.filterLabel}>All Course</Text>
                         <ScrollView
                             horizontal
                             showsHorizontalScrollIndicator={false}
@@ -214,14 +247,14 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
                                     setSelectedModuleId(null);
                                     setSelectedSubModuleId(null);
                                 }}
-                            >
-                                <Text
-                                    style={[
-                                        styles.filterPillText,
-                                        selectedModuleId === null && styles.filterPillTextActive,
-                                    ]}
                                 >
-                                    All Modules
+                                    <Text
+                                        style={[
+                                            styles.filterPillText,
+                                            selectedModuleId === null && styles.filterPillTextActive,
+                                        ]}
+                                    >
+                                    All Course
                                 </Text>
                             </Pressable>
                             {modules.map((m: any, idx: number) => {
@@ -255,10 +288,10 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
                     </View>
                 )}
 
-                {/* Sub-Modules Filter */}
+                {/* Category / Subcategory Filter */}
                 {selectedModuleId !== null && subModules.length > 0 && (
                     <View style={[styles.filterSection, { marginTop: verticalScale(8) }]}>
-                        <Text style={styles.filterLabel}>Sub Modules</Text>
+                        <Text style={styles.filterLabel}>Category</Text>
                         <ScrollView
                             horizontal
                             showsHorizontalScrollIndicator={false}
@@ -270,14 +303,14 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
                                     selectedSubModuleId === null && styles.filterPillActive,
                                 ]}
                                 onPress={() => setSelectedSubModuleId(null)}
-                            >
-                                <Text
-                                    style={[
-                                        styles.filterPillText,
-                                        selectedSubModuleId === null && styles.filterPillTextActive,
-                                    ]}
                                 >
-                                    All Sub Modules
+                                    <Text
+                                        style={[
+                                            styles.filterPillText,
+                                            selectedSubModuleId === null && styles.filterPillTextActive,
+                                        ]}
+                                    >
+                                    Subcategory
                                 </Text>
                             </Pressable>
                             {subModules.map((sm: any, idx: number) => {
@@ -308,22 +341,7 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
                     </View>
                 )}
 
-                <View style={styles.tabsContainer}>
-                    <Pressable
-                        style={[styles.tab, activeTab === 'Free Mock' && styles.activeTab]}
-                        onPress={() => setActiveTab('Free Mock')}
-                    >
-                        <Text style={[styles.tabText, activeTab === 'Free Mock' && styles.activeTabText]}>Free Mock</Text>
-                    </Pressable>
-                    <Pressable
-                        style={[styles.tab, activeTab === 'Purchased Mock' && styles.activeTab]}
-                        onPress={() => setActiveTab('Purchased Mock')}
-                    >
-                        <Text style={[styles.tabText, activeTab === 'Purchased Mock' && styles.activeTabText]}>Purchased Mock</Text>
-                    </Pressable>
-                </View>
-
-                {!hasMockTestResponse || isLoading ? (
+                {(isModulesLoading || isSubModulesLoading || isMockTestsLoading) ? (
                     <View style={{ marginTop: verticalScale(40), alignItems: 'center' }}>
                         <Text style={{ color: '#6B7280' }}>Loading tests...</Text>
                     </View>
@@ -332,9 +350,11 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
                         <Text style={{ color: '#6B7280' }}>No tests available right now.</Text>
                     </View>
                 ) : displayData.map((mock: any, i: number) => (
-                    <View key={i} style={styles.testCard}>
+                    <View key={mock.id || i} style={styles.testCard}>
                         <View style={styles.cardTopRow}>
-                            <Text style={styles.testTitle}>{mock.title}</Text>
+                            <Pressable onPress={() => handleStartTest(mock)} style={{ flex: 1, paddingRight: normalize(8) }}>
+                                <Text style={styles.testTitle}>{mock.title}</Text>
+                            </Pressable>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: normalize(8) }}>
                                 {mock.type === 'premium' ? (
                                     <View style={[styles.markingBadge, { backgroundColor: '#DCFCE7' }]}>
@@ -397,7 +417,7 @@ const MockBankScreen = ({ navigation }: MockBankScreenProps) => {
 
                         <Pressable style={styles.payButton} onPress={() => {
                             setShowPaymentModal(false);
-                            navigation.navigate('MockTestRules', { testId: selectedMock?.id });
+                            navigation.navigate('MockTestRules', { testId: selectedMock?.id, testData: selectedMock?.originalData });
                         }}>
                             <Text style={styles.payButtonText}>Pay ${selectedMock?.price} & Start</Text>
                         </Pressable>
@@ -416,11 +436,6 @@ const styles = StyleSheet.create({
     scrollContent: { paddingHorizontal: normalize(24), paddingTop: verticalScale(10) },
     headerTitle: { fontSize: normalize(28), fontWeight: '800', color: Colorpath.Primary, marginBottom: verticalScale(8) },
     sectionSubtitle: { fontSize: normalize(14), color: '#6B7280', marginBottom: verticalScale(24) },
-    tabsContainer: { flexDirection: 'row', backgroundColor: '#EEF2FF', borderRadius: normalize(12), padding: normalize(4), marginBottom: verticalScale(24) },
-    tab: { flex: 1, paddingVertical: verticalScale(10), alignItems: 'center', borderRadius: normalize(10) },
-    activeTab: { backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
-    tabText: { fontSize: normalize(14), fontWeight: '600', color: '#6B7280' },
-    activeTabText: { color: Colorpath.Primary },
     testCard: { backgroundColor: '#FFFFFF', borderRadius: normalize(16), padding: normalize(20), marginBottom: verticalScale(16), shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
     cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: verticalScale(6) },
     testTitle: { fontSize: normalize(16), fontWeight: 'bold', color: Colorpath.Primary, flex: 1 },
