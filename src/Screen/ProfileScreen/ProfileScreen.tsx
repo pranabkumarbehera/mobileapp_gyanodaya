@@ -71,7 +71,7 @@ const formatPhoneForDisplay = (phone?: string | null) => {
 
 const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
     const dispatch = useDispatch();
-    const { logoutResponse, isLoading: isAuthLoading } = useSelector((state: RootState) => state.AuthReducer);
+    const { logoutResponse, isLoading: isAuthLoading, token: authToken } = useSelector((state: RootState) => state.AuthReducer);
     const profileState = useSelector((state: RootState) => state.ProfileReducer);
     const profileData = profileState.profileData;
     const [isEditVisible, setIsEditVisible] = useState(false);
@@ -160,10 +160,26 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
     }, [logoutResponse, navigation]);
 
     useEffect(() => {
-        if (!profileData && !profileState.isLoading) {
+        if (!authToken) {
+            return;
+        }
+
+        const isAuthError = profileState.error && (
+            String(profileState.error?.message).toLowerCase().includes('unauthorized') ||
+            String(profileState.error?.message).toLowerCase().includes('token') ||
+            profileState.error?.status === 401 ||
+            profileState.error?.status === 403
+        );
+
+        if (isAuthError) {
+            dispatch(logoutRequest({}));
+            return;
+        }
+
+        if (!profileData && !profileState.isLoading && !profileState.error) {
             dispatch(getProfileRequest({}));
         }
-    }, [dispatch, profileData, profileState.isLoading]);
+    }, [authToken, dispatch, profileData, profileState.error, profileState.isLoading]);
 
     const mappedProfile = useMemo<EditableProfile>(() => normalizeProfileData(profileData), [profileData]);
 

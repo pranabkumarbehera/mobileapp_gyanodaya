@@ -1,4 +1,4 @@
-import { Linking, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import InAppUpdates, {
   AndroidNeedsUpdateResponse,
   IAUInstallStatus,
@@ -9,10 +9,6 @@ const PLAY_STORE_URL =
   'https://play.google.com/store/apps/details?id=com.gyanodaya.newapp';
 
 const inAppUpdates = new InAppUpdates(false);
-
-const openPlayStore = async () => {
-  await Linking.openURL(PLAY_STORE_URL).catch(() => undefined);
-};
 
 export const checkForAppUpdate = async (): Promise<void> => {
   if (Platform.OS !== 'android' || __DEV__) {
@@ -64,9 +60,7 @@ export const checkForAppUpdate = async (): Promise<void> => {
       return;
     }
 
-    await openPlayStore();
   } catch (error) {
     removeStatusListener();
-    await openPlayStore();
   }
 };

@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     BackHandler,
+    AppState,
+    AppStateStatus,
     Animated,
     Dimensions,
     Pressable,
@@ -174,6 +176,7 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
     const reviewedRef = useRef<Set<number>>(new Set());
     const currentIndexRef = useRef(0);
     const sessionMetaRef = useRef<typeof sessionMeta>(null);
+    const appStateRef = useRef<AppStateStatus>(AppState.currentState);
     const autoSubmitTriggeredRef = useRef(false);
     const submittingRef = useRef(false);
     const fiveMinuteWarningShownRef = useRef(false);
@@ -433,6 +436,23 @@ const MockTestQuestionScreen = ({ route, navigation }: MockTestQuestionScreenPro
 
         return () => clearInterval(timerId);
     }, [sessionMeta]);
+
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', (nextState) => {
+            const previousState = appStateRef.current;
+            appStateRef.current = nextState;
+
+            if ((previousState === 'background' || previousState === 'inactive') && nextState === 'active' && sessionMetaRef.current) {
+                const secondsLeft = Math.max(0, Math.ceil((sessionMetaRef.current.endTimestamp - Date.now()) / 1000));
+                setRemainingSeconds(secondsLeft);
+                if (secondsLeft <= PAGE_BUFFER_SECONDS && !autoSubmitTriggeredRef.current) {
+                    submitLatestAnswers(true);
+                }
+            }
+        });
+
+        return () => subscription.remove();
+    }, []);
 
     useEffect(() => {
         if (isSubmittingExam && submitTestResponse && submittedAttemptId && hasResultPayload(testResult)) {

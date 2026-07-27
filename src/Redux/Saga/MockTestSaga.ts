@@ -64,6 +64,23 @@ const ensureLoginRedirectUrl = (paymentUrl: string) => {
     }
 };
 
+const isAlreadySubmittedResponse = (response: any) => {
+    const message = String(
+        response?.data?.message ||
+        response?.data?.error ||
+        response?.message ||
+        response?.error ||
+        '',
+    ).toLowerCase();
+
+    return (
+        response?.status === 409 ||
+        message.includes('already submitted') ||
+        message.includes('already-submitted') ||
+        message.includes('duplicate submission')
+    );
+};
+
 export function* getMockTestListSaga(action: any): Generator<any, void, any> {
     const auth = yield select(getAuth);
     const header = {
@@ -369,9 +386,16 @@ export function* submitTestSaga(action: any): Generator<any, void, any> {
     try {
         const payload = { answers: action.payload.answers };
         const response = yield call(postApi, `student/attempts/${action.payload.id}/submit`, payload, header);
-        if (response?.data?.success === true || response?.status === 201 || response?.status === 200) {
+        if (
+            response?.data?.success === true ||
+            response?.status === 201 ||
+            response?.status === 200 ||
+            isAlreadySubmittedResponse(response)
+        ) {
             yield put(submitTestSuccess(response?.data?.data || response?.data));
-            Toast.show({ type: 'success', text1: 'Test submitted successfully' });
+            if (!isAlreadySubmittedResponse(response)) {
+                Toast.show({ type: 'success', text1: 'Test submitted successfully' });
+            }
             // Automatically fetch results after submission
             yield put(getTestResultRequest({ id: action.payload.id }));
         } else {
@@ -379,6 +403,12 @@ export function* submitTestSaga(action: any): Generator<any, void, any> {
             Toast.show({ type: 'error', text1: response?.data?.message || 'Failed to submit test' });
         }
     } catch (error: any) {
+        if (isAlreadySubmittedResponse(error?.response)) {
+            yield put(submitTestSuccess(error?.response?.data?.data || error?.response?.data));
+            yield put(getTestResultRequest({ id: action.payload.id }));
+            return;
+        }
+
         yield put(submitTestFailure(error));
         Toast.show({ type: 'error', text1: error?.response?.data?.message || '!Oops something went wrong' });
     }

@@ -15,15 +15,9 @@ import store from './src/Redux/Store';
 import StackNav from './src/Navigator/StackNav';
 import { checkForAppUpdate } from './src/Utils/checkForAppUpdate';
 
-const UPDATE_CHECK_DELAY_MS = 2 * 60 * 1000;
-
 function App() {
   useEffect(() => {
-    const timer = setTimeout(() => {
-      void checkForAppUpdate();
-    }, UPDATE_CHECK_DELAY_MS);
-
-    return () => clearTimeout(timer);
+    void checkForAppUpdate();
   }, []);
 
   return (

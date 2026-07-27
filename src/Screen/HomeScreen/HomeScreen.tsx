@@ -18,6 +18,7 @@ import Avatar from '../../Components/Avatar';
 import EmptyState from '../../Components/EmptyState';
 import { RootStackParamList } from '../../Navigator/StackNav';
 import { bootstrapHomeRequest } from '../../Redux/Reducers/HomeReducer';
+import { logoutRequest } from '../../Redux/Reducers/AuthReducer';
 import { clearTestResult, getTestResultRequest } from '../../Redux/Reducers/MockTestReducer';
 import { getProfileRequest } from '../../Redux/Reducers/ProfileReducer';
 import { RootState } from '../../Redux/Store';
@@ -165,16 +166,48 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
     );
 
     useEffect(() => {
-        if (!homeState.dashboardData && !homeState.isBootstrapping) {
+        if (!authState.token) {
+            return;
+        }
+
+        const isAuthError = homeState.error && (
+            String(homeState.error?.message).toLowerCase().includes('unauthorized') ||
+            String(homeState.error?.message).toLowerCase().includes('token') ||
+            homeState.error?.status === 401 ||
+            homeState.error?.status === 403
+        );
+
+        if (isAuthError) {
+            dispatch(logoutRequest({}));
+            return;
+        }
+
+        if (!homeState.dashboardData && !homeState.isBootstrapping && !homeState.error) {
             dispatch(bootstrapHomeRequest({}));
         }
-    }, [dispatch, homeState.dashboardData, homeState.isBootstrapping]);
+    }, [authState.token, dispatch, homeState.dashboardData, homeState.isBootstrapping, homeState.error]);
 
     useEffect(() => {
-        if (authState.token && !profileState.profileData && !profileState.isLoading) {
+        if (!authState.token) {
+            return;
+        }
+
+        const isAuthError = profileState.error && (
+            String(profileState.error?.message).toLowerCase().includes('unauthorized') ||
+            String(profileState.error?.message).toLowerCase().includes('token') ||
+            profileState.error?.status === 401 ||
+            profileState.error?.status === 403
+        );
+
+        if (isAuthError) {
+            dispatch(logoutRequest({}));
+            return;
+        }
+
+        if (!profileState.profileData && !profileState.isLoading && !profileState.error) {
             dispatch(getProfileRequest({}));
         }
-    }, [authState.token, dispatch, profileState.isLoading, profileState.profileData]);
+    }, [authState.token, dispatch, profileState.error, profileState.isLoading, profileState.profileData]);
 
     useEffect(() => {
         if (
