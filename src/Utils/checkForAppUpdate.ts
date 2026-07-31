@@ -8,25 +8,25 @@ import InAppUpdates, {
 const PLAY_STORE_URL =
   'https://play.google.com/store/apps/details?id=com.gyanodaya.newapp';
 
-const inAppUpdates = new InAppUpdates(false);
-
 export const checkForAppUpdate = async (): Promise<void> => {
   if (Platform.OS !== 'android' || __DEV__) {
     return;
   }
 
+  let inAppUpdates: InAppUpdates | null = null;
   let statusListener:
     | ((status: { status: IAUInstallStatus }) => void)
     | undefined;
 
   const removeStatusListener = () => {
-    if (statusListener) {
+    if (statusListener && inAppUpdates) {
       inAppUpdates.removeStatusUpdateListener(statusListener);
       statusListener = undefined;
     }
   };
 
   try {
+    inAppUpdates = new InAppUpdates(false);
     const result =
       (await inAppUpdates.checkNeedsUpdate()) as AndroidNeedsUpdateResponse;
 
